@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  body {
+    @apply text-slate-600 antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme('colors.brass.500');
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: theme('colors.brass.200');
+  }
+}
+
+@layer components {
+  .input {
+    @apply w-full rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 outline-none transition-colors;
+  }
+  .input:focus {
+    @apply border-wake-400;
+  }
+}
+
+@layer utilities {
+  .wake-underline {
+    position: relative;
+  }
+  .wake-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 2px;
+    background-image: theme('backgroundImage.wake');
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
