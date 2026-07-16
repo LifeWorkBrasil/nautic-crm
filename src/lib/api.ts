@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 import type {
-  ModeloBarco,
+  CategoriaProduto,
+  SubcategoriaProduto,
+  Produto,
   Motor,
   Acessorio,
   ClienteLead,
@@ -8,57 +10,75 @@ import type {
   EmpresaConfig,
 } from '@/types'
 
-// ---------- Modelos ----------
+// ---------- Categorias / Subcategorias ----------
 
-export async function listModelos(): Promise<ModeloBarco[]> {
-  const { data, error } = await supabase
-    .from('modelos_barcos')
-    .select('id, nome, descricao, preco_base, comprimento, fotos_modelos(url_imagem, principal)')
-    .order('nome')
+export async function listCategorias(): Promise<CategoriaProduto[]> {
+  const { data, error } = await supabase.from('categorias_produto').select('*').order('ordem')
   if (error) throw error
-  return (data ?? []).map(({ fotos_modelos, ...modelo }) => ({
-    ...modelo,
+  return data ?? []
+}
+
+export async function listSubcategorias(categoriaId?: string): Promise<SubcategoriaProduto[]> {
+  let query = supabase.from('subcategorias_produto').select('*').order('ordem')
+  if (categoriaId) query = query.eq('categoria_id', categoriaId)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+// ---------- Produtos ----------
+
+export async function listProdutos(subcategoriaId?: string): Promise<Produto[]> {
+  let query = supabase
+    .from('produtos')
+    .select('id, nome, descricao, preco_base, comprimento, subcategoria_id, fotos_produto(url_imagem, principal)')
+    .order('nome')
+  if (subcategoriaId) query = query.eq('subcategoria_id', subcategoriaId)
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []).map(({ fotos_produto, ...produto }) => ({
+    ...produto,
     foto_principal_url:
-      fotos_modelos?.find((f) => f.principal)?.url_imagem ?? fotos_modelos?.[0]?.url_imagem,
+      fotos_produto?.find((f) => f.principal)?.url_imagem ?? fotos_produto?.[0]?.url_imagem,
   }))
 }
 
-export async function createModelo(
-  modelo: Omit<ModeloBarco, 'id' | 'foto_principal_url'>
-): Promise<ModeloBarco> {
+export async function createProduto(
+  produto: Omit<Produto, 'id' | 'foto_principal_url'>
+): Promise<Produto> {
   const { data, error } = await supabase
-    .from('modelos_barcos')
-    .insert(modelo)
+    .from('produtos')
+    .insert(produto)
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function updateModelo(
+export async function updateProduto(
   id: string,
-  patch: Partial<Omit<ModeloBarco, 'id'>>
+  patch: Partial<Omit<Produto, 'id'>>
 ): Promise<void> {
-  const { error } = await supabase.from('modelos_barcos').update(patch).eq('id', id)
+  const { error } = await supabase.from('produtos').update(patch).eq('id', id)
   if (error) throw error
 }
 
-export async function deleteModelo(id: string): Promise<void> {
-  const { error } = await supabase.from('modelos_barcos').delete().eq('id', id)
+export async function deleteProduto(id: string): Promise<void> {
+  const { error } = await supabase.from('produtos').delete().eq('id', id)
   if (error) throw error
 }
 
-export async function uploadFotoModelo(modeloId: string, file: File): Promise<string> {
+export async function uploadFotoProduto(produtoId: string, file: File): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `${modeloId}/${crypto.randomUUID()}.${ext}`
-  const { error: uploadError } = await supabase.storage.from('modelos').upload(path, file)
+  const path = `${produtoId}/${crypto.randomUUID()}.${ext}`
+  const { error: uploadError } = await supabase.storage.from('produtos').upload(path, file)
   if (uploadError) throw uploadError
 
-  const { data } = supabase.storage.from('modelos').getPublicUrl(path)
+  const { data } = supabase.storage.from('produtos').getPublicUrl(path)
 
   const { error: insertError } = await supabase
-    .from('fotos_modelos')
-    .insert({ modelo_id: modeloId, url_imagem: data.publicUrl, principal: true })
+    .from('fotos_produto')
+    .insert({ produto_id: produtoId, url_imagem: data.publicUrl, principal: true })
   if (insertError) throw insertError
 
   return data.publicUrl
@@ -146,7 +166,7 @@ export async function updateLeadStatus(id: string, status: StatusCRM): Promise<v
 
 export async function criarOrcamento(input: {
   cliente_id: string
-  modelo_id: string
+  produto_id: string
   motor_id: string | null
   acessorio_ids: string[]
   valor_total: number
@@ -159,7 +179,7 @@ export async function criarOrcamento(input: {
     .from('orcamentos')
     .insert({
       cliente_id: input.cliente_id,
-      modelo_id: input.modelo_id,
+      produto_id: input.produto_id,
       motor_id: input.motor_id,
       valor_total: input.valor_total,
       status: 'Rascunho',

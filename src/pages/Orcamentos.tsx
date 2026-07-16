@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, FileDown, Link2, ChevronRight, Building2 } from 'lucide-react'
 import {
-  listModelos,
+  listProdutos,
   listMotores,
   listAcessorios,
   listLeads,
@@ -9,19 +9,16 @@ import {
   criarOrcamento,
   getEmpresaConfig,
 } from '@/lib/api'
-import type { ModeloBarco, Motor, Acessorio, ClienteLead, EmpresaConfig } from '@/types'
+import { formatBRL } from '@/lib/format'
+import type { Produto, Motor, Acessorio, ClienteLead, EmpresaConfig } from '@/types'
 
 const PASSOS = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Visualização & Envio']
-
-function formatBRL(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
 
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
-  const [modelos, setModelos] = useState<ModeloBarco[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [motores, setMotores] = useState<Motor[]>([])
   const [acessorios, setAcessorios] = useState<Acessorio[]>([])
   const [leads, setLeads] = useState<ClienteLead[]>([])
@@ -30,7 +27,7 @@ export default function Orcamentos() {
   const [passo, setPasso] = useState(0)
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [novoClienteNome, setNovoClienteNome] = useState('')
-  const [modeloId, setModeloId] = useState<string | null>(null)
+  const [produtoId, setProdutoId] = useState<string | null>(null)
   const [motorId, setMotorId] = useState<string | null>(null)
   const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<Set<string>>(new Set())
 
@@ -43,13 +40,13 @@ export default function Orcamentos() {
     async function carregar() {
       try {
         const [md, mo, ac, ld, emp] = await Promise.all([
-          listModelos(),
+          listProdutos(),
           listMotores(),
           listAcessorios(),
           listLeads(),
           getEmpresaConfig(),
         ])
-        setModelos(md)
+        setProdutos(md)
         setMotores(mo.filter((m) => m.ativo))
         setAcessorios(ac)
         setLeads(ld)
@@ -64,12 +61,12 @@ export default function Orcamentos() {
   }, [])
 
   const cliente = leads.find((l) => l.id === clienteId) ?? null
-  const modelo = modelos.find((m) => m.id === modeloId) ?? null
+  const produto = produtos.find((p) => p.id === produtoId) ?? null
   const motor = motores.find((m) => m.id === motorId) ?? null
 
   const acessoriosDisponiveis = useMemo(
-    () => acessorios.filter((a) => a.modelo_id === null || a.modelo_id === modeloId),
-    [acessorios, modeloId]
+    () => acessorios.filter((a) => a.produto_id === null || a.produto_id === produtoId),
+    [acessorios, produtoId]
   )
 
   const totalAcessorios = useMemo(
@@ -80,7 +77,7 @@ export default function Orcamentos() {
     [acessoriosDisponiveis, acessoriosSelecionados]
   )
 
-  const total = (modelo?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
+  const total = (produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
 
   function toggleAcessorio(id: string) {
     setAcessoriosSelecionados((prev) => {
@@ -114,7 +111,7 @@ export default function Orcamentos() {
     setGerandoPdf(true)
     try {
       const { default: html2pdf } = await import('html2pdf.js')
-      const nomeArquivo = `orcamento-${modelo?.nome ?? 'proposta'}-${cliente?.nome ?? 'cliente'}`
+      const nomeArquivo = `orcamento-${produto?.nome ?? 'proposta'}-${cliente?.nome ?? 'cliente'}`
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
@@ -137,12 +134,12 @@ export default function Orcamentos() {
   }
 
   async function salvarOrcamento() {
-    if (!clienteId || !modeloId) return
+    if (!clienteId || !produtoId) return
     setSalvando(true)
     try {
       await criarOrcamento({
         cliente_id: clienteId,
-        modelo_id: modeloId,
+        produto_id: produtoId,
         motor_id: motorId,
         acessorio_ids: Array.from(acessoriosSelecionados),
         valor_total: total,
@@ -157,7 +154,7 @@ export default function Orcamentos() {
   }
 
   const podeAvancar =
-    (passo === 0 && clienteId !== null && modeloId !== null) ||
+    (passo === 0 && clienteId !== null && produtoId !== null) ||
     (passo === 1 && motorId !== null) ||
     passo === 2 ||
     passo === 3
@@ -183,10 +180,10 @@ export default function Orcamentos() {
         </div>
       )}
 
-      {modelos.length === 0 && (
+      {produtos.length === 0 && (
         <div className="mb-5 rounded-md border border-brass-400/40 bg-brass-200/20 px-4 py-2.5 text-sm text-hull-900">
-          Nenhum modelo cadastrado ainda. Cadastre pelo menos um em Parametrização antes de gerar
-          um orçamento.
+          Nenhum produto cadastrado ainda. Cadastre pelo menos um no Catálogo antes de gerar um
+          orçamento.
         </div>
       )}
 
@@ -247,22 +244,22 @@ export default function Orcamentos() {
               </div>
 
               <div>
-                <p className="mb-2 text-sm font-medium text-hull-900">Modelo do barco</p>
+                <p className="mb-2 text-sm font-medium text-hull-900">Produto</p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {modelos.map((m) => (
+                  {produtos.map((p) => (
                     <button
-                      key={m.id}
-                      onClick={() => setModeloId(m.id)}
+                      key={p.id}
+                      onClick={() => setProdutoId(p.id)}
                       className={`rounded-md border p-3 text-left transition-colors ${
-                        modeloId === m.id
+                        produtoId === p.id
                           ? 'border-brass-500 bg-brass-200/20'
                           : 'border-foam-200 hover:border-wake-400'
                       }`}
                     >
-                      <p className="font-display text-base text-hull-900">{m.nome}</p>
-                      <p className="text-xs text-slate-500">{m.descricao}</p>
+                      <p className="font-display text-base text-hull-900">{p.nome}</p>
+                      <p className="text-xs text-slate-500">{p.descricao}</p>
                       <p className="mt-1 font-mono text-xs text-slate-600">
-                        {formatBRL(m.preco_base)}
+                        {formatBRL(p.preco_base)}
                       </p>
                     </button>
                   ))}
@@ -274,7 +271,7 @@ export default function Orcamentos() {
           {passo === 1 && (
             <div>
               <p className="mb-2 text-sm font-medium text-hull-900">
-                Motores compatíveis com {modelo?.nome}
+                Motores compatíveis com {produto?.nome}
               </p>
               {motores.length === 0 && (
                 <p className="text-sm text-slate-400">Nenhum motor ativo cadastrado.</p>
@@ -309,7 +306,7 @@ export default function Orcamentos() {
             <div>
               <p className="mb-2 text-sm font-medium text-hull-900">Opcionais disponíveis</p>
               {acessoriosDisponiveis.length === 0 && (
-                <p className="text-sm text-slate-400">Nenhum acessório disponível para este modelo.</p>
+                <p className="text-sm text-slate-400">Nenhum acessório disponível para este produto.</p>
               )}
               <div className="space-y-2">
                 {acessoriosDisponiveis.map((a) => (
@@ -359,15 +356,15 @@ export default function Orcamentos() {
 
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-wake-500">Proposta</p>
-                  <h2 className="font-display text-2xl text-hull-900">{modelo?.nome}</h2>
+                  <h2 className="font-display text-2xl text-hull-900">{produto?.nome}</h2>
                   <p className="text-sm text-slate-500">Preparado para {cliente?.nome ?? 'cliente'}</p>
                 </div>
 
                 <div className="aspect-video overflow-hidden rounded-md bg-hull-900/[0.04]">
-                  {modelo?.foto_principal_url && (
+                  {produto?.foto_principal_url && (
                     <img
-                      src={modelo.foto_principal_url}
-                      alt={modelo.nome}
+                      src={produto.foto_principal_url}
+                      alt={produto.nome}
                       className="h-full w-full object-cover"
                       crossOrigin="anonymous"
                     />
@@ -376,8 +373,8 @@ export default function Orcamentos() {
 
                 <dl className="divide-y divide-foam-200 rounded-md border border-foam-200">
                   <div className="flex justify-between px-4 py-2.5 text-sm">
-                    <dt className="text-slate-500">Casco {modelo?.nome}</dt>
-                    <dd className="font-mono text-hull-900">{formatBRL(modelo?.preco_base ?? 0)}</dd>
+                    <dt className="text-slate-500">Casco {produto?.nome}</dt>
+                    <dd className="font-mono text-hull-900">{formatBRL(produto?.preco_base ?? 0)}</dd>
                   </div>
                   {motor && (
                     <div className="flex justify-between px-4 py-2.5 text-sm">
@@ -409,7 +406,7 @@ export default function Orcamentos() {
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={gerarPdf}
-                  disabled={gerandoPdf || !modelo}
+                  disabled={gerandoPdf || !produto}
                   className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 hover:bg-hull-800 disabled:opacity-60"
                 >
                   <FileDown className="h-4 w-4" strokeWidth={1.75} />
@@ -466,7 +463,7 @@ export default function Orcamentos() {
           <dl className="mt-4 space-y-1.5 border-t border-hull-800 pt-4 text-xs">
             <div className="flex justify-between">
               <dt className="text-slate-400">Casco</dt>
-              <dd className="font-mono">{formatBRL(modelo?.preco_base ?? 0)}</dd>
+              <dd className="font-mono">{formatBRL(produto?.preco_base ?? 0)}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-400">Motor</dt>

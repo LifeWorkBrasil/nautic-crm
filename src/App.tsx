@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import CRM from './pages/CRM'
+import Catalogo from './pages/Catalogo'
 import Parametrizacao from './pages/Parametrizacao'
 import Orcamentos from './pages/Orcamentos'
 import Empresa from './pages/Empresa'
@@ -38,6 +39,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<CRM />} />
+        <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
         <Route path="/parametrizacao" element={<Parametrizacao />} />
         <Route path="/orcamentos" element={<Orcamentos />} />
         <Route path="/empresa" element={<Empresa />} />

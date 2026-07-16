@@ -6,12 +6,20 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
-export default function Modal({ title, onClose, children, footer }: ModalProps) {
+const TAMANHOS: Record<NonNullable<ModalProps['size']>, string> = {
+  sm: 'max-w-sm',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+}
+
+export default function Modal({ title, onClose, children, footer, size = 'md' }: ModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-hull-950/50 p-4">
-      <div className="w-full max-w-lg rounded-md bg-white shadow-xl">
+      <div className={`w-full ${TAMANHOS[size]} rounded-md bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b border-foam-200 px-5 py-4">
           <h2 className="font-display text-lg text-hull-900">{title}</h2>
           <button

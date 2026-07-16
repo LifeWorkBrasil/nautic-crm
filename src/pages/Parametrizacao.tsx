@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Ship, Zap, PackagePlus, Plus, ImagePlus, Pencil, Trash2 } from 'lucide-react'
+import { Zap, PackagePlus, Plus, Pencil, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
+import { CampoTexto, CampoNumero } from '@/components/campos'
+import { formatBRL } from '@/lib/format'
 import {
-  listModelos,
-  createModelo,
-  updateModelo,
-  deleteModelo,
-  uploadFotoModelo,
   listMotores,
   createMotor,
   updateMotor,
@@ -15,23 +12,19 @@ import {
   createAcessorio,
   updateAcessorio,
   deleteAcessorio,
+  listProdutos,
 } from '@/lib/api'
-import type { ModeloBarco, Motor, Acessorio } from '@/types'
+import type { Motor, Acessorio, Produto } from '@/types'
 
-type Aba = 'modelos' | 'motores' | 'acessorios'
+type Aba = 'motores' | 'acessorios'
 
-const TABS: { key: Aba; label: string; icon: typeof Ship }[] = [
-  { key: 'modelos', label: 'Modelos', icon: Ship },
+const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'motores', label: 'Motores', icon: Zap },
   { key: 'acessorios', label: 'Acessórios', icon: PackagePlus },
 ]
 
-function formatBRL(v: number) {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 export default function Parametrizacao() {
-  const [aba, setAba] = useState<Aba>('modelos')
+  const [aba, setAba] = useState<Aba>('motores')
 
   return (
     <div className="p-8">
@@ -61,7 +54,6 @@ export default function Parametrizacao() {
         ))}
       </div>
 
-      {aba === 'modelos' && <AbaModelos />}
       {aba === 'motores' && <AbaMotores />}
       {aba === 'acessorios' && <AbaAcessorios />}
     </div>
@@ -85,221 +77,6 @@ function ErroBanner({ erro }: { erro: string | null }) {
   return (
     <div className="mb-4 rounded-md border border-signal-red/30 bg-signal-red/5 px-4 py-2.5 text-sm text-signal-red">
       {erro}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Modelos
-// ---------------------------------------------------------------------------
-
-const MODELO_VAZIO = { nome: '', descricao: '', preco_base: 0, comprimento: null as number | null }
-
-function AbaModelos() {
-  const [itens, setItens] = useState<ModeloBarco[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
-  const [editando, setEditando] = useState<ModeloBarco | null>(null)
-  const [criando, setCriando] = useState(false)
-  const [form, setForm] = useState(MODELO_VAZIO)
-  const [salvando, setSalvando] = useState(false)
-  const [enviandoFoto, setEnviandoFoto] = useState<string | null>(null)
-
-  async function carregar() {
-    setCarregando(true)
-    try {
-      setItens(await listModelos())
-      setErro(null)
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar modelos')
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  useEffect(() => {
-    carregar()
-  }, [])
-
-  function abrirCriacao() {
-    setForm(MODELO_VAZIO)
-    setCriando(true)
-  }
-
-  function abrirEdicao(m: ModeloBarco) {
-    setForm({
-      nome: m.nome,
-      descricao: m.descricao,
-      preco_base: m.preco_base,
-      comprimento: m.comprimento,
-    })
-    setEditando(m)
-  }
-
-  async function salvar() {
-    setSalvando(true)
-    try {
-      if (editando) {
-        await updateModelo(editando.id, form)
-      } else {
-        await createModelo(form)
-      }
-      setEditando(null)
-      setCriando(false)
-      await carregar()
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar modelo')
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  async function excluir(id: string) {
-    if (!confirm('Excluir este modelo? Acessórios e orçamentos vinculados também serão removidos.'))
-      return
-    try {
-      await deleteModelo(id)
-      await carregar()
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir modelo')
-    }
-  }
-
-  async function handleFoto(modeloId: string, file: File) {
-    setEnviandoFoto(modeloId)
-    try {
-      await uploadFotoModelo(modeloId, file)
-      await carregar()
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao enviar foto')
-    } finally {
-      setEnviandoFoto(null)
-    }
-  }
-
-  const modalAberto = criando || editando !== null
-
-  return (
-    <div>
-      <ErroBanner erro={erro} />
-      <div className="mb-4 flex justify-end">
-        <AddButton label="Novo modelo" onClick={abrirCriacao} />
-      </div>
-
-      {carregando ? (
-        <p className="text-sm text-slate-400">Carregando…</p>
-      ) : itens.length === 0 ? (
-        <p className="text-sm text-slate-400">Nenhum modelo cadastrado ainda.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {itens.map((modelo) => (
-            <article key={modelo.id} className="rounded-md border border-foam-200 bg-white p-4">
-              <label className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-hull-900/[0.04] text-slate-400 hover:bg-hull-900/[0.07]">
-                {modelo.foto_principal_url ? (
-                  <img
-                    src={modelo.foto_principal_url}
-                    alt={modelo.nome}
-                    className="h-full w-full object-cover"
-                  />
-                ) : enviandoFoto === modelo.id ? (
-                  <span className="text-xs">Enviando…</span>
-                ) : (
-                  <span className="flex flex-col items-center gap-1 text-xs">
-                    <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
-                    Adicionar foto
-                  </span>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFoto(modelo.id, file)
-                  }}
-                />
-              </label>
-              <p className="font-display text-lg text-hull-900">{modelo.nome}</p>
-              <p className="text-xs text-slate-500">{modelo.descricao}</p>
-              <div className="mt-3 flex items-center justify-between border-t border-foam-200 pt-3">
-                <span className="font-mono text-sm text-hull-900">
-                  {formatBRL(modelo.preco_base)}
-                </span>
-                <span className="text-xs text-slate-400">
-                  {modelo.comprimento ? `${modelo.comprimento} m` : '—'}
-                </span>
-              </div>
-              <div className="mt-3 flex gap-2 border-t border-foam-200 pt-3">
-                <button
-                  onClick={() => abrirEdicao(modelo)}
-                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
-                >
-                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Editar
-                </button>
-                <button
-                  onClick={() => excluir(modelo.id)}
-                  className="ml-auto flex items-center gap-1 text-xs text-signal-red/80 hover:text-signal-red"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Excluir
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-
-      {modalAberto && (
-        <Modal
-          title={editando ? `Editar ${editando.nome}` : 'Novo modelo'}
-          onClose={() => {
-            setCriando(false)
-            setEditando(null)
-          }}
-          footer={
-            <>
-              <button
-                onClick={() => {
-                  setCriando(false)
-                  setEditando(null)
-                }}
-                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={salvar}
-                disabled={salvando || !form.nome.trim()}
-                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
-              >
-                {salvando ? 'Salvando…' : 'Salvar'}
-              </button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
-            <CampoTexto
-              label="Descrição"
-              value={form.descricao}
-              onChange={(v) => setForm({ ...form, descricao: v })}
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <CampoNumero
-                label="Preço base (R$)"
-                value={form.preco_base}
-                onChange={(v) => setForm({ ...form, preco_base: v })}
-              />
-              <CampoNumero
-                label="Comprimento (m)"
-                value={form.comprimento ?? 0}
-                onChange={(v) => setForm({ ...form, comprimento: v || null })}
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
@@ -530,11 +307,11 @@ function AbaMotores() {
 // Acessórios
 // ---------------------------------------------------------------------------
 
-const ACESSORIO_VAZIO = { nome: '', preco: 0, categoria: '', modelo_id: null as string | null }
+const ACESSORIO_VAZIO = { nome: '', preco: 0, categoria: '', produto_id: null as string | null }
 
 function AbaAcessorios() {
   const [itens, setItens] = useState<Acessorio[]>([])
-  const [modelos, setModelos] = useState<ModeloBarco[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [editando, setEditando] = useState<Acessorio | null>(null)
@@ -545,9 +322,9 @@ function AbaAcessorios() {
   async function carregar() {
     setCarregando(true)
     try {
-      const [ac, md] = await Promise.all([listAcessorios(), listModelos()])
+      const [ac, pr] = await Promise.all([listAcessorios(), listProdutos()])
       setItens(ac)
-      setModelos(md)
+      setProdutos(pr)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar acessórios')
@@ -566,7 +343,7 @@ function AbaAcessorios() {
   }
 
   function abrirEdicao(a: Acessorio) {
-    setForm({ nome: a.nome, preco: a.preco, categoria: a.categoria, modelo_id: a.modelo_id })
+    setForm({ nome: a.nome, preco: a.preco, categoria: a.categoria, produto_id: a.produto_id })
     setEditando(a)
   }
 
@@ -627,8 +404,8 @@ function AbaAcessorios() {
                   <td className="px-4 py-3 text-hull-900">{item.nome}</td>
                   <td className="px-4 py-3 text-slate-600">{item.categoria}</td>
                   <td className="px-4 py-3 text-slate-500">
-                    {item.modelo_id
-                      ? modelos.find((m) => m.id === item.modelo_id)?.nome ?? '—'
+                    {item.produto_id
+                      ? produtos.find((p) => p.id === item.produto_id)?.nome ?? '—'
                       : 'Universal'}
                   </td>
                   <td className="px-4 py-3 font-mono text-slate-600">{formatBRL(item.preco)}</td>
@@ -692,17 +469,17 @@ function AbaAcessorios() {
             </div>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-hull-900">
-                Vincular a um modelo (opcional)
+                Vincular a um produto (opcional)
               </span>
               <select
-                value={form.modelo_id ?? ''}
-                onChange={(e) => setForm({ ...form, modelo_id: e.target.value || null })}
+                value={form.produto_id ?? ''}
+                onChange={(e) => setForm({ ...form, produto_id: e.target.value || null })}
                 className="input"
               >
-                <option value="">Universal (todos os modelos)</option>
-                {modelos.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome}
+                <option value="">Universal (todos os produtos)</option>
+                {produtos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome}
                   </option>
                 ))}
               </select>
@@ -711,49 +488,5 @@ function AbaAcessorios() {
         </Modal>
       )}
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Campos de formulário compartilhados
-// ---------------------------------------------------------------------------
-
-function CampoTexto({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-hull-900">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="input" />
-    </label>
-  )
-}
-
-function CampoNumero({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-hull-900">{label}</span>
-      <input
-        type="number"
-        step="0.01"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="input"
-      />
-    </label>
   )
 }

@@ -16,12 +16,26 @@ export interface ClienteLead {
   criado_em: string
 }
 
-export interface ModeloBarco {
+export interface CategoriaProduto {
+  id: string
+  nome: string
+  ordem: number
+}
+
+export interface SubcategoriaProduto {
+  id: string
+  categoria_id: string
+  nome: string
+  ordem: number
+}
+
+export interface Produto {
   id: string
   nome: string
   descricao: string
   preco_base: number
   comprimento: number | null
+  subcategoria_id: string
   foto_principal_url?: string
 }
 
@@ -40,7 +54,7 @@ export interface Acessorio {
   nome: string
   preco: number
   categoria: string
-  modelo_id: string | null
+  produto_id: string | null
 }
 
 export interface EmpresaConfig {
@@ -60,7 +74,7 @@ export interface EmpresaConfig {
 export interface Orcamento {
   id: string
   cliente_id: string
-  modelo_id: string
+  produto_id: string
   motor_id: string
   valor_total: number
   status: 'Rascunho' | 'Enviado' | 'Aprovado'
