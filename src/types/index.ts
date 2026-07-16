@@ -39,6 +39,20 @@ export interface Produto {
   foto_principal_url?: string
 }
 
+export interface FotoProduto {
+  id: string
+  produto_id: string
+  url_imagem: string
+  principal: boolean
+}
+
+export interface VideoProduto {
+  id: string
+  produto_id: string
+  url_youtube: string
+  titulo: string | null
+}
+
 export interface Motor {
   id: string
   marca: string

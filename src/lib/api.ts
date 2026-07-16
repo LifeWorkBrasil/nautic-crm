@@ -3,6 +3,8 @@ import type {
   CategoriaProduto,
   SubcategoriaProduto,
   Produto,
+  FotoProduto,
+  VideoProduto,
   Motor,
   Acessorio,
   ClienteLead,
@@ -76,12 +78,76 @@ export async function uploadFotoProduto(produtoId: string, file: File): Promise<
 
   const { data } = supabase.storage.from('produtos').getPublicUrl(path)
 
+  const { count } = await supabase
+    .from('fotos_produto')
+    .select('id', { count: 'exact', head: true })
+    .eq('produto_id', produtoId)
+
   const { error: insertError } = await supabase
     .from('fotos_produto')
-    .insert({ produto_id: produtoId, url_imagem: data.publicUrl, principal: true })
+    .insert({ produto_id: produtoId, url_imagem: data.publicUrl, principal: (count ?? 0) === 0 })
   if (insertError) throw insertError
 
   return data.publicUrl
+}
+
+export async function listFotosProduto(produtoId: string): Promise<FotoProduto[]> {
+  const { data, error } = await supabase
+    .from('fotos_produto')
+    .select('*')
+    .eq('produto_id', produtoId)
+    .order('principal', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function setFotoPrincipal(produtoId: string, fotoId: string): Promise<void> {
+  const { error: clearError } = await supabase
+    .from('fotos_produto')
+    .update({ principal: false })
+    .eq('produto_id', produtoId)
+  if (clearError) throw clearError
+
+  const { error: setError } = await supabase
+    .from('fotos_produto')
+    .update({ principal: true })
+    .eq('id', fotoId)
+  if (setError) throw setError
+}
+
+export async function deleteFoto(foto: { id: string; url_imagem: string }): Promise<void> {
+  const path = foto.url_imagem.split('/produtos/')[1]
+  if (path) {
+    await supabase.storage.from('produtos').remove([path])
+  }
+  const { error } = await supabase.from('fotos_produto').delete().eq('id', foto.id)
+  if (error) throw error
+}
+
+// ---------- Vídeos (YouTube) ----------
+
+export async function listVideosProduto(produtoId: string): Promise<VideoProduto[]> {
+  const { data, error } = await supabase
+    .from('videos_produto')
+    .select('*')
+    .eq('produto_id', produtoId)
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createVideoProduto(video: {
+  produto_id: string
+  url_youtube: string
+  titulo: string
+}): Promise<VideoProduto> {
+  const { data, error } = await supabase.from('videos_produto').insert(video).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteVideoProduto(id: string): Promise<void> {
+  const { error } = await supabase.from('videos_produto').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ---------- Motores ----------

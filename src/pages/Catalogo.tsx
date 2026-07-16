@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, ImagePlus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
+import GaleriaProduto from '@/components/GaleriaProduto'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -10,7 +11,6 @@ import {
   createProduto,
   updateProduto,
   deleteProduto,
-  uploadFotoProduto,
   listCategorias,
   listSubcategorias,
 } from '@/lib/api'
@@ -28,7 +28,7 @@ export default function Catalogo() {
   const { subcategoriaId } = useParams<{ subcategoriaId: string }>()
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
-  const [enviandoFoto, setEnviandoFoto] = useState<string | null>(null)
+  const [produtoMidia, setProdutoMidia] = useState<Produto | null>(null)
 
   useEffect(() => {
     Promise.all([listCategorias(), listSubcategorias()]).then(([c, s]) => {
@@ -79,16 +79,6 @@ export default function Catalogo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subcategoriaId])
 
-  async function handleFoto(produtoId: string, file: File) {
-    setEnviandoFoto(produtoId)
-    try {
-      await uploadFotoProduto(produtoId, file)
-      await carregar()
-    } finally {
-      setEnviandoFoto(null)
-    }
-  }
-
   return (
     <div className="p-8">
       <header className="mb-8">
@@ -124,31 +114,23 @@ export default function Catalogo() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {itens.map((produto) => (
             <article key={produto.id} className="rounded-md border border-foam-200 bg-white p-4">
-              <label className="mb-3 flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-hull-900/[0.04] text-slate-400 hover:bg-hull-900/[0.07]">
+              <button
+                onClick={() => setProdutoMidia(produto)}
+                className="mb-3 flex h-32 w-full items-center justify-center overflow-hidden rounded-md bg-hull-900/[0.04] text-slate-400 hover:bg-hull-900/[0.07]"
+              >
                 {produto.foto_principal_url ? (
                   <img
                     src={produto.foto_principal_url}
                     alt={produto.nome}
                     className="h-full w-full object-cover"
                   />
-                ) : enviandoFoto === produto.id ? (
-                  <span className="text-xs">Enviando…</span>
                 ) : (
                   <span className="flex flex-col items-center gap-1 text-xs">
-                    <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
-                    Adicionar foto
+                    <Images className="h-5 w-5" strokeWidth={1.5} />
+                    Gerenciar mídia
                   </span>
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFoto(produto.id, file)
-                  }}
-                />
-              </label>
+              </button>
               <p className="font-display text-lg text-hull-900">{produto.nome}</p>
               <p className="text-xs text-slate-500">{produto.descricao}</p>
               <div className="mt-3 flex items-center justify-between border-t border-foam-200 pt-3">
@@ -159,7 +141,14 @@ export default function Catalogo() {
                   {produto.comprimento ? `${produto.comprimento} m` : '—'}
                 </span>
               </div>
-              <div className="mt-3 flex gap-2 border-t border-foam-200 pt-3">
+              <div className="mt-3 flex gap-3 border-t border-foam-200 pt-3">
+                <button
+                  onClick={() => setProdutoMidia(produto)}
+                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  <Images className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Mídia
+                </button>
                 <button
                   onClick={() =>
                     abrirEdicao(produto, {
@@ -228,6 +217,15 @@ export default function Catalogo() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {produtoMidia && (
+        <GaleriaProduto
+          produtoId={produtoMidia.id}
+          nomeProduto={produtoMidia.nome}
+          onClose={() => setProdutoMidia(null)}
+          onAlterar={carregar}
+        />
       )}
     </div>
   )
