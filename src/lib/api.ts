@@ -13,10 +13,14 @@ import type {
 export async function listModelos(): Promise<ModeloBarco[]> {
   const { data, error } = await supabase
     .from('modelos_barcos')
-    .select('id, nome, descricao, preco_base, comprimento, foto_principal_url')
+    .select('id, nome, descricao, preco_base, comprimento, fotos_modelos(url_imagem, principal)')
     .order('nome')
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map(({ fotos_modelos, ...modelo }) => ({
+    ...modelo,
+    foto_principal_url:
+      fotos_modelos?.find((f) => f.principal)?.url_imagem ?? fotos_modelos?.[0]?.url_imagem,
+  }))
 }
 
 export async function createModelo(
