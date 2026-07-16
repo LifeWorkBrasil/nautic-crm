@@ -278,9 +278,21 @@ export async function criarOrcamento(input: {
   acessorio_ids: string[]
   valor_total: number
   validade_dias: number
+  data_prevista_entrega: string | null
+  entrada_percentual: number
+  parcelas: { percentual: number }[]
 }) {
+  const somaPercentuais =
+    input.entrada_percentual + input.parcelas.reduce((soma, p) => soma + p.percentual, 0)
+  if (Math.abs(somaPercentuais - 100) > 0.01) {
+    throw new Error('A soma da entrada e das parcelas deve totalizar 100%.')
+  }
+
   const validade = new Date()
   validade.setDate(validade.getDate() + input.validade_dias)
+
+  const valorPorPercentual = (percentual: number) =>
+    Math.round(input.valor_total * (percentual / 100) * 100) / 100
 
   const { data: orcamento, error } = await supabase
     .from('orcamentos')
@@ -291,6 +303,9 @@ export async function criarOrcamento(input: {
       valor_total: input.valor_total,
       status: 'Rascunho',
       validade: validade.toISOString(),
+      data_prevista_entrega: input.data_prevista_entrega,
+      entrada_percentual: input.entrada_percentual,
+      entrada_valor: valorPorPercentual(input.entrada_percentual),
     })
     .select()
     .single()
@@ -303,6 +318,17 @@ export async function criarOrcamento(input: {
     }))
     const { error: relError } = await supabase.from('orcamentos_acessorios').insert(linhas)
     if (relError) throw relError
+  }
+
+  if (input.parcelas.length > 0) {
+    const linhasParcelas = input.parcelas.map((p, i) => ({
+      orcamento_id: orcamento.id,
+      numero: i + 1,
+      percentual: p.percentual,
+      valor: valorPorPercentual(p.percentual),
+    }))
+    const { error: parcelasError } = await supabase.from('orcamentos_parcelas').insert(linhasParcelas)
+    if (parcelasError) throw parcelasError
   }
 
   return orcamento

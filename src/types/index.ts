@@ -102,4 +102,15 @@ export interface Orcamento {
   status: 'Rascunho' | 'Enviado' | 'Aprovado'
   criado_em: string
   validade: string
+  data_prevista_entrega: string | null
+  entrada_percentual: number
+  entrada_valor: number
+}
+
+export interface ParcelaOrcamento {
+  id: string
+  orcamento_id: string
+  numero: number
+  percentual: number
+  valor: number
 }

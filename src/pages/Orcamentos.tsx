@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, FileDown, Link2, ChevronRight, Building2, FileText } from 'lucide-react'
+import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2 } from 'lucide-react'
 import {
   listProdutos,
   listMotores,
@@ -13,7 +13,7 @@ import {
 import { formatBRL } from '@/lib/format'
 import type { Produto, Motor, Acessorio, ClienteLead, EmpresaConfig, ManualProduto } from '@/types'
 
-const PASSOS = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Visualização & Envio']
+const PASSOS = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
 
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
@@ -31,6 +31,9 @@ export default function Orcamentos() {
   const [produtoId, setProdutoId] = useState<string | null>(null)
   const [motorId, setMotorId] = useState<string | null>(null)
   const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<Set<string>>(new Set())
+  const [dataPrevistaEntrega, setDataPrevistaEntrega] = useState('')
+  const [entradaPercentual, setEntradaPercentual] = useState(100)
+  const [parcelas, setParcelas] = useState<{ percentual: number }[]>([])
 
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
@@ -90,6 +93,22 @@ export default function Orcamentos() {
   )
 
   const total = (produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
+
+  const somaParcelas = parcelas.reduce((soma, p) => soma + p.percentual, 0)
+  const somaPagamento = entradaPercentual + somaParcelas
+  const pagamentoValido = Math.abs(somaPagamento - 100) < 0.01
+
+  function adicionarParcela() {
+    setParcelas((prev) => [...prev, { percentual: 0 }])
+  }
+
+  function atualizarParcela(index: number, percentual: number) {
+    setParcelas((prev) => prev.map((p, i) => (i === index ? { percentual } : p)))
+  }
+
+  function removerParcela(index: number) {
+    setParcelas((prev) => prev.filter((_, i) => i !== index))
+  }
 
   function toggleAcessorio(id: string) {
     setAcessoriosSelecionados((prev) => {
@@ -156,6 +175,9 @@ export default function Orcamentos() {
         acessorio_ids: Array.from(acessoriosSelecionados),
         valor_total: total,
         validade_dias: empresa?.validade_orcamento_dias ?? 15,
+        data_prevista_entrega: dataPrevistaEntrega || null,
+        entrada_percentual: entradaPercentual,
+        parcelas,
       })
       setSalvo(true)
     } catch (e) {
@@ -169,7 +191,8 @@ export default function Orcamentos() {
     (passo === 0 && clienteId !== null && produtoId !== null) ||
     (passo === 1 && motorId !== null) ||
     passo === 2 ||
-    passo === 3
+    (passo === 3 && pagamentoValido) ||
+    passo === 4
 
   if (carregando) {
     return <div className="p-8 text-sm text-slate-400">Carregando dados…</div>
@@ -346,6 +369,93 @@ export default function Orcamentos() {
           )}
 
           {passo === 3 && (
+            <div className="space-y-6">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-hull-900">
+                  Data prevista de entrega
+                </label>
+                <input
+                  type="date"
+                  value={dataPrevistaEntrega}
+                  onChange={(e) => setDataPrevistaEntrega(e.target.value)}
+                  className="input"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-hull-900">Entrada (%)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={entradaPercentual}
+                    onChange={(e) => setEntradaPercentual(Number(e.target.value))}
+                    className="input w-32"
+                  />
+                  <span className="font-mono text-sm text-slate-600">
+                    {formatBRL(total * (entradaPercentual / 100))}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium text-hull-900">Parcelas</p>
+                  <button
+                    onClick={adicionarParcela}
+                    className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                    Adicionar parcela
+                  </button>
+                </div>
+                {parcelas.length === 0 ? (
+                  <p className="text-sm text-slate-400">Nenhuma parcela — pagamento só com entrada.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {parcelas.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 rounded-md border border-foam-200 p-3"
+                      >
+                        <span className="w-20 shrink-0 text-sm text-slate-500">Parcela {i + 1}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={p.percentual}
+                          onChange={(e) => atualizarParcela(i, Number(e.target.value))}
+                          className="input w-24"
+                        />
+                        <span className="text-xs text-slate-400">%</span>
+                        <span className="ml-auto font-mono text-sm text-slate-600">
+                          {formatBRL(total * (p.percentual / 100))}
+                        </span>
+                        <button
+                          onClick={() => removerParcela(i)}
+                          className="text-signal-red/80 hover:text-signal-red"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={`rounded-md border px-4 py-2.5 text-sm ${
+                  pagamentoValido
+                    ? 'border-signal-green/30 bg-signal-green/5 text-signal-green'
+                    : 'border-signal-red/30 bg-signal-red/5 text-signal-red'
+                }`}
+              >
+                Soma: {somaPagamento.toFixed(2)}%{' '}
+                {pagamentoValido ? '— confere com o total' : '— precisa totalizar 100%'}
+              </div>
+            </div>
+          )}
+
+          {passo === 4 && (
             <div className="space-y-5">
               <div ref={previewRef} className="space-y-5 bg-white p-1">
                 <div className="flex items-center gap-3 border-b border-foam-200 pb-4">
@@ -370,6 +480,12 @@ export default function Orcamentos() {
                   <p className="text-[11px] uppercase tracking-[0.18em] text-wake-500">Proposta</p>
                   <h2 className="font-display text-2xl text-hull-900">{produto?.nome}</h2>
                   <p className="text-sm text-slate-500">Preparado para {cliente?.nome ?? 'cliente'}</p>
+                  {dataPrevistaEntrega && (
+                    <p className="text-xs text-slate-400">
+                      Entrega prevista:{' '}
+                      {new Date(`${dataPrevistaEntrega}T00:00:00`).toLocaleDateString('pt-BR')}
+                    </p>
+                  )}
                 </div>
 
                 <div className="aspect-video overflow-hidden rounded-md bg-hull-900/[0.04]">
@@ -408,6 +524,22 @@ export default function Orcamentos() {
                     <dt className="text-hull-900">Total</dt>
                     <dd className="font-mono text-hull-900">{formatBRL(total)}</dd>
                   </div>
+                  {entradaPercentual > 0 && (
+                    <div className="flex justify-between px-4 py-2.5 text-sm">
+                      <dt className="text-slate-500">Entrada ({entradaPercentual}%)</dt>
+                      <dd className="font-mono text-hull-900">
+                        {formatBRL(total * (entradaPercentual / 100))}
+                      </dd>
+                    </div>
+                  )}
+                  {parcelas.map((p, i) => (
+                    <div key={i} className="flex justify-between px-4 py-2.5 text-sm">
+                      <dt className="text-slate-500">
+                        Parcela {i + 1} ({p.percentual}%)
+                      </dt>
+                      <dd className="font-mono text-hull-900">{formatBRL(total * (p.percentual / 100))}</dd>
+                    </div>
+                  ))}
                 </dl>
 
                 {empresa?.termos_condicoes && (
