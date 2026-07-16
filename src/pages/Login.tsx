@@ -25,7 +25,7 @@ export default function Login() {
       <div className="w-full max-w-sm rounded-md bg-white p-8 shadow-xl">
         <div className="mb-6 flex flex-col items-center text-center">
           <Anchor className="mb-2 h-7 w-7 text-brass-500" strokeWidth={1.75} />
-          <p className="font-display text-xl text-hull-900">Estaleiro CRM</p>
+          <p className="font-display text-xl text-hull-900">Gestão de Negócios</p>
           <p className="mt-1 text-xs text-slate-400">Acesso restrito à equipe</p>
         </div>
 

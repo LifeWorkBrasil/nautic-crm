@@ -17,10 +17,10 @@ export default function Layout() {
           <Anchor className="h-6 w-6 text-brass-400" strokeWidth={1.75} />
           <div>
             <p className="font-display text-lg leading-none tracking-tight text-foam-50">
-              Estaleiro
+              Gestão de
             </p>
             <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-brass-400/80">
-              CRM &amp; Orçamentos
+              Negócios
             </p>
           </div>
         </div>
