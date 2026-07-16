@@ -269,6 +269,14 @@ export async function updateLeadStatus(id: string, status: StatusCRM): Promise<v
   if (error) throw error
 }
 
+export async function updateLead(
+  id: string,
+  patch: Partial<Omit<ClienteLead, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('clientes_leads').update(patch).eq('id', id)
+  if (error) throw error
+}
+
 // ---------- Orçamentos ----------
 
 export async function criarOrcamento(input: {

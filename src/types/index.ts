@@ -14,6 +14,18 @@ export interface ClienteLead {
   origem: string
   observacoes?: string
   criado_em: string
+  tipo_pessoa?: 'PF' | 'PJ'
+  cpf?: string | null
+  rg?: string | null
+  cnpj?: string | null
+  razao_social?: string | null
+  nome_fantasia?: string | null
+  inscricao_estadual?: string | null
+  endereco?: string | null
+  cidade?: string | null
+  estado?: string | null
+  cep?: string | null
+  pessoa_juridica_id?: string | null
 }
 
 export interface CategoriaProduto {

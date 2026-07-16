@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Phone, Mail } from 'lucide-react'
+import { Plus, Phone, Mail, Pencil } from 'lucide-react'
 import Modal from '@/components/Modal'
-import { listLeads, createLead, updateLeadStatus } from '@/lib/api'
+import { CampoTexto } from '@/components/campos'
+import { listLeads, createLead, updateLeadStatus, updateLead } from '@/lib/api'
 import type { ClienteLead, StatusCRM } from '@/types'
 
 const COLUNAS: StatusCRM[] = [
@@ -29,6 +30,26 @@ const LEAD_VAZIO = {
   observacoes: '',
 }
 
+const EDICAO_VAZIA = {
+  nome: '',
+  email: '',
+  telefone: '',
+  origem: '',
+  observacoes: '',
+  tipo_pessoa: 'PF' as 'PF' | 'PJ',
+  cpf: '',
+  rg: '',
+  cnpj: '',
+  razao_social: '',
+  nome_fantasia: '',
+  inscricao_estadual: '',
+  endereco: '',
+  cidade: '',
+  estado: '',
+  cep: '',
+  pessoa_juridica_id: '',
+}
+
 export default function CRM() {
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -36,6 +57,9 @@ export default function CRM() {
   const [criando, setCriando] = useState(false)
   const [form, setForm] = useState(LEAD_VAZIO)
   const [salvando, setSalvando] = useState(false)
+  const [editando, setEditando] = useState<ClienteLead | null>(null)
+  const [formEdicao, setFormEdicao] = useState(EDICAO_VAZIA)
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -64,6 +88,48 @@ export default function CRM() {
     for (const lead of leads) grupos[lead.status_crm].push(lead)
     return grupos
   }, [leads])
+
+  const pessoasJuridicas = useMemo(() => leads.filter((l) => l.tipo_pessoa === 'PJ'), [leads])
+
+  function abrirEdicao(lead: ClienteLead) {
+    setFormEdicao({
+      nome: lead.nome,
+      email: lead.email,
+      telefone: lead.telefone,
+      origem: lead.origem,
+      observacoes: lead.observacoes ?? '',
+      tipo_pessoa: lead.tipo_pessoa ?? 'PF',
+      cpf: lead.cpf ?? '',
+      rg: lead.rg ?? '',
+      cnpj: lead.cnpj ?? '',
+      razao_social: lead.razao_social ?? '',
+      nome_fantasia: lead.nome_fantasia ?? '',
+      inscricao_estadual: lead.inscricao_estadual ?? '',
+      endereco: lead.endereco ?? '',
+      cidade: lead.cidade ?? '',
+      estado: lead.estado ?? '',
+      cep: lead.cep ?? '',
+      pessoa_juridica_id: lead.pessoa_juridica_id ?? '',
+    })
+    setEditando(lead)
+  }
+
+  async function salvarEdicao() {
+    if (!editando) return
+    setSalvandoEdicao(true)
+    try {
+      await updateLead(editando.id, {
+        ...formEdicao,
+        pessoa_juridica_id: formEdicao.pessoa_juridica_id || null,
+      })
+      setEditando(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar cliente')
+    } finally {
+      setSalvandoEdicao(false)
+    }
+  }
 
   async function salvarLead() {
     setSalvando(true)
@@ -177,6 +243,12 @@ export default function CRM() {
                       >
                         <Phone className="h-3 w-3" strokeWidth={1.75} />
                       </a>
+                      <button
+                        onClick={() => abrirEdicao(lead)}
+                        className="flex items-center gap-1 text-[11px] hover:text-wake-500"
+                      >
+                        <Pencil className="h-3 w-3" strokeWidth={1.75} />
+                      </button>
                       <span className="ml-auto font-mono text-[11px]">
                         {new Date(lead.criado_em).toLocaleDateString('pt-BR')}
                       </span>
@@ -253,6 +325,187 @@ export default function CRM() {
                 rows={3}
                 value={form.observacoes}
                 onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                className="input resize-none"
+              />
+            </label>
+          </div>
+        </Modal>
+      )}
+
+      {editando && (
+        <Modal
+          title={`Editar ${editando.nome}`}
+          onClose={() => setEditando(null)}
+          size="xl"
+          footer={
+            <>
+              <button
+                onClick={() => setEditando(null)}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEdicao}
+                disabled={salvandoEdicao || !formEdicao.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvandoEdicao ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              {(['PF', 'PJ'] as const).map((tipo) => (
+                <button
+                  key={tipo}
+                  onClick={() => setFormEdicao({ ...formEdicao, tipo_pessoa: tipo })}
+                  className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                    formEdicao.tipo_pessoa === tipo
+                      ? 'border-brass-500 bg-brass-200/20 text-hull-900'
+                      : 'border-foam-200 text-slate-500 hover:border-wake-400'
+                  }`}
+                >
+                  {tipo === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}
+                </button>
+              ))}
+            </div>
+
+            <CampoTexto
+              label="Nome"
+              value={formEdicao.nome}
+              onChange={(v) => setFormEdicao({ ...formEdicao, nome: v })}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="E-mail"
+                value={formEdicao.email}
+                onChange={(v) => setFormEdicao({ ...formEdicao, email: v })}
+              />
+              <CampoTexto
+                label="Telefone"
+                value={formEdicao.telefone}
+                onChange={(v) => setFormEdicao({ ...formEdicao, telefone: v })}
+              />
+            </div>
+
+            {formEdicao.tipo_pessoa === 'PF' ? (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoTexto
+                    label="CPF"
+                    value={formEdicao.cpf}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, cpf: v })}
+                  />
+                  <CampoTexto
+                    label="RG"
+                    value={formEdicao.rg}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, rg: v })}
+                  />
+                </div>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                    Vincular a uma empresa (opcional)
+                  </span>
+                  <select
+                    value={formEdicao.pessoa_juridica_id}
+                    onChange={(e) =>
+                      setFormEdicao({ ...formEdicao, pessoa_juridica_id: e.target.value })
+                    }
+                    className="input"
+                  >
+                    <option value="">Nenhuma</option>
+                    {pessoasJuridicas
+                      .filter((pj) => pj.id !== editando.id)
+                      .map((pj) => (
+                        <option key={pj.id} value={pj.id}>
+                          {pj.razao_social || pj.nome}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoTexto
+                    label="CNPJ"
+                    value={formEdicao.cnpj}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, cnpj: v })}
+                  />
+                  <CampoTexto
+                    label="Inscrição estadual"
+                    value={formEdicao.inscricao_estadual}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, inscricao_estadual: v })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <CampoTexto
+                    label="Razão social"
+                    value={formEdicao.razao_social}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, razao_social: v })}
+                  />
+                  <CampoTexto
+                    label="Nome fantasia"
+                    value={formEdicao.nome_fantasia}
+                    onChange={(v) => setFormEdicao({ ...formEdicao, nome_fantasia: v })}
+                  />
+                </div>
+                {leads.filter((l) => l.pessoa_juridica_id === editando.id).length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium text-hull-900">Contatos vinculados</p>
+                    <ul className="space-y-1 text-sm text-slate-500">
+                      {leads
+                        .filter((l) => l.pessoa_juridica_id === editando.id)
+                        .map((pf) => (
+                          <li key={pf.id}>{pf.nome}</li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Endereço"
+                value={formEdicao.endereco}
+                onChange={(v) => setFormEdicao({ ...formEdicao, endereco: v })}
+              />
+              <CampoTexto
+                label="Cidade"
+                value={formEdicao.cidade}
+                onChange={(v) => setFormEdicao({ ...formEdicao, cidade: v })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Estado"
+                value={formEdicao.estado}
+                onChange={(v) => setFormEdicao({ ...formEdicao, estado: v })}
+              />
+              <CampoTexto
+                label="CEP"
+                value={formEdicao.cep}
+                onChange={(v) => setFormEdicao({ ...formEdicao, cep: v })}
+              />
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-hull-900">Origem</span>
+              <input
+                value={formEdicao.origem}
+                onChange={(e) => setFormEdicao({ ...formEdicao, origem: e.target.value })}
+                className="input"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-hull-900">Observações</span>
+              <textarea
+                rows={3}
+                value={formEdicao.observacoes}
+                onChange={(e) => setFormEdicao({ ...formEdicao, observacoes: e.target.value })}
                 className="input resize-none"
               />
             </label>
