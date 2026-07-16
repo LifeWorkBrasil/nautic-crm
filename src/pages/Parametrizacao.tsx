@@ -33,6 +33,7 @@ import {
   deleteMinuta,
 } from '@/lib/api'
 import { PLACEHOLDERS_DISPONIVEIS } from '@/lib/contratos'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import type {
   Motor,
   Acessorio,
@@ -55,6 +56,16 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
 
 export default function Parametrizacao() {
   const [aba, setAba] = useState<Aba>('motores')
+  const { temPermissao } = usePermissoes()
+
+  const tabsVisiveis = TABS.filter(({ key }) => temPermissao(`parametrizacao:${key}`))
+
+  useEffect(() => {
+    if (tabsVisiveis.length > 0 && !tabsVisiveis.some((t) => t.key === aba)) {
+      setAba(tabsVisiveis[0].key)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabsVisiveis.map((t) => t.key).join(',')])
 
   return (
     <div className="p-8">
@@ -68,7 +79,7 @@ export default function Parametrizacao() {
       </header>
 
       <div className="mb-6 flex gap-1 border-b border-foam-200">
-        {TABS.map(({ key, label, icon: Icon }) => (
+        {tabsVisiveis.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setAba(key)}

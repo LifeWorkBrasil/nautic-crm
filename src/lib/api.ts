@@ -24,6 +24,8 @@ import type {
   ContrapropostaImovel,
   OrcamentoDetalhado,
   ParcelaOrcamento,
+  UsuarioPerfil,
+  TabSistema,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -393,6 +395,13 @@ export async function updateLead(
 ): Promise<void> {
   const { error } = await supabase.from('clientes_leads').update(patch).eq('id', id)
   if (error) throw error
+}
+
+export async function assumirLead(clienteId: string): Promise<void> {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  if (!userData.user) throw new Error('Não autenticado')
+  await updateLead(clienteId, { vendedor_id: userData.user.id })
 }
 
 export async function listHistoricoCliente(clienteId: string): Promise<HistoricoContato[]> {
@@ -857,4 +866,87 @@ export async function criarContraproposta(input: {
   }
 
   return contraproposta
+}
+
+// ---------- Admin / Permissões ----------
+
+export async function listUsuarios(): Promise<UsuarioPerfil[]> {
+  const { data, error } = await supabase.from('usuarios_perfil').select('*').order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listTabsSistema(): Promise<TabSistema[]> {
+  const { data, error } = await supabase.from('tabs_sistema').select('*').order('ordem')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listPermissoesUsuario(usuarioId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('permissoes_usuario')
+    .select('tab_key')
+    .eq('usuario_id', usuarioId)
+  if (error) throw error
+  return (data ?? []).map((p) => p.tab_key)
+}
+
+export async function listMinhasPermissoes(): Promise<{
+  perfil: UsuarioPerfil | null
+  tabKeys: string[]
+}> {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError) throw userError
+  if (!userData.user) return { perfil: null, tabKeys: [] }
+
+  const { data: perfil, error: perfilError } = await supabase
+    .from('usuarios_perfil')
+    .select('*')
+    .eq('id', userData.user.id)
+    .maybeSingle()
+  if (perfilError) throw perfilError
+  if (!perfil) return { perfil: null, tabKeys: [] }
+
+  const tabKeys = perfil.is_admin ? [] : await listPermissoesUsuario(perfil.id)
+  return { perfil, tabKeys }
+}
+
+async function chamarAdminManageUser(body: Record<string, unknown>): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-manage-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${sessionData.session?.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  })
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao processar solicitação.')
+}
+
+export async function criarUsuario(input: {
+  nome: string
+  email: string
+  senha: string
+  comissao_percentual: number
+  tab_keys: string[]
+}): Promise<void> {
+  await chamarAdminManageUser({ action: 'criar_usuario', ...input })
+}
+
+export async function atualizarUsuario(
+  usuarioId: string,
+  patch: { nome: string; comissao_percentual: number; ativo: boolean }
+): Promise<void> {
+  await chamarAdminManageUser({ action: 'atualizar_usuario', usuario_id: usuarioId, ...patch })
+}
+
+export async function atualizarPermissoes(usuarioId: string, tabKeys: string[]): Promise<void> {
+  await chamarAdminManageUser({
+    action: 'atualizar_permissoes',
+    usuario_id: usuarioId,
+    tab_keys: tabKeys,
+  })
 }

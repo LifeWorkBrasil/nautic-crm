@@ -27,6 +27,23 @@ export interface ClienteLead {
   cep?: string | null
   pessoa_juridica_id?: string | null
   proximo_contato?: string | null
+  vendedor_id?: string | null
+}
+
+export interface UsuarioPerfil {
+  id: string
+  nome: string
+  email: string
+  is_admin: boolean
+  ativo: boolean
+  comissao_percentual: number
+  criado_em: string
+}
+
+export interface TabSistema {
+  chave: string
+  label: string
+  ordem: number
 }
 
 export interface HistoricoContato {

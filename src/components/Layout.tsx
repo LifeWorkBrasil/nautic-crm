@@ -14,9 +14,11 @@ import {
   ClipboardList,
   Megaphone,
   Handshake,
+  ShieldCheck,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import type { CategoriaProduto, SubcategoriaProduto } from '@/types'
 
 const CATEGORIA_ICONES: Record<string, typeof Sailboat> = {
@@ -26,13 +28,18 @@ const CATEGORIA_ICONES: Record<string, typeof Sailboat> = {
 }
 
 const NAV_ITEMS_FIXOS = [
-  { to: '/', label: 'CRM & Funil', icon: LayoutGrid, end: true },
-  { to: '/captacao', label: 'Captação', icon: ClipboardList },
-  { to: '/produtos-terceiros', label: 'Produtos de Terceiros', icon: Handshake },
-  { to: '/parametrizacao', label: 'Parametrização', icon: Settings2 },
-  { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText },
-  { to: '/marketing', label: 'Marketing', icon: Megaphone },
-  { to: '/empresa', label: 'Empresa & Marca', icon: Building2 },
+  { to: '/', label: 'CRM & Funil', icon: LayoutGrid, end: true, permissao: 'crm' },
+  { to: '/captacao', label: 'Captação', icon: ClipboardList, permissao: 'captacao' },
+  {
+    to: '/produtos-terceiros',
+    label: 'Produtos de Terceiros',
+    icon: Handshake,
+    permissao: 'produtos_terceiros',
+  },
+  { to: '/parametrizacao', label: 'Parametrização', icon: Settings2, permissao: 'parametrizacao' },
+  { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText, permissao: 'orcamentos' },
+  { to: '/marketing', label: 'Marketing', icon: Megaphone, permissao: 'marketing' },
+  { to: '/empresa', label: 'Empresa & Marca', icon: Building2, permissao: 'empresa' },
 ]
 
 export default function Layout() {
@@ -40,6 +47,12 @@ export default function Layout() {
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null)
+  const { perfil, temPermissao, temAlgumaPermissao } = usePermissoes()
+
+  function itemVisivel(permissao: string): boolean {
+    if (permissao === 'parametrizacao') return temAlgumaPermissao('parametrizacao:')
+    return temPermissao(permissao)
+  }
 
   useEffect(() => {
     Promise.all([listCategorias(), listSubcategorias()]).then(([c, s]) => {
@@ -68,7 +81,10 @@ export default function Layout() {
 
         <nav className="mt-4 flex flex-1 flex-col gap-1 overflow-y-auto px-3">
           {categorias.map((categoria) => {
-            const filhas = subcategorias.filter((s) => s.categoria_id === categoria.id)
+            const filhas = subcategorias
+              .filter((s) => s.categoria_id === categoria.id)
+              .filter((s) => temPermissao(`catalogo:${s.id}`))
+            if (filhas.length === 0) return null
             const Icon = CATEGORIA_ICONES[categoria.nome] ?? LayoutGrid
             const aberto = grupoAberto === categoria.id
             const temFilhaAtiva = filhas.some((s) => location.pathname === `/catalogo/${s.id}`)
@@ -122,11 +138,36 @@ export default function Layout() {
 
           <div className="my-2 border-t border-hull-800" />
 
-          {NAV_ITEMS_FIXOS.map(({ to, label, icon: Icon, end }) => (
+          {NAV_ITEMS_FIXOS.filter((item) => itemVisivel(item.permissao)).map(
+            ({ to, label, icon: Icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-hull-800 text-foam-50'
+                      : 'text-slate-400 hover:bg-hull-800/60 hover:text-foam-100'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      className={`h-4 w-4 shrink-0 ${isActive ? 'text-brass-400' : 'text-slate-400 group-hover:text-brass-400'}`}
+                      strokeWidth={1.75}
+                    />
+                    <span className={isActive ? 'wake-underline' : ''}>{label}</span>
+                  </>
+                )}
+              </NavLink>
+            )
+          )}
+
+          {perfil?.is_admin && (
             <NavLink
-              key={to}
-              to={to}
-              end={end}
+              to="/admin"
               className={({ isActive }) =>
                 `group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
                   isActive
@@ -137,15 +178,15 @@ export default function Layout() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon
+                  <ShieldCheck
                     className={`h-4 w-4 shrink-0 ${isActive ? 'text-brass-400' : 'text-slate-400 group-hover:text-brass-400'}`}
                     strokeWidth={1.75}
                   />
-                  <span className={isActive ? 'wake-underline' : ''}>{label}</span>
+                  <span className={isActive ? 'wake-underline' : ''}>Admin</span>
                 </>
               )}
             </NavLink>
-          ))}
+          )}
         </nav>
 
         <div className="mt-auto px-6 py-6">

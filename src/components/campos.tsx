@@ -2,15 +2,22 @@ export function CampoTexto({
   label,
   value,
   onChange,
+  disabled,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
+  disabled?: boolean
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-hull-900">{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="input" />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="input disabled:cursor-not-allowed disabled:opacity-60"
+      />
     </label>
   )
 }

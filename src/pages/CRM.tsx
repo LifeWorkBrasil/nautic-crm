@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Phone, Mail, Pencil, AlertTriangle } from 'lucide-react'
+import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import {
   listLeads,
   createLead,
@@ -9,8 +10,12 @@ import {
   updateLead,
   listHistoricoCliente,
   adicionarHistorico,
+  listUsuarios,
+  assumirLead,
 } from '@/lib/api'
-import type { ClienteLead, StatusCRM, HistoricoContato } from '@/types'
+import type { ClienteLead, StatusCRM, HistoricoContato, UsuarioPerfil } from '@/types'
+
+const DIAS_LIBERACAO_LEAD = 90
 
 function estaAtrasado(lead: ClienteLead): boolean {
   if (!lead.proximo_contato) return false
@@ -72,7 +77,9 @@ const EDICAO_VAZIA = {
 }
 
 export default function CRM() {
+  const { perfil } = usePermissoes()
   const [leads, setLeads] = useState<ClienteLead[]>([])
+  const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [criando, setCriando] = useState(false)
@@ -84,17 +91,25 @@ export default function CRM() {
   const [historico, setHistorico] = useState<HistoricoContato[]>([])
   const [novoTexto, setNovoTexto] = useState('')
   const [registrandoContato, setRegistrandoContato] = useState(false)
+  const [assumindo, setAssumindo] = useState(false)
 
   async function carregar() {
     setCarregando(true)
     try {
-      setLeads(await listLeads())
+      const [ld, us] = await Promise.all([listLeads(), listUsuarios()])
+      setLeads(ld)
+      setUsuarios(us)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar leads')
     } finally {
       setCarregando(false)
     }
+  }
+
+  function nomeVendedor(vendedorId: string | null | undefined): string | null {
+    if (!vendedorId) return null
+    return usuarios.find((u) => u.id === vendedorId)?.nome ?? null
   }
 
   useEffect(() => {
@@ -114,6 +129,37 @@ export default function CRM() {
   }, [leads])
 
   const pessoasJuridicas = useMemo(() => leads.filter((l) => l.tipo_pessoa === 'PJ'), [leads])
+
+  const ultimoContatoEditando = editando
+    ? new Date(historico[0]?.criado_em ?? editando.criado_em)
+    : null
+  const diasSemContato = ultimoContatoEditando
+    ? (Date.now() - ultimoContatoEditando.getTime()) / (1000 * 60 * 60 * 24)
+    : 0
+  const jaSouDonoDoLead = !!editando?.vendedor_id && editando.vendedor_id === perfil?.id
+  const bloqueadoPorOutro =
+    !!editando?.vendedor_id && !jaSouDonoDoLead && diasSemContato < DIAS_LIBERACAO_LEAD
+  const podeAssumirLead = !!editando && !jaSouDonoDoLead && !bloqueadoPorOutro
+  const dataLiberacaoLead =
+    ultimoContatoEditando && editando?.vendedor_id
+      ? new Date(
+          ultimoContatoEditando.getTime() + DIAS_LIBERACAO_LEAD * 24 * 60 * 60 * 1000
+        ).toLocaleDateString('pt-BR')
+      : null
+
+  async function handleAssumirLead() {
+    if (!editando) return
+    setAssumindo(true)
+    try {
+      await assumirLead(editando.id)
+      setEditando(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao assumir lead')
+    } finally {
+      setAssumindo(false)
+    }
+  }
 
   function abrirEdicao(lead: ClienteLead) {
     setFormEdicao({
@@ -263,6 +309,13 @@ export default function CRM() {
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-slate-500">{lead.origem}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      {nomeVendedor(lead.vendedor_id) ? (
+                        <>Vendedor: {nomeVendedor(lead.vendedor_id)}</>
+                      ) : (
+                        'Sem vendedor'
+                      )}
+                    </p>
 
                     {lead.observacoes && (
                       <p className="mt-2 text-xs leading-relaxed text-slate-600">
@@ -401,7 +454,7 @@ export default function CRM() {
               </button>
               <button
                 onClick={salvarEdicao}
-                disabled={salvandoEdicao || !formEdicao.nome.trim()}
+                disabled={salvandoEdicao || bloqueadoPorOutro || !formEdicao.nome.trim()}
                 className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
               >
                 {salvandoEdicao ? 'Salvando…' : 'Salvar'}
@@ -410,12 +463,39 @@ export default function CRM() {
           }
         >
           <div className="space-y-4">
+            <div className="rounded-md border border-foam-200 bg-foam-100 p-3 text-sm">
+              {editando.vendedor_id ? (
+                <p className="text-hull-900">
+                  Vendedor responsável:{' '}
+                  <span className="font-medium">{nomeVendedor(editando.vendedor_id) ?? '—'}</span>
+                  {bloqueadoPorOutro && (
+                    <span className="ml-2 text-signal-red">
+                      (lead travado até {dataLiberacaoLead})
+                    </span>
+                  )}
+                </p>
+              ) : (
+                <p className="text-slate-500">Nenhum vendedor responsável ainda.</p>
+              )}
+              {podeAssumirLead && (
+                <button
+                  onClick={handleAssumirLead}
+                  disabled={assumindo}
+                  className="mt-2 flex items-center gap-1.5 rounded-md border border-foam-200 px-3 py-1.5 text-xs text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                >
+                  <UserCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  {assumindo ? 'Assumindo…' : 'Assumir lead'}
+                </button>
+              )}
+            </div>
+
             <div className="flex gap-2">
               {(['PF', 'PJ'] as const).map((tipo) => (
                 <button
                   key={tipo}
                   onClick={() => setFormEdicao({ ...formEdicao, tipo_pessoa: tipo })}
-                  className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                  disabled={bloqueadoPorOutro}
+                  className={`rounded-md border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                     formEdicao.tipo_pessoa === tipo
                       ? 'border-brass-500 bg-brass-200/20 text-hull-900'
                       : 'border-foam-200 text-slate-500 hover:border-wake-400'
@@ -430,17 +510,20 @@ export default function CRM() {
               label="Nome"
               value={formEdicao.nome}
               onChange={(v) => setFormEdicao({ ...formEdicao, nome: v })}
+              disabled={bloqueadoPorOutro}
             />
             <div className="grid grid-cols-2 gap-4">
               <CampoTexto
                 label="E-mail"
                 value={formEdicao.email}
                 onChange={(v) => setFormEdicao({ ...formEdicao, email: v })}
+                disabled={bloqueadoPorOutro}
               />
               <CampoTexto
                 label="Telefone"
                 value={formEdicao.telefone}
                 onChange={(v) => setFormEdicao({ ...formEdicao, telefone: v })}
+                disabled={bloqueadoPorOutro}
               />
             </div>
 
@@ -451,11 +534,13 @@ export default function CRM() {
                     label="CPF"
                     value={formEdicao.cpf}
                     onChange={(v) => setFormEdicao({ ...formEdicao, cpf: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                   <CampoTexto
                     label="RG"
                     value={formEdicao.rg}
                     onChange={(v) => setFormEdicao({ ...formEdicao, rg: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                 </div>
                 <label className="block">
@@ -467,7 +552,8 @@ export default function CRM() {
                     onChange={(e) =>
                       setFormEdicao({ ...formEdicao, pessoa_juridica_id: e.target.value })
                     }
-                    className="input"
+                    disabled={bloqueadoPorOutro}
+                    className="input disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">Nenhuma</option>
                     {pessoasJuridicas
@@ -487,11 +573,13 @@ export default function CRM() {
                     label="CNPJ"
                     value={formEdicao.cnpj}
                     onChange={(v) => setFormEdicao({ ...formEdicao, cnpj: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                   <CampoTexto
                     label="Inscrição estadual"
                     value={formEdicao.inscricao_estadual}
                     onChange={(v) => setFormEdicao({ ...formEdicao, inscricao_estadual: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -499,11 +587,13 @@ export default function CRM() {
                     label="Razão social"
                     value={formEdicao.razao_social}
                     onChange={(v) => setFormEdicao({ ...formEdicao, razao_social: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                   <CampoTexto
                     label="Nome fantasia"
                     value={formEdicao.nome_fantasia}
                     onChange={(v) => setFormEdicao({ ...formEdicao, nome_fantasia: v })}
+                    disabled={bloqueadoPorOutro}
                   />
                 </div>
                 {leads.filter((l) => l.pessoa_juridica_id === editando.id).length > 0 && (
@@ -526,11 +616,13 @@ export default function CRM() {
                 label="Endereço"
                 value={formEdicao.endereco}
                 onChange={(v) => setFormEdicao({ ...formEdicao, endereco: v })}
+                disabled={bloqueadoPorOutro}
               />
               <CampoTexto
                 label="Cidade"
                 value={formEdicao.cidade}
                 onChange={(v) => setFormEdicao({ ...formEdicao, cidade: v })}
+                disabled={bloqueadoPorOutro}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -538,11 +630,13 @@ export default function CRM() {
                 label="Estado"
                 value={formEdicao.estado}
                 onChange={(v) => setFormEdicao({ ...formEdicao, estado: v })}
+                disabled={bloqueadoPorOutro}
               />
               <CampoTexto
                 label="CEP"
                 value={formEdicao.cep}
                 onChange={(v) => setFormEdicao({ ...formEdicao, cep: v })}
+                disabled={bloqueadoPorOutro}
               />
             </div>
 
@@ -551,7 +645,8 @@ export default function CRM() {
               <input
                 value={formEdicao.origem}
                 onChange={(e) => setFormEdicao({ ...formEdicao, origem: e.target.value })}
-                className="input"
+                disabled={bloqueadoPorOutro}
+                className="input disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
             <label className="block">
@@ -560,7 +655,8 @@ export default function CRM() {
                 rows={3}
                 value={formEdicao.observacoes}
                 onChange={(e) => setFormEdicao({ ...formEdicao, observacoes: e.target.value })}
-                className="input resize-none"
+                disabled={bloqueadoPorOutro}
+                className="input resize-none disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
 
@@ -572,7 +668,8 @@ export default function CRM() {
                 type="date"
                 value={formEdicao.proximo_contato}
                 onChange={(e) => setFormEdicao({ ...formEdicao, proximo_contato: e.target.value })}
-                className="input"
+                disabled={bloqueadoPorOutro}
+                className="input disabled:cursor-not-allowed disabled:opacity-60"
               />
             </label>
 
@@ -583,11 +680,12 @@ export default function CRM() {
                   value={novoTexto}
                   onChange={(e) => setNovoTexto(e.target.value)}
                   placeholder="O que foi conversado…"
-                  className="input"
+                  disabled={bloqueadoPorOutro}
+                  className="input disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <button
                   onClick={registrarContato}
-                  disabled={registrandoContato || !novoTexto.trim()}
+                  disabled={registrandoContato || bloqueadoPorOutro || !novoTexto.trim()}
                   className="shrink-0 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-40"
                 >
                   {registrandoContato ? 'Registrando…' : 'Registrar contato'}
