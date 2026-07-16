@@ -26,6 +26,7 @@ import type {
   ParcelaOrcamento,
   UsuarioPerfil,
   TabSistema,
+  PerfilAcesso,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -949,4 +950,61 @@ export async function atualizarPermissoes(usuarioId: string, tabKeys: string[]):
     usuario_id: usuarioId,
     tab_keys: tabKeys,
   })
+}
+
+// ---------- Perfis de Acesso ----------
+
+export async function listPerfisAcesso(): Promise<(PerfilAcesso & { tabKeys: string[] })[]> {
+  const { data, error } = await supabase
+    .from('perfis_acesso')
+    .select('*, perfis_acesso_tabs(tab_key)')
+    .order('nome')
+  if (error) throw error
+  return (data ?? []).map(
+    ({
+      perfis_acesso_tabs,
+      ...perfil
+    }: PerfilAcesso & { perfis_acesso_tabs: { tab_key: string }[] }) => ({
+      ...perfil,
+      tabKeys: (perfis_acesso_tabs ?? []).map((t) => t.tab_key),
+    })
+  )
+}
+
+export async function createPerfilAcesso(nome: string, tabKeys: string[]): Promise<void> {
+  const { data: perfil, error } = await supabase
+    .from('perfis_acesso')
+    .insert({ nome })
+    .select()
+    .single()
+  if (error) throw error
+  if (tabKeys.length > 0) {
+    const { error: tabsError } = await supabase
+      .from('perfis_acesso_tabs')
+      .insert(tabKeys.map((k) => ({ perfil_id: perfil.id, tab_key: k })))
+    if (tabsError) throw tabsError
+  }
+}
+
+export async function updatePerfilAcesso(id: string, nome: string, tabKeys: string[]): Promise<void> {
+  const { error } = await supabase.from('perfis_acesso').update({ nome }).eq('id', id)
+  if (error) throw error
+
+  const { error: deleteError } = await supabase
+    .from('perfis_acesso_tabs')
+    .delete()
+    .eq('perfil_id', id)
+  if (deleteError) throw deleteError
+
+  if (tabKeys.length > 0) {
+    const { error: insertError } = await supabase
+      .from('perfis_acesso_tabs')
+      .insert(tabKeys.map((k) => ({ perfil_id: id, tab_key: k })))
+    if (insertError) throw insertError
+  }
+}
+
+export async function deletePerfilAcesso(id: string): Promise<void> {
+  const { error } = await supabase.from('perfis_acesso').delete().eq('id', id)
+  if (error) throw error
 }

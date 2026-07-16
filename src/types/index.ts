@@ -46,6 +46,12 @@ export interface TabSistema {
   ordem: number
 }
 
+export interface PerfilAcesso {
+  id: string
+  nome: string
+  criado_em: string
+}
+
 export interface HistoricoContato {
   id: string
   cliente_id: string
