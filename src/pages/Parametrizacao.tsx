@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Zap, PackagePlus, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
@@ -13,14 +13,23 @@ import {
   updateAcessorio,
   deleteAcessorio,
   listProdutos,
+  listCategorias,
+  createCategoria,
+  updateCategoria,
+  deleteCategoria,
+  listSubcategorias,
+  createSubcategoria,
+  updateSubcategoria,
+  deleteSubcategoria,
 } from '@/lib/api'
-import type { Motor, Acessorio, Produto } from '@/types'
+import type { Motor, Acessorio, Produto, CategoriaProduto, SubcategoriaProduto } from '@/types'
 
-type Aba = 'motores' | 'acessorios'
+type Aba = 'motores' | 'acessorios' | 'categorias'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'motores', label: 'Motores', icon: Zap },
   { key: 'acessorios', label: 'Acessórios', icon: PackagePlus },
+  { key: 'categorias', label: 'Categorias', icon: FolderTree },
 ]
 
 export default function Parametrizacao() {
@@ -56,6 +65,7 @@ export default function Parametrizacao() {
 
       {aba === 'motores' && <AbaMotores />}
       {aba === 'acessorios' && <AbaAcessorios />}
+      {aba === 'categorias' && <AbaCategorias />}
     </div>
   )
 }
@@ -484,6 +494,282 @@ function AbaAcessorios() {
                 ))}
               </select>
             </label>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Categorias
+// ---------------------------------------------------------------------------
+
+const CATEGORIA_VAZIA = { nome: '', ordem: 0 }
+
+function AbaCategorias() {
+  const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
+  const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+
+  const [criandoCategoria, setCriandoCategoria] = useState(false)
+  const [editandoCategoria, setEditandoCategoria] = useState<CategoriaProduto | null>(null)
+  const [formCategoria, setFormCategoria] = useState(CATEGORIA_VAZIA)
+
+  const [criandoSubcategoriaPara, setCriandoSubcategoriaPara] = useState<string | null>(null)
+  const [editandoSubcategoria, setEditandoSubcategoria] = useState<SubcategoriaProduto | null>(null)
+  const [formSubcategoria, setFormSubcategoria] = useState({ nome: '', ordem: 0 })
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const [c, s] = await Promise.all([listCategorias(), listSubcategorias()])
+      setCategorias(c)
+      setSubcategorias(s)
+      setErro(null)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao carregar categorias')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => {
+    carregar()
+  }, [])
+
+  function abrirCriacaoCategoria() {
+    setFormCategoria({ ...CATEGORIA_VAZIA, ordem: categorias.length })
+    setCriandoCategoria(true)
+  }
+
+  function abrirEdicaoCategoria(c: CategoriaProduto) {
+    setFormCategoria({ nome: c.nome, ordem: c.ordem })
+    setEditandoCategoria(c)
+  }
+
+  async function salvarCategoria() {
+    setSalvando(true)
+    try {
+      if (editandoCategoria) {
+        await updateCategoria(editandoCategoria.id, formCategoria)
+      } else {
+        await createCategoria(formCategoria)
+      }
+      setEditandoCategoria(null)
+      setCriandoCategoria(false)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar categoria')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluirCategoria(id: string) {
+    if (!confirm('Excluir esta categoria? Só é possível se não houver subcategorias vinculadas.'))
+      return
+    try {
+      await deleteCategoria(id)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir categoria')
+    }
+  }
+
+  function abrirCriacaoSubcategoria(categoriaId: string) {
+    const doCategoria = subcategorias.filter((s) => s.categoria_id === categoriaId)
+    setFormSubcategoria({ nome: '', ordem: doCategoria.length })
+    setCriandoSubcategoriaPara(categoriaId)
+  }
+
+  function abrirEdicaoSubcategoria(s: SubcategoriaProduto) {
+    setFormSubcategoria({ nome: s.nome, ordem: s.ordem })
+    setEditandoSubcategoria(s)
+  }
+
+  async function salvarSubcategoria() {
+    setSalvando(true)
+    try {
+      if (editandoSubcategoria) {
+        await updateSubcategoria(editandoSubcategoria.id, formSubcategoria)
+      } else if (criandoSubcategoriaPara) {
+        await createSubcategoria({ ...formSubcategoria, categoria_id: criandoSubcategoriaPara })
+      }
+      setEditandoSubcategoria(null)
+      setCriandoSubcategoriaPara(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar subcategoria')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluirSubcategoria(id: string) {
+    if (!confirm('Excluir esta subcategoria? Só é possível se não houver produtos vinculados.'))
+      return
+    try {
+      await deleteSubcategoria(id)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir subcategoria')
+    }
+  }
+
+  const modalCategoriaAberto = criandoCategoria || editandoCategoria !== null
+  const modalSubcategoriaAberto = criandoSubcategoriaPara !== null || editandoSubcategoria !== null
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Nova categoria" onClick={abrirCriacaoCategoria} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : (
+        <div className="space-y-4">
+          {categorias.map((categoria) => (
+            <article key={categoria.id} className="rounded-md border border-foam-200 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="font-display text-lg text-hull-900">{categoria.nome}</p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => abrirEdicaoCategoria(categoria)}
+                    className="text-wake-500 hover:text-wake-600"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <button
+                    onClick={() => excluirCategoria(categoria.id)}
+                    className="text-signal-red/80 hover:text-signal-red"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-1.5 border-t border-foam-200 pt-3">
+                {subcategorias
+                  .filter((s) => s.categoria_id === categoria.id)
+                  .map((sub) => (
+                    <div key={sub.id} className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">{sub.nome}</span>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => abrirEdicaoSubcategoria(sub)}
+                          className="text-wake-500 hover:text-wake-600"
+                        >
+                          <Pencil className="h-3 w-3" strokeWidth={1.75} />
+                        </button>
+                        <button
+                          onClick={() => excluirSubcategoria(sub.id)}
+                          className="text-signal-red/80 hover:text-signal-red"
+                        >
+                          <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                <button
+                  onClick={() => abrirCriacaoSubcategoria(categoria.id)}
+                  className="mt-2 flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                  Nova subcategoria
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {modalCategoriaAberto && (
+        <Modal
+          title={editandoCategoria ? `Editar ${editandoCategoria.nome}` : 'Nova categoria'}
+          onClose={() => {
+            setCriandoCategoria(false)
+            setEditandoCategoria(null)
+          }}
+          footer={
+            <>
+              <button
+                onClick={() => {
+                  setCriandoCategoria(false)
+                  setEditandoCategoria(null)
+                }}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarCategoria}
+                disabled={salvando || !formCategoria.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto
+              label="Nome"
+              value={formCategoria.nome}
+              onChange={(v) => setFormCategoria({ ...formCategoria, nome: v })}
+            />
+            <CampoNumero
+              label="Ordem"
+              value={formCategoria.ordem}
+              onChange={(v) => setFormCategoria({ ...formCategoria, ordem: v })}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {modalSubcategoriaAberto && (
+        <Modal
+          title={editandoSubcategoria ? `Editar ${editandoSubcategoria.nome}` : 'Nova subcategoria'}
+          onClose={() => {
+            setCriandoSubcategoriaPara(null)
+            setEditandoSubcategoria(null)
+          }}
+          footer={
+            <>
+              <button
+                onClick={() => {
+                  setCriandoSubcategoriaPara(null)
+                  setEditandoSubcategoria(null)
+                }}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarSubcategoria}
+                disabled={salvando || !formSubcategoria.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto
+              label="Nome"
+              value={formSubcategoria.nome}
+              onChange={(v) => setFormSubcategoria({ ...formSubcategoria, nome: v })}
+            />
+            <CampoNumero
+              label="Ordem"
+              value={formSubcategoria.ordem}
+              onChange={(v) => setFormSubcategoria({ ...formSubcategoria, ordem: v })}
+            />
           </div>
         </Modal>
       )}

@@ -29,6 +29,56 @@ export async function listSubcategorias(categoriaId?: string): Promise<Subcatego
   return data ?? []
 }
 
+export async function createCategoria(
+  categoria: Omit<CategoriaProduto, 'id'>
+): Promise<CategoriaProduto> {
+  const { data, error } = await supabase
+    .from('categorias_produto')
+    .insert(categoria)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCategoria(
+  id: string,
+  patch: Partial<Omit<CategoriaProduto, 'id'>>
+): Promise<void> {
+  const { error } = await supabase.from('categorias_produto').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCategoria(id: string): Promise<void> {
+  const { error } = await supabase.from('categorias_produto').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createSubcategoria(
+  subcategoria: Omit<SubcategoriaProduto, 'id'>
+): Promise<SubcategoriaProduto> {
+  const { data, error } = await supabase
+    .from('subcategorias_produto')
+    .insert(subcategoria)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateSubcategoria(
+  id: string,
+  patch: Partial<Omit<SubcategoriaProduto, 'id'>>
+): Promise<void> {
+  const { error } = await supabase.from('subcategorias_produto').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteSubcategoria(id: string): Promise<void> {
+  const { error } = await supabase.from('subcategorias_produto').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ---------- Produtos ----------
 
 export async function listProdutos(subcategoriaId?: string): Promise<Produto[]> {
