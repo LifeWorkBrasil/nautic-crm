@@ -5,6 +5,7 @@ import type {
   Produto,
   FotoProduto,
   VideoProduto,
+  ManualProduto,
   Motor,
   Acessorio,
   ClienteLead,
@@ -147,6 +148,46 @@ export async function createVideoProduto(video: {
 
 export async function deleteVideoProduto(id: string): Promise<void> {
   const { error } = await supabase.from('videos_produto').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Manuais (PDF) ----------
+
+export async function listManuaisProduto(produtoId: string): Promise<ManualProduto[]> {
+  const { data, error } = await supabase
+    .from('manuais_produto')
+    .select('*')
+    .eq('produto_id', produtoId)
+    .order('criado_em')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function uploadManualProduto(produtoId: string, file: File): Promise<ManualProduto> {
+  if (file.type !== 'application/pdf') {
+    throw new Error('O manual deve ser um arquivo PDF.')
+  }
+  const path = `${produtoId}/${crypto.randomUUID()}.pdf`
+  const { error: uploadError } = await supabase.storage.from('manuais').upload(path, file)
+  if (uploadError) throw uploadError
+
+  const { data } = supabase.storage.from('manuais').getPublicUrl(path)
+
+  const { data: manual, error: insertError } = await supabase
+    .from('manuais_produto')
+    .insert({ produto_id: produtoId, url_arquivo: data.publicUrl, nome_arquivo: file.name })
+    .select()
+    .single()
+  if (insertError) throw insertError
+  return manual
+}
+
+export async function deleteManualProduto(manual: { id: string; url_arquivo: string }): Promise<void> {
+  const path = manual.url_arquivo.split('/manuais/')[1]
+  if (path) {
+    await supabase.storage.from('manuais').remove([path])
+  }
+  const { error } = await supabase.from('manuais_produto').delete().eq('id', manual.id)
   if (error) throw error
 }
 

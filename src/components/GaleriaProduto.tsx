@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Star, Trash2, Plus } from 'lucide-react'
+import { Star, Trash2, Plus, FileText } from 'lucide-react'
 import Modal from '@/components/Modal'
 import {
   listFotosProduto,
@@ -9,8 +9,11 @@ import {
   listVideosProduto,
   createVideoProduto,
   deleteVideoProduto,
+  listManuaisProduto,
+  uploadManualProduto,
+  deleteManualProduto,
 } from '@/lib/api'
-import type { FotoProduto, VideoProduto } from '@/types'
+import type { FotoProduto, VideoProduto, ManualProduto } from '@/types'
 
 function extrairYoutubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)
@@ -30,16 +33,23 @@ export default function GaleriaProduto({
 }) {
   const [fotos, setFotos] = useState<FotoProduto[]>([])
   const [videos, setVideos] = useState<VideoProduto[]>([])
+  const [manuais, setManuais] = useState<ManualProduto[]>([])
   const [enviandoFoto, setEnviandoFoto] = useState(false)
+  const [enviandoManual, setEnviandoManual] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [urlVideo, setUrlVideo] = useState('')
   const [tituloVideo, setTituloVideo] = useState('')
 
   async function carregar() {
     try {
-      const [f, v] = await Promise.all([listFotosProduto(produtoId), listVideosProduto(produtoId)])
+      const [f, v, m] = await Promise.all([
+        listFotosProduto(produtoId),
+        listVideosProduto(produtoId),
+        listManuaisProduto(produtoId),
+      ])
       setFotos(f)
       setVideos(v)
+      setManuais(m)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar mídia')
@@ -108,6 +118,28 @@ export default function GaleriaProduto({
       await carregar()
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao excluir vídeo')
+    }
+  }
+
+  async function handleUploadManual(file: File) {
+    setEnviandoManual(true)
+    try {
+      await uploadManualProduto(produtoId, file)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao enviar manual')
+    } finally {
+      setEnviandoManual(false)
+    }
+  }
+
+  async function handleExcluirManual(manual: ManualProduto) {
+    if (!confirm('Excluir este manual?')) return
+    try {
+      await deleteManualProduto(manual)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir manual')
     }
   }
 
@@ -234,6 +266,52 @@ export default function GaleriaProduto({
                 )
               })}
             </div>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-medium text-hull-900">Manuais (PDF)</p>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-wake-500 hover:text-wake-600">
+              <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+              {enviandoManual ? 'Enviando…' : 'Adicionar manual'}
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                disabled={enviandoManual}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUploadManual(file)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          </div>
+          {manuais.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhum manual ainda.</p>
+          ) : (
+            <ul className="divide-y divide-foam-200 rounded-md border border-foam-200">
+              {manuais.map((manual) => (
+                <li key={manual.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <a
+                    href={manual.url_arquivo}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 text-hull-900 hover:text-wake-500"
+                  >
+                    <FileText className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                    <span className="truncate">{manual.nome_arquivo}</span>
+                  </a>
+                  <button
+                    onClick={() => handleExcluirManual(manual)}
+                    className="ml-2 shrink-0 text-signal-red/80 hover:text-signal-red"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

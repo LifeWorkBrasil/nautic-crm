@@ -53,6 +53,14 @@ export interface VideoProduto {
   titulo: string | null
 }
 
+export interface ManualProduto {
+  id: string
+  produto_id: string
+  url_arquivo: string
+  nome_arquivo: string
+  criado_em: string
+}
+
 export interface Motor {
   id: string
   marca: string

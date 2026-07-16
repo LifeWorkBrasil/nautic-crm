@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, FileDown, Link2, ChevronRight, Building2 } from 'lucide-react'
+import { Check, FileDown, Link2, ChevronRight, Building2, FileText } from 'lucide-react'
 import {
   listProdutos,
   listMotores,
@@ -8,9 +8,10 @@ import {
   createLead,
   criarOrcamento,
   getEmpresaConfig,
+  listManuaisProduto,
 } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import type { Produto, Motor, Acessorio, ClienteLead, EmpresaConfig } from '@/types'
+import type { Produto, Motor, Acessorio, ClienteLead, EmpresaConfig, ManualProduto } from '@/types'
 
 const PASSOS = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Visualização & Envio']
 
@@ -34,7 +35,18 @@ export default function Orcamentos() {
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
   const [gerandoPdf, setGerandoPdf] = useState(false)
+  const [manuais, setManuais] = useState<ManualProduto[]>([])
   const previewRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!produtoId) {
+      setManuais([])
+      return
+    }
+    listManuaisProduto(produtoId)
+      .then(setManuais)
+      .catch(() => setManuais([]))
+  }, [produtoId])
 
   useEffect(() => {
     async function carregar() {
@@ -402,6 +414,27 @@ export default function Orcamentos() {
                   <p className="text-xs leading-relaxed text-slate-400">{empresa.termos_condicoes}</p>
                 )}
               </div>
+
+              {manuais.length > 0 && (
+                <div className="rounded-md border border-foam-200 bg-white p-4">
+                  <p className="mb-2 text-sm font-medium text-hull-900">Manuais inclusos</p>
+                  <ul className="space-y-1.5">
+                    {manuais.map((m) => (
+                      <li key={m.id}>
+                        <a
+                          href={m.url_arquivo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-2 text-sm text-wake-500 hover:text-wake-600"
+                        >
+                          <FileText className="h-3.5 w-3.5" strokeWidth={1.75} />
+                          {m.nome_arquivo}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
