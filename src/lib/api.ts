@@ -9,6 +9,7 @@ import type {
   Motor,
   Acessorio,
   ClienteLead,
+  HistoricoContato,
   StatusCRM,
   EmpresaConfig,
 } from '@/types'
@@ -325,6 +326,29 @@ export async function updateLead(
 ): Promise<void> {
   const { error } = await supabase.from('clientes_leads').update(patch).eq('id', id)
   if (error) throw error
+}
+
+export async function listHistoricoCliente(clienteId: string): Promise<HistoricoContato[]> {
+  const { data, error } = await supabase
+    .from('clientes_historico')
+    .select('*')
+    .eq('cliente_id', clienteId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function adicionarHistorico(
+  clienteId: string,
+  texto: string
+): Promise<HistoricoContato> {
+  const { data, error } = await supabase
+    .from('clientes_historico')
+    .insert({ cliente_id: clienteId, texto })
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
 
 // ---------- Orçamentos ----------

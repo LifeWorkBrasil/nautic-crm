@@ -26,6 +26,14 @@ export interface ClienteLead {
   estado?: string | null
   cep?: string | null
   pessoa_juridica_id?: string | null
+  proximo_contato?: string | null
+}
+
+export interface HistoricoContato {
+  id: string
+  cliente_id: string
+  texto: string
+  criado_em: string
 }
 
 export interface CategoriaProduto {

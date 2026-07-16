@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Phone, Mail, Pencil } from 'lucide-react'
+import { Plus, Phone, Mail, Pencil, AlertTriangle } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
-import { listLeads, createLead, updateLeadStatus, updateLead } from '@/lib/api'
-import type { ClienteLead, StatusCRM } from '@/types'
+import {
+  listLeads,
+  createLead,
+  updateLeadStatus,
+  updateLead,
+  listHistoricoCliente,
+  adicionarHistorico,
+} from '@/lib/api'
+import type { ClienteLead, StatusCRM, HistoricoContato } from '@/types'
+
+function estaAtrasado(lead: ClienteLead): boolean {
+  if (!lead.proximo_contato) return false
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  return new Date(`${lead.proximo_contato}T00:00:00`) < hoje
+}
 
 const COLUNAS: StatusCRM[] = [
   'Lead',
@@ -54,6 +68,7 @@ const EDICAO_VAZIA = {
   estado: '',
   cep: '',
   pessoa_juridica_id: '',
+  proximo_contato: '',
 }
 
 export default function CRM() {
@@ -66,6 +81,9 @@ export default function CRM() {
   const [editando, setEditando] = useState<ClienteLead | null>(null)
   const [formEdicao, setFormEdicao] = useState(EDICAO_VAZIA)
   const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+  const [historico, setHistorico] = useState<HistoricoContato[]>([])
+  const [novoTexto, setNovoTexto] = useState('')
+  const [registrandoContato, setRegistrandoContato] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -116,8 +134,13 @@ export default function CRM() {
       estado: lead.estado ?? '',
       cep: lead.cep ?? '',
       pessoa_juridica_id: lead.pessoa_juridica_id ?? '',
+      proximo_contato: lead.proximo_contato ?? '',
     })
     setEditando(lead)
+    setHistorico([])
+    listHistoricoCliente(lead.id)
+      .then(setHistorico)
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar histórico'))
   }
 
   async function salvarEdicao() {
@@ -127,6 +150,7 @@ export default function CRM() {
       await updateLead(editando.id, {
         ...formEdicao,
         pessoa_juridica_id: formEdicao.pessoa_juridica_id || null,
+        proximo_contato: formEdicao.proximo_contato || null,
       })
       setEditando(null)
       await carregar()
@@ -134,6 +158,20 @@ export default function CRM() {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar cliente')
     } finally {
       setSalvandoEdicao(false)
+    }
+  }
+
+  async function registrarContato() {
+    if (!editando || !novoTexto.trim()) return
+    setRegistrandoContato(true)
+    try {
+      const entrada = await adicionarHistorico(editando.id, novoTexto.trim())
+      setHistorico((prev) => [entrada, ...prev])
+      setNovoTexto('')
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao registrar contato')
+    } finally {
+      setRegistrandoContato(false)
     }
   }
 
@@ -215,7 +253,15 @@ export default function CRM() {
                     key={lead.id}
                     className={`rounded-md border p-3.5 shadow-sm ${STATUS_STYLES[status]}`}
                   >
-                    <p className="font-medium text-hull-900">{lead.nome}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-hull-900">{lead.nome}</p>
+                      {estaAtrasado(lead) && (
+                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-signal-red/10 px-2 py-0.5 text-[10px] font-medium text-signal-red">
+                          <AlertTriangle className="h-2.5 w-2.5" strokeWidth={2} />
+                          Atrasado
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-0.5 text-xs text-slate-500">{lead.origem}</p>
 
                     {lead.observacoes && (
@@ -517,6 +563,51 @@ export default function CRM() {
                 className="input resize-none"
               />
             </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                Próxima ligação
+              </span>
+              <input
+                type="date"
+                value={formEdicao.proximo_contato}
+                onChange={(e) => setFormEdicao({ ...formEdicao, proximo_contato: e.target.value })}
+                className="input"
+              />
+            </label>
+
+            <div className="border-t border-foam-200 pt-4">
+              <p className="mb-2 text-sm font-medium text-hull-900">Histórico de contato</p>
+              <div className="mb-3 flex gap-2">
+                <input
+                  value={novoTexto}
+                  onChange={(e) => setNovoTexto(e.target.value)}
+                  placeholder="O que foi conversado…"
+                  className="input"
+                />
+                <button
+                  onClick={registrarContato}
+                  disabled={registrandoContato || !novoTexto.trim()}
+                  className="shrink-0 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-40"
+                >
+                  {registrandoContato ? 'Registrando…' : 'Registrar contato'}
+                </button>
+              </div>
+              {historico.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum contato registrado ainda.</p>
+              ) : (
+                <ul className="max-h-40 space-y-2 overflow-y-auto">
+                  {historico.map((h) => (
+                    <li key={h.id} className="text-sm">
+                      <span className="mr-2 font-mono text-xs text-slate-400">
+                        {new Date(h.criado_em).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="text-slate-600">{h.texto}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </Modal>
       )}
