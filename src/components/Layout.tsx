@@ -12,6 +12,7 @@ import {
   Compass,
   Layers,
   ClipboardList,
+  Megaphone,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
@@ -28,6 +29,7 @@ const NAV_ITEMS_FIXOS = [
   { to: '/captacao', label: 'Captação', icon: ClipboardList },
   { to: '/parametrizacao', label: 'Parametrização', icon: Settings2 },
   { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText },
+  { to: '/marketing', label: 'Marketing', icon: Megaphone },
   { to: '/empresa', label: 'Empresa & Marca', icon: Building2 },
 ]
 

@@ -182,3 +182,23 @@ export interface CaptacaoFoto {
   url_imagem: string
   principal: boolean
 }
+
+export interface PostMarketing {
+  id: string
+  produto_id: string | null
+  captacao_id: string | null
+  prompt_usuario: string | null
+  tom: string | null
+  legenda_gerada: string
+  foto_urls: string[] | null
+  criado_em: string
+}
+
+export interface MidiaBancoItem {
+  origem: 'produto' | 'captacao'
+  origemId: string
+  nome: string
+  descricao: string | null
+  precoBase: number | null
+  fotos: { id: string; url_imagem: string; principal: boolean }[]
+}

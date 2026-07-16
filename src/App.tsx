@@ -10,6 +10,7 @@ import Catalogo from './pages/Catalogo'
 import Parametrizacao from './pages/Parametrizacao'
 import Orcamentos from './pages/Orcamentos'
 import Empresa from './pages/Empresa'
+import Marketing from './pages/Marketing'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
         <Route path="/parametrizacao" element={<Parametrizacao />} />
         <Route path="/orcamentos" element={<Orcamentos />} />
+        <Route path="/marketing" element={<Marketing />} />
         <Route path="/empresa" element={<Empresa />} />
       </Route>
     </Routes>

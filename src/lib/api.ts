@@ -15,6 +15,8 @@ import type {
   Captacao,
   CaptacaoItem,
   CaptacaoFoto,
+  PostMarketing,
+  MidiaBancoItem,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -600,4 +602,89 @@ export async function publicarCaptacao(
   if (updateError) throw updateError
 
   return produto
+}
+
+// ---------- Marketing ----------
+
+export async function listMidiaBanco(): Promise<MidiaBancoItem[]> {
+  const { data: produtos, error: produtosError } = await supabase
+    .from('produtos')
+    .select('id, nome, descricao, preco_base, fotos_produto(id, url_imagem, principal)')
+  if (produtosError) throw produtosError
+
+  const { data: captacoes, error: captacoesError } = await supabase
+    .from('captacoes')
+    .select('id, nome, observacoes, captacao_fotos(id, url_imagem, principal)')
+    .neq('status', 'Descartado')
+  if (captacoesError) throw captacoesError
+
+  const itensProdutos: MidiaBancoItem[] = (produtos ?? [])
+    .filter((p) => (p.fotos_produto ?? []).length > 0)
+    .map((p) => ({
+      origem: 'produto' as const,
+      origemId: p.id,
+      nome: p.nome,
+      descricao: p.descricao,
+      precoBase: p.preco_base,
+      fotos: p.fotos_produto ?? [],
+    }))
+
+  const itensCaptacoes: MidiaBancoItem[] = (captacoes ?? [])
+    .filter((c) => (c.captacao_fotos ?? []).length > 0)
+    .map((c) => ({
+      origem: 'captacao' as const,
+      origemId: c.id,
+      nome: `${c.nome} (captação)`,
+      descricao: c.observacoes,
+      precoBase: null,
+      fotos: c.captacao_fotos ?? [],
+    }))
+
+  return [...itensProdutos, ...itensCaptacoes]
+}
+
+export async function gerarLegendaSocial(input: {
+  nome: string
+  descricao?: string | null
+  tom?: string
+  precoBase?: number | null
+}): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-legenda-social`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionData.session?.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(input),
+    }
+  )
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao gerar legenda.')
+  return data.legenda as string
+}
+
+export async function listPostsMarketing(): Promise<PostMarketing[]> {
+  const { data, error } = await supabase
+    .from('posts_marketing')
+    .select('*')
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function salvarPostMarketing(post: {
+  produto_id?: string | null
+  captacao_id?: string | null
+  prompt_usuario?: string | null
+  tom?: string | null
+  legenda_gerada: string
+  foto_urls?: string[] | null
+}): Promise<PostMarketing> {
+  const { data, error } = await supabase.from('posts_marketing').insert(post).select().single()
+  if (error) throw error
+  return data
 }
