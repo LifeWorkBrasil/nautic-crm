@@ -12,6 +12,9 @@ import type {
   HistoricoContato,
   StatusCRM,
   EmpresaConfig,
+  Captacao,
+  CaptacaoItem,
+  CaptacaoFoto,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -445,4 +448,156 @@ export async function uploadLogoEmpresa(file: File): Promise<string> {
 
   const { data } = supabase.storage.from('branding').getPublicUrl(path)
   return data.publicUrl
+}
+
+// ---------- Captação ----------
+
+export async function listCaptacoes(status?: string): Promise<Captacao[]> {
+  let query = supabase.from('captacoes').select('*').order('criado_em', { ascending: false })
+  if (status) query = query.eq('status', status)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createCaptacao(
+  captacao: Omit<Captacao, 'id' | 'criado_em' | 'status' | 'produto_id'>
+): Promise<Captacao> {
+  const { data, error } = await supabase.from('captacoes').insert(captacao).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCaptacao(
+  id: string,
+  patch: Partial<Omit<Captacao, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('captacoes').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCaptacao(id: string): Promise<void> {
+  const { error } = await supabase.from('captacoes').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function listCaptacaoItens(captacaoId: string): Promise<CaptacaoItem[]> {
+  const { data, error } = await supabase
+    .from('captacao_itens')
+    .select('*')
+    .eq('captacao_id', captacaoId)
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createCaptacaoItem(item: Omit<CaptacaoItem, 'id'>): Promise<CaptacaoItem> {
+  const { data, error } = await supabase.from('captacao_itens').insert(item).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCaptacaoItem(
+  id: string,
+  patch: Partial<Omit<CaptacaoItem, 'id' | 'captacao_id'>>
+): Promise<void> {
+  const { error } = await supabase.from('captacao_itens').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCaptacaoItem(id: string): Promise<void> {
+  const { error } = await supabase.from('captacao_itens').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function listFotosCaptacao(captacaoId: string): Promise<CaptacaoFoto[]> {
+  const { data, error } = await supabase
+    .from('captacao_fotos')
+    .select('*')
+    .eq('captacao_id', captacaoId)
+    .order('principal', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function uploadFotoCaptacao(captacaoId: string, file: File): Promise<CaptacaoFoto> {
+  const ext = file.name.split('.').pop()
+  const path = `captacao-${captacaoId}/${crypto.randomUUID()}.${ext}`
+  const { error: uploadError } = await supabase.storage.from('produtos').upload(path, file)
+  if (uploadError) throw uploadError
+
+  const { data } = supabase.storage.from('produtos').getPublicUrl(path)
+
+  const { count } = await supabase
+    .from('captacao_fotos')
+    .select('id', { count: 'exact', head: true })
+    .eq('captacao_id', captacaoId)
+
+  const { data: foto, error: insertError } = await supabase
+    .from('captacao_fotos')
+    .insert({ captacao_id: captacaoId, url_imagem: data.publicUrl, principal: (count ?? 0) === 0 })
+    .select()
+    .single()
+  if (insertError) throw insertError
+  return foto
+}
+
+export async function deleteFotoCaptacao(foto: { id: string; url_imagem: string }): Promise<void> {
+  const path = foto.url_imagem.split('/produtos/')[1]
+  if (path) {
+    await supabase.storage.from('produtos').remove([path])
+  }
+  const { error } = await supabase.from('captacao_fotos').delete().eq('id', foto.id)
+  if (error) throw error
+}
+
+export async function publicarCaptacao(
+  captacaoId: string,
+  dadosProduto: { descricao: string; preco_base: number }
+): Promise<Produto> {
+  const { data: captacao, error: captacaoError } = await supabase
+    .from('captacoes')
+    .select('*')
+    .eq('id', captacaoId)
+    .single()
+  if (captacaoError) throw captacaoError
+  if (!captacao.subcategoria_id) {
+    throw new Error('A captação precisa de uma subcategoria definida antes de publicar.')
+  }
+
+  const { data: produto, error: produtoError } = await supabase
+    .from('produtos')
+    .insert({
+      nome: captacao.nome,
+      descricao: dadosProduto.descricao,
+      preco_base: dadosProduto.preco_base,
+      comprimento: null,
+      subcategoria_id: captacao.subcategoria_id,
+    })
+    .select()
+    .single()
+  if (produtoError) throw produtoError
+
+  const fotos = await listFotosCaptacao(captacaoId)
+  for (const foto of fotos) {
+    const origemPath = foto.url_imagem.split('/produtos/')[1]
+    if (!origemPath) continue
+    const ext = origemPath.split('.').pop()
+    const destinoPath = `${produto.id}/${crypto.randomUUID()}.${ext}`
+    const { error: copyError } = await supabase.storage.from('produtos').copy(origemPath, destinoPath)
+    if (copyError) continue
+    const { data: publicUrlData } = supabase.storage.from('produtos').getPublicUrl(destinoPath)
+    await supabase.from('fotos_produto').insert({
+      produto_id: produto.id,
+      url_imagem: publicUrlData.publicUrl,
+      principal: foto.principal,
+    })
+  }
+
+  const { error: updateError } = await supabase
+    .from('captacoes')
+    .update({ produto_id: produto.id, status: 'Publicado' })
+    .eq('id', captacaoId)
+  if (updateError) throw updateError
+
+  return produto
 }

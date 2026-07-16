@@ -134,3 +134,51 @@ export interface ParcelaOrcamento {
   percentual: number
   valor: number
 }
+
+export type StatusCaptacao = 'Em captação' | 'Aprovado' | 'Publicado' | 'Descartado'
+
+export interface Captacao {
+  id: string
+  categoria_id: string
+  subcategoria_id: string | null
+  nome: string
+  cliente_nome: string | null
+  cliente_telefone: string | null
+  local: string | null
+  ano: number | null
+  fabricante: string | null
+  modelo: string | null
+  identificador: string | null
+  responsavel: string | null
+  cor: string | null
+  motorizacao_tipo: string | null
+  motorizacao_potencia: string | null
+  motorizacao_marca_modelo: string | null
+  combustivel: string | null
+  horas_uso: string | null
+  ultima_revisao: string | null
+  bateria_motor: string | null
+  bateria_servico: string | null
+  estado_geral: string | null
+  observacoes: string | null
+  status: StatusCaptacao
+  produto_id: string | null
+  criado_em: string
+}
+
+export interface CaptacaoItem {
+  id: string
+  captacao_id: string
+  nome: string
+  descricao: string | null
+  quantidade: number | null
+  estado: string | null
+  marca: string | null
+}
+
+export interface CaptacaoFoto {
+  id: string
+  captacao_id: string
+  url_imagem: string
+  principal: boolean
+}
