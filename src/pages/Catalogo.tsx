@@ -131,7 +131,14 @@ export default function Catalogo() {
                   </span>
                 )}
               </button>
-              <p className="font-display text-lg text-hull-900">{produto.nome}</p>
+              <div className="mb-1 flex items-center gap-2">
+                <p className="font-display text-lg text-hull-900">{produto.nome}</p>
+                {produto.origem_captacao === 'Terceiro' && (
+                  <span className="rounded-full bg-brass-400/15 px-2 py-0.5 text-[10px] font-medium text-brass-600">
+                    Terceiro{produto.parceiro_nome ? ` · ${produto.parceiro_nome}` : ''}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500">{produto.descricao}</p>
               <div className="mt-3 flex items-center justify-between border-t border-foam-200 pt-3">
                 <span className="font-mono text-sm text-hull-900">

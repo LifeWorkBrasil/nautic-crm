@@ -57,6 +57,19 @@ export interface Produto {
   comprimento: number | null
   subcategoria_id: string
   foto_principal_url?: string
+  origem_captacao: 'Próprio' | 'Terceiro'
+  captador_nome: string | null
+  parceiro_id: string | null
+  parceiro_nome?: string
+}
+
+export interface Parceiro {
+  id: string
+  nome: string
+  contato: string | null
+  telefone: string | null
+  observacoes: string | null
+  criado_em: string
 }
 
 export interface FotoProduto {
@@ -201,4 +214,45 @@ export interface MidiaBancoItem {
   descricao: string | null
   precoBase: number | null
   fotos: { id: string; url_imagem: string; principal: boolean }[]
+}
+
+export interface MinutaContrato {
+  id: string
+  nome: string
+  corpo: string
+  ativo: boolean
+  criado_em: string
+}
+
+export interface Contraproposta {
+  id: string
+  cliente_id: string
+  orcamento_id: string | null
+  valor_proposto: number | null
+  tipo_parcelamento: string | null
+  numero_parcelas: number | null
+  observacoes: string | null
+  criado_em: string
+}
+
+export interface ContrapropostaVeiculo {
+  id: string
+  contraproposta_id: string
+  tipo_veiculo: string
+  marca_modelo: string | null
+  ano: number | null
+  valor_estimado: number | null
+}
+
+export interface ContrapropostaImovel {
+  id: string
+  contraproposta_id: string
+  descricao: string | null
+  valor_estimado: number | null
+}
+
+export interface OrcamentoDetalhado extends Orcamento {
+  produto: Produto | null
+  motor: Motor | null
+  parcelas: ParcelaOrcamento[]
 }

@@ -13,6 +13,7 @@ import {
   Layers,
   ClipboardList,
   Megaphone,
+  Handshake,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
@@ -27,6 +28,7 @@ const CATEGORIA_ICONES: Record<string, typeof Sailboat> = {
 const NAV_ITEMS_FIXOS = [
   { to: '/', label: 'CRM & Funil', icon: LayoutGrid, end: true },
   { to: '/captacao', label: 'Captação', icon: ClipboardList },
+  { to: '/produtos-terceiros', label: 'Produtos de Terceiros', icon: Handshake },
   { to: '/parametrizacao', label: 'Parametrização', icon: Settings2 },
   { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText },
   { to: '/marketing', label: 'Marketing', icon: Megaphone },

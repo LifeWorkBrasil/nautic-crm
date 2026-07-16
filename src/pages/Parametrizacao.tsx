@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2, Users, FileSignature, FileEdit } from 'lucide-react'
 import Modal from '@/components/Modal'
-import { CampoTexto, CampoNumero } from '@/components/campos'
+import GerarContratoModal from '@/components/GerarContratoModal'
+import { CampoTexto, CampoNumero, CampoTextArea } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
+import { useCrudTab } from '@/hooks/useCrudTab'
 import {
   listMotores,
   createMotor,
@@ -21,15 +23,34 @@ import {
   createSubcategoria,
   updateSubcategoria,
   deleteSubcategoria,
+  listParceiros,
+  createParceiro,
+  updateParceiro,
+  deleteParceiro,
+  listMinutas,
+  createMinuta,
+  updateMinuta,
+  deleteMinuta,
 } from '@/lib/api'
-import type { Motor, Acessorio, Produto, CategoriaProduto, SubcategoriaProduto } from '@/types'
+import { PLACEHOLDERS_DISPONIVEIS } from '@/lib/contratos'
+import type {
+  Motor,
+  Acessorio,
+  Produto,
+  CategoriaProduto,
+  SubcategoriaProduto,
+  Parceiro,
+  MinutaContrato,
+} from '@/types'
 
-type Aba = 'motores' | 'acessorios' | 'categorias'
+type Aba = 'motores' | 'acessorios' | 'categorias' | 'parceiros' | 'minutas'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'motores', label: 'Motores', icon: Zap },
   { key: 'acessorios', label: 'Acessórios', icon: PackagePlus },
   { key: 'categorias', label: 'Categorias', icon: FolderTree },
+  { key: 'parceiros', label: 'Parceiros', icon: Users },
+  { key: 'minutas', label: 'Minutas de Contrato', icon: FileSignature },
 ]
 
 export default function Parametrizacao() {
@@ -66,6 +87,8 @@ export default function Parametrizacao() {
       {aba === 'motores' && <AbaMotores />}
       {aba === 'acessorios' && <AbaAcessorios />}
       {aba === 'categorias' && <AbaCategorias />}
+      {aba === 'parceiros' && <AbaParceiros />}
+      {aba === 'minutas' && <AbaMinutas />}
     </div>
   )
 }
@@ -772,6 +795,303 @@ function AbaCategorias() {
             />
           </div>
         </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Parceiros
+// ---------------------------------------------------------------------------
+
+type ParceiroForm = {
+  nome: string
+  contato: string
+  telefone: string
+  observacoes: string
+}
+
+const PARCEIRO_VAZIO: ParceiroForm = { nome: '', contato: '', telefone: '', observacoes: '' }
+
+function AbaParceiros() {
+  const {
+    itens,
+    carregando,
+    erro,
+    editando,
+    form,
+    setForm,
+    salvando,
+    carregar,
+    abrirCriacao,
+    abrirEdicao,
+    fechar,
+    salvar,
+    excluir,
+    modalAberto,
+  } = useCrudTab<Parceiro, ParceiroForm>({
+    list: listParceiros,
+    create: (f) =>
+      createParceiro({
+        nome: f.nome,
+        contato: f.contato || null,
+        telefone: f.telefone || null,
+        observacoes: f.observacoes || null,
+      }),
+    update: (id, f) =>
+      updateParceiro(id, {
+        nome: f.nome,
+        contato: f.contato || null,
+        telefone: f.telefone || null,
+        observacoes: f.observacoes || null,
+      }),
+    remove: deleteParceiro,
+    vazio: PARCEIRO_VAZIO,
+    mensagemExclusao: 'Excluir este parceiro? Produtos vinculados a ele ficam sem parceiro.',
+  })
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Novo parceiro" onClick={abrirCriacao} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : itens.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhum parceiro cadastrado ainda.</p>
+      ) : (
+        <div className="space-y-2">
+          {itens.map((parceiro) => (
+            <div
+              key={parceiro.id}
+              className="flex items-center justify-between rounded-md border border-foam-200 bg-white p-4"
+            >
+              <div>
+                <p className="font-display text-lg text-hull-900">{parceiro.nome}</p>
+                <p className="text-xs text-slate-500">
+                  {[parceiro.contato, parceiro.telefone].filter(Boolean).join(' · ') || '—'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() =>
+                    abrirEdicao(parceiro, {
+                      nome: parceiro.nome,
+                      contato: parceiro.contato ?? '',
+                      telefone: parceiro.telefone ?? '',
+                      observacoes: parceiro.observacoes ?? '',
+                    })
+                  }
+                  className="text-wake-500 hover:text-wake-600"
+                >
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  onClick={() => excluir(parceiro.id)}
+                  className="text-signal-red/80 hover:text-signal-red"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modalAberto && (
+        <Modal
+          title={editando ? `Editar ${editando.nome}` : 'Novo parceiro'}
+          onClose={fechar}
+          footer={
+            <>
+              <button onClick={fechar} className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900">
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                disabled={salvando || !form.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <CampoTexto label="Contato" value={form.contato} onChange={(v) => setForm({ ...form, contato: v })} />
+            <CampoTexto
+              label="Telefone"
+              value={form.telefone}
+              onChange={(v) => setForm({ ...form, telefone: v })}
+            />
+            <CampoTexto
+              label="Observações"
+              value={form.observacoes}
+              onChange={(v) => setForm({ ...form, observacoes: v })}
+            />
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Minutas de Contrato
+// ---------------------------------------------------------------------------
+
+type MinutaForm = { nome: string; corpo: string; ativo: boolean }
+
+const MINUTA_VAZIA: MinutaForm = { nome: '', corpo: '', ativo: true }
+
+function AbaMinutas() {
+  const [gerandoContratoPara, setGerandoContratoPara] = useState<MinutaContrato | null>(null)
+
+  const {
+    itens,
+    carregando,
+    erro,
+    editando,
+    form,
+    setForm,
+    salvando,
+    carregar,
+    abrirCriacao,
+    abrirEdicao,
+    fechar,
+    salvar,
+    excluir,
+    modalAberto,
+  } = useCrudTab<MinutaContrato, MinutaForm>({
+    list: listMinutas,
+    create: createMinuta,
+    update: updateMinuta,
+    remove: deleteMinuta,
+    vazio: MINUTA_VAZIA,
+    mensagemExclusao: 'Excluir esta minuta de contrato?',
+  })
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Nova minuta" onClick={abrirCriacao} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : itens.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhuma minuta de contrato cadastrada ainda.</p>
+      ) : (
+        <div className="space-y-2">
+          {itens.map((minuta) => (
+            <div
+              key={minuta.id}
+              className="flex items-center justify-between rounded-md border border-foam-200 bg-white p-4"
+            >
+              <div className="flex items-center gap-2">
+                <p className="font-display text-lg text-hull-900">{minuta.nome}</p>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    minuta.ativo ? 'bg-signal-green/10 text-signal-green' : 'bg-foam-200 text-slate-400'
+                  }`}
+                >
+                  {minuta.ativo ? 'Ativa' : 'Inativa'}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setGerandoContratoPara(minuta)}
+                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  <FileEdit className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Gerar contrato
+                </button>
+                <button
+                  onClick={() =>
+                    abrirEdicao(minuta, { nome: minuta.nome, corpo: minuta.corpo, ativo: minuta.ativo })
+                  }
+                  className="text-wake-500 hover:text-wake-600"
+                >
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  onClick={() => excluir(minuta.id)}
+                  className="text-signal-red/80 hover:text-signal-red"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modalAberto && (
+        <Modal
+          title={editando ? `Editar ${editando.nome}` : 'Nova minuta'}
+          onClose={fechar}
+          size="lg"
+          footer={
+            <>
+              <button onClick={fechar} className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900">
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                disabled={salvando || !form.nome.trim() || !form.corpo.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <label className="flex items-center gap-2 text-sm text-hull-900">
+              <input
+                type="checkbox"
+                checked={form.ativo}
+                onChange={(e) => setForm({ ...form, ativo: e.target.checked })}
+                className="h-4 w-4 accent-brass-500"
+              />
+              Ativa (aparece para seleção na hora de gerar contrato)
+            </label>
+            <CampoTextArea
+              label="Corpo do contrato"
+              value={form.corpo}
+              onChange={(v) => setForm({ ...form, corpo: v })}
+              rows={14}
+            />
+            <div className="rounded-md border border-foam-200 bg-foam-100 p-3">
+              <p className="mb-1.5 text-xs font-medium text-hull-900">Placeholders disponíveis</p>
+              <p className="font-mono text-[11px] leading-relaxed text-slate-500">
+                {PLACEHOLDERS_DISPONIVEIS.join('  ')}
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {gerandoContratoPara && (
+        <GerarContratoModal
+          minutaInicial={gerandoContratoPara}
+          onClose={() => setGerandoContratoPara(null)}
+        />
       )}
     </div>
   )

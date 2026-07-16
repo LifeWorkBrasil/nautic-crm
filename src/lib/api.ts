@@ -17,6 +17,13 @@ import type {
   CaptacaoFoto,
   PostMarketing,
   MidiaBancoItem,
+  Parceiro,
+  MinutaContrato,
+  Contraproposta,
+  ContrapropostaVeiculo,
+  ContrapropostaImovel,
+  OrcamentoDetalhado,
+  ParcelaOrcamento,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -85,25 +92,80 @@ export async function deleteSubcategoria(id: string): Promise<void> {
   if (error) throw error
 }
 
+// ---------- Parceiros ----------
+
+export async function listParceiros(): Promise<Parceiro[]> {
+  const { data, error } = await supabase.from('parceiros').select('*').order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createParceiro(parceiro: Omit<Parceiro, 'id' | 'criado_em'>): Promise<Parceiro> {
+  const { data, error } = await supabase.from('parceiros').insert(parceiro).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateParceiro(
+  id: string,
+  patch: Partial<Omit<Parceiro, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('parceiros').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteParceiro(id: string): Promise<void> {
+  const { error } = await supabase.from('parceiros').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ---------- Produtos ----------
 
+const PRODUTO_SELECT =
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, origem_captacao, captador_nome, parceiro_id, fotos_produto(url_imagem, principal), parceiros(nome)'
+
+function mapProdutoRow({
+  fotos_produto,
+  parceiros,
+  ...produto
+}: {
+  fotos_produto?: { url_imagem: string; principal: boolean }[]
+  parceiros?: { nome: string } | { nome: string }[] | null
+  [key: string]: unknown
+}): Produto {
+  const parceiro = Array.isArray(parceiros) ? parceiros[0] : parceiros
+  return {
+    ...(produto as Omit<Produto, 'foto_principal_url' | 'parceiro_nome'>),
+    foto_principal_url:
+      fotos_produto?.find((f) => f.principal)?.url_imagem ?? fotos_produto?.[0]?.url_imagem,
+    parceiro_nome: parceiro?.nome,
+  }
+}
+
 export async function listProdutos(subcategoriaId?: string): Promise<Produto[]> {
-  let query = supabase
-    .from('produtos')
-    .select('id, nome, descricao, preco_base, comprimento, subcategoria_id, fotos_produto(url_imagem, principal)')
-    .order('nome')
+  let query = supabase.from('produtos').select(PRODUTO_SELECT).order('nome')
   if (subcategoriaId) query = query.eq('subcategoria_id', subcategoriaId)
   const { data, error } = await query
   if (error) throw error
-  return (data ?? []).map(({ fotos_produto, ...produto }) => ({
-    ...produto,
-    foto_principal_url:
-      fotos_produto?.find((f) => f.principal)?.url_imagem ?? fotos_produto?.[0]?.url_imagem,
-  }))
+  return (data ?? []).map(mapProdutoRow)
+}
+
+export async function listProdutosTerceiros(): Promise<Produto[]> {
+  const { data, error } = await supabase
+    .from('produtos')
+    .select(PRODUTO_SELECT)
+    .eq('origem_captacao', 'Terceiro')
+    .order('nome')
+  if (error) throw error
+  return (data ?? []).map(mapProdutoRow)
 }
 
 export async function createProduto(
-  produto: Omit<Produto, 'id' | 'foto_principal_url'>
+  produto: Omit<
+    Produto,
+    'id' | 'foto_principal_url' | 'parceiro_nome' | 'origem_captacao' | 'captador_nome' | 'parceiro_id'
+  > &
+    Partial<Pick<Produto, 'origem_captacao' | 'captador_nome' | 'parceiro_id'>>
 ): Promise<Produto> {
   const { data, error } = await supabase
     .from('produtos')
@@ -116,7 +178,7 @@ export async function createProduto(
 
 export async function updateProduto(
   id: string,
-  patch: Partial<Omit<Produto, 'id'>>
+  patch: Partial<Omit<Produto, 'id' | 'foto_principal_url' | 'parceiro_nome'>>
 ): Promise<void> {
   const { error } = await supabase.from('produtos').update(patch).eq('id', id)
   if (error) throw error
@@ -421,6 +483,23 @@ export async function criarOrcamento(input: {
   return orcamento
 }
 
+export async function listOrcamentosCliente(clienteId: string): Promise<OrcamentoDetalhado[]> {
+  const { data, error } = await supabase
+    .from('orcamentos')
+    .select('*, produtos(*), motores(*), orcamentos_parcelas(*)')
+    .eq('cliente_id', clienteId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(({ produtos, motores, orcamentos_parcelas, ...orcamento }) => ({
+    ...orcamento,
+    produto: produtos ?? null,
+    motor: motores ?? null,
+    parcelas: (orcamentos_parcelas ?? []).sort(
+      (a: ParcelaOrcamento, b: ParcelaOrcamento) => a.numero - b.numero
+    ),
+  }))
+}
+
 // ---------- Configuração da empresa ----------
 
 export async function getEmpresaConfig(): Promise<EmpresaConfig | null> {
@@ -687,4 +766,95 @@ export async function salvarPostMarketing(post: {
   const { data, error } = await supabase.from('posts_marketing').insert(post).select().single()
   if (error) throw error
   return data
+}
+
+// ---------- Minutas de Contrato ----------
+
+export async function listMinutas(): Promise<MinutaContrato[]> {
+  const { data, error } = await supabase
+    .from('minutas_contrato')
+    .select('*')
+    .order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createMinuta(
+  minuta: Omit<MinutaContrato, 'id' | 'criado_em'>
+): Promise<MinutaContrato> {
+  const { data, error } = await supabase.from('minutas_contrato').insert(minuta).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateMinuta(
+  id: string,
+  patch: Partial<Omit<MinutaContrato, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('minutas_contrato').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteMinuta(id: string): Promise<void> {
+  const { error } = await supabase.from('minutas_contrato').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Contrapropostas (trading) ----------
+
+export async function listContrapropostasCliente(clienteId: string): Promise<
+  (Contraproposta & { veiculo: ContrapropostaVeiculo | null; imovel: ContrapropostaImovel | null })[]
+> {
+  const { data, error } = await supabase
+    .from('contrapropostas')
+    .select('*, contraproposta_veiculos(*), contraproposta_imoveis(*)')
+    .eq('cliente_id', clienteId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(({ contraproposta_veiculos, contraproposta_imoveis, ...contraproposta }) => ({
+    ...contraproposta,
+    veiculo: contraproposta_veiculos?.[0] ?? null,
+    imovel: contraproposta_imoveis?.[0] ?? null,
+  }))
+}
+
+export async function criarContraproposta(input: {
+  cliente_id: string
+  orcamento_id?: string | null
+  valor_proposto?: number | null
+  tipo_parcelamento?: string | null
+  numero_parcelas?: number | null
+  observacoes?: string | null
+  veiculo?: { tipo_veiculo: string; marca_modelo?: string | null; ano?: number | null; valor_estimado?: number | null } | null
+  imovel?: { descricao?: string | null; valor_estimado?: number | null } | null
+}): Promise<Contraproposta> {
+  const { data: contraproposta, error } = await supabase
+    .from('contrapropostas')
+    .insert({
+      cliente_id: input.cliente_id,
+      orcamento_id: input.orcamento_id ?? null,
+      valor_proposto: input.valor_proposto ?? null,
+      tipo_parcelamento: input.tipo_parcelamento ?? null,
+      numero_parcelas: input.numero_parcelas ?? null,
+      observacoes: input.observacoes ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+
+  if (input.veiculo) {
+    const { error: veiculoError } = await supabase
+      .from('contraproposta_veiculos')
+      .insert({ contraproposta_id: contraproposta.id, ...input.veiculo })
+    if (veiculoError) throw veiculoError
+  }
+
+  if (input.imovel) {
+    const { error: imovelError } = await supabase
+      .from('contraproposta_imoveis')
+      .insert({ contraproposta_id: contraproposta.id, ...input.imovel })
+    if (imovelError) throw imovelError
+  }
+
+  return contraproposta
 }

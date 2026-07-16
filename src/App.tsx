@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import CRM from './pages/CRM'
 import Captacao from './pages/Captacao'
+import ProdutosTerceiros from './pages/ProdutosTerceiros'
 import Catalogo from './pages/Catalogo'
 import Parametrizacao from './pages/Parametrizacao'
 import Orcamentos from './pages/Orcamentos'
@@ -42,6 +43,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<CRM />} />
         <Route path="/captacao" element={<Captacao />} />
+        <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
         <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
         <Route path="/parametrizacao" element={<Parametrizacao />} />
         <Route path="/orcamentos" element={<Orcamentos />} />
