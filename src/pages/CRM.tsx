@@ -21,6 +21,12 @@ const STATUS_STYLES: Record<StatusCRM, string> = {
   Perdido: 'border-slate-400/30 bg-foam-200',
 }
 
+function linkWhatsapp(telefone: string): string {
+  const digitos = telefone.replace(/\D/g, '')
+  const comDdi = digitos.startsWith('55') ? digitos : `55${digitos}`
+  return `https://wa.me/${comDdi}`
+}
+
 const LEAD_VAZIO = {
   nome: '',
   email: '',
@@ -238,7 +244,9 @@ export default function CRM() {
                         <Mail className="h-3 w-3" strokeWidth={1.75} />
                       </a>
                       <a
-                        href={`tel:${lead.telefone}`}
+                        href={linkWhatsapp(lead.telefone)}
+                        target="_blank"
+                        rel="noreferrer"
                         className="flex items-center gap-1 text-[11px] hover:text-wake-500"
                       >
                         <Phone className="h-3 w-3" strokeWidth={1.75} />
