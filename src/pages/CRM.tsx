@@ -3,6 +3,7 @@ import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck } from 'lucide-reac
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { formatBRL } from '@/lib/format'
 import {
   listLeads,
   createLead,
@@ -12,8 +13,20 @@ import {
   adicionarHistorico,
   listUsuarios,
   assumirLead,
+  listOrcamentosCliente,
+  listContrapropostasCliente,
+  criarContraproposta,
 } from '@/lib/api'
-import type { ClienteLead, StatusCRM, HistoricoContato, UsuarioPerfil } from '@/types'
+import type {
+  ClienteLead,
+  StatusCRM,
+  HistoricoContato,
+  UsuarioPerfil,
+  OrcamentoDetalhado,
+  Contraproposta,
+  ContrapropostaVeiculo,
+  ContrapropostaImovel,
+} from '@/types'
 
 const DIAS_LIBERACAO_LEAD = 90
 
@@ -76,6 +89,26 @@ const EDICAO_VAZIA = {
   proximo_contato: '',
 }
 
+const FORM_CONTRAPROPOSTA_VAZIO = {
+  orcamento_id: '',
+  valor_proposto: '',
+  tipo_parcelamento: '',
+  numero_parcelas: '',
+  observacoes: '',
+  tipoTrading: 'veiculo' as 'veiculo' | 'imovel',
+  tipo_veiculo: '',
+  marca_modelo: '',
+  ano: '',
+  valor_estimado_veiculo: '',
+  descricao_imovel: '',
+  valor_estimado_imovel: '',
+}
+
+type ContrapropostaComItens = Contraproposta & {
+  veiculo: ContrapropostaVeiculo | null
+  imovel: ContrapropostaImovel | null
+}
+
 export default function CRM() {
   const { perfil } = usePermissoes()
   const [leads, setLeads] = useState<ClienteLead[]>([])
@@ -92,6 +125,11 @@ export default function CRM() {
   const [novoTexto, setNovoTexto] = useState('')
   const [registrandoContato, setRegistrandoContato] = useState(false)
   const [assumindo, setAssumindo] = useState(false)
+  const [orcamentosCliente, setOrcamentosCliente] = useState<OrcamentoDetalhado[]>([])
+  const [contrapropostas, setContrapropostas] = useState<ContrapropostaComItens[]>([])
+  const [mostrandoFormContraproposta, setMostrandoFormContraproposta] = useState(false)
+  const [formContraproposta, setFormContraproposta] = useState(FORM_CONTRAPROPOSTA_VAZIO)
+  const [salvandoContraproposta, setSalvandoContraproposta] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -187,6 +225,60 @@ export default function CRM() {
     listHistoricoCliente(lead.id)
       .then(setHistorico)
       .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar histórico'))
+
+    setOrcamentosCliente([])
+    setContrapropostas([])
+    setMostrandoFormContraproposta(false)
+    setFormContraproposta(FORM_CONTRAPROPOSTA_VAZIO)
+    Promise.all([listOrcamentosCliente(lead.id), listContrapropostasCliente(lead.id)])
+      .then(([o, c]) => {
+        setOrcamentosCliente(o)
+        setContrapropostas(c)
+      })
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar propostas'))
+  }
+
+  async function handleCriarContraproposta() {
+    if (!editando) return
+    setSalvandoContraproposta(true)
+    try {
+      await criarContraproposta({
+        cliente_id: editando.id,
+        orcamento_id: formContraproposta.orcamento_id || null,
+        valor_proposto: formContraproposta.valor_proposto ? Number(formContraproposta.valor_proposto) : null,
+        tipo_parcelamento: formContraproposta.tipo_parcelamento || null,
+        numero_parcelas: formContraproposta.numero_parcelas ? Number(formContraproposta.numero_parcelas) : null,
+        observacoes: formContraproposta.observacoes || null,
+        veiculo:
+          formContraproposta.tipoTrading === 'veiculo' && formContraproposta.tipo_veiculo
+            ? {
+                tipo_veiculo: formContraproposta.tipo_veiculo,
+                marca_modelo: formContraproposta.marca_modelo || null,
+                ano: formContraproposta.ano ? Number(formContraproposta.ano) : null,
+                valor_estimado: formContraproposta.valor_estimado_veiculo
+                  ? Number(formContraproposta.valor_estimado_veiculo)
+                  : null,
+              }
+            : null,
+        imovel:
+          formContraproposta.tipoTrading === 'imovel' && formContraproposta.descricao_imovel
+            ? {
+                descricao: formContraproposta.descricao_imovel || null,
+                valor_estimado: formContraproposta.valor_estimado_imovel
+                  ? Number(formContraproposta.valor_estimado_imovel)
+                  : null,
+              }
+            : null,
+      })
+      const atualizadas = await listContrapropostasCliente(editando.id)
+      setContrapropostas(atualizadas)
+      setMostrandoFormContraproposta(false)
+      setFormContraproposta(FORM_CONTRAPROPOSTA_VAZIO)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao registrar contraproposta')
+    } finally {
+      setSalvandoContraproposta(false)
+    }
   }
 
   async function salvarEdicao() {
@@ -704,6 +796,215 @@ export default function CRM() {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+
+            <div className="border-t border-foam-200 pt-4">
+              <p className="mb-2 text-sm font-medium text-hull-900">Propostas e Trading</p>
+
+              {orcamentosCliente.length === 0 ? (
+                <p className="text-sm text-slate-400">Nenhum orçamento salvo para este cliente.</p>
+              ) : (
+                <ul className="mb-3 space-y-1 text-sm text-slate-600">
+                  {orcamentosCliente.map((o) => (
+                    <li key={o.id}>
+                      {o.produto?.nome ?? 'Produto'} — {formatBRL(o.valor_total)} ({o.status})
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {contrapropostas.length > 0 && (
+                <ul className="mb-3 space-y-1.5">
+                  {contrapropostas.map((c) => (
+                    <li key={c.id} className="rounded-md border border-foam-200 p-2.5 text-sm">
+                      {c.valor_proposto != null && (
+                        <span className="text-hull-900">{formatBRL(c.valor_proposto)}</span>
+                      )}
+                      {c.tipo_parcelamento && (
+                        <span className="ml-2 text-xs text-slate-500">
+                          {c.tipo_parcelamento}
+                          {c.numero_parcelas ? ` (${c.numero_parcelas}x)` : ''}
+                        </span>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        Bem oferecido:{' '}
+                        {c.veiculo
+                          ? `${c.veiculo.tipo_veiculo} ${c.veiculo.marca_modelo ?? ''}`.trim()
+                          : (c.imovel?.descricao ?? '—')}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {!mostrandoFormContraproposta ? (
+                <button
+                  onClick={() => setMostrandoFormContraproposta(true)}
+                  disabled={bloqueadoPorOutro}
+                  className="flex items-center gap-1.5 text-xs text-wake-500 hover:text-wake-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                  Nova contraproposta
+                </button>
+              ) : (
+                <div className="space-y-3 rounded-md border border-foam-200 p-3">
+                  {orcamentosCliente.length > 0 && (
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-hull-900">
+                        Vincular a orçamento (opcional)
+                      </span>
+                      <select
+                        value={formContraproposta.orcamento_id}
+                        onChange={(e) =>
+                          setFormContraproposta({ ...formContraproposta, orcamento_id: e.target.value })
+                        }
+                        className="input text-sm"
+                      >
+                        <option value="">Nenhum</option>
+                        {orcamentosCliente.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.produto?.nome ?? 'Produto'} — {formatBRL(o.valor_total)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      value={formContraproposta.valor_proposto}
+                      onChange={(e) =>
+                        setFormContraproposta({ ...formContraproposta, valor_proposto: e.target.value })
+                      }
+                      placeholder="Valor proposto (R$)"
+                      className="input text-sm"
+                    />
+                    <input
+                      value={formContraproposta.tipo_parcelamento}
+                      onChange={(e) =>
+                        setFormContraproposta({ ...formContraproposta, tipo_parcelamento: e.target.value })
+                      }
+                      placeholder="Tipo de parcelamento"
+                      className="input text-sm"
+                    />
+                  </div>
+                  <input
+                    value={formContraproposta.numero_parcelas}
+                    onChange={(e) =>
+                      setFormContraproposta({ ...formContraproposta, numero_parcelas: e.target.value })
+                    }
+                    placeholder="Número de parcelas"
+                    className="input text-sm"
+                  />
+
+                  <div className="flex gap-4 text-sm">
+                    <label className="flex items-center gap-1.5">
+                      <input
+                        type="radio"
+                        checked={formContraproposta.tipoTrading === 'veiculo'}
+                        onChange={() => setFormContraproposta({ ...formContraproposta, tipoTrading: 'veiculo' })}
+                        className="accent-brass-500"
+                      />
+                      Veículo
+                    </label>
+                    <label className="flex items-center gap-1.5">
+                      <input
+                        type="radio"
+                        checked={formContraproposta.tipoTrading === 'imovel'}
+                        onChange={() => setFormContraproposta({ ...formContraproposta, tipoTrading: 'imovel' })}
+                        className="accent-brass-500"
+                      />
+                      Imóvel
+                    </label>
+                  </div>
+
+                  {formContraproposta.tipoTrading === 'veiculo' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        value={formContraproposta.tipo_veiculo}
+                        onChange={(e) =>
+                          setFormContraproposta({ ...formContraproposta, tipo_veiculo: e.target.value })
+                        }
+                        placeholder="Tipo (carro, moto…)"
+                        className="input text-sm"
+                      />
+                      <input
+                        value={formContraproposta.marca_modelo}
+                        onChange={(e) =>
+                          setFormContraproposta({ ...formContraproposta, marca_modelo: e.target.value })
+                        }
+                        placeholder="Marca/modelo"
+                        className="input text-sm"
+                      />
+                      <input
+                        value={formContraproposta.ano}
+                        onChange={(e) => setFormContraproposta({ ...formContraproposta, ano: e.target.value })}
+                        placeholder="Ano"
+                        className="input text-sm"
+                      />
+                      <input
+                        value={formContraproposta.valor_estimado_veiculo}
+                        onChange={(e) =>
+                          setFormContraproposta({
+                            ...formContraproposta,
+                            valor_estimado_veiculo: e.target.value,
+                          })
+                        }
+                        placeholder="Valor estimado (R$)"
+                        className="input text-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        value={formContraproposta.descricao_imovel}
+                        onChange={(e) =>
+                          setFormContraproposta({ ...formContraproposta, descricao_imovel: e.target.value })
+                        }
+                        placeholder="Descrição do imóvel"
+                        className="input text-sm"
+                      />
+                      <input
+                        value={formContraproposta.valor_estimado_imovel}
+                        onChange={(e) =>
+                          setFormContraproposta({
+                            ...formContraproposta,
+                            valor_estimado_imovel: e.target.value,
+                          })
+                        }
+                        placeholder="Valor estimado (R$)"
+                        className="input text-sm"
+                      />
+                    </div>
+                  )}
+
+                  <textarea
+                    rows={2}
+                    value={formContraproposta.observacoes}
+                    onChange={(e) =>
+                      setFormContraproposta({ ...formContraproposta, observacoes: e.target.value })
+                    }
+                    placeholder="Observações"
+                    className="input resize-none text-sm"
+                  />
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMostrandoFormContraproposta(false)}
+                      className="rounded-md px-3 py-1.5 text-xs text-slate-500 hover:text-hull-900"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleCriarContraproposta}
+                      disabled={salvandoContraproposta}
+                      className="rounded-md border border-foam-200 px-3 py-1.5 text-xs text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                    >
+                      {salvandoContraproposta ? 'Registrando…' : 'Registrar'}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
