@@ -70,6 +70,7 @@ export interface SubcategoriaProduto {
   categoria_id: string
   nome: string
   ordem: number
+  vendido_como_esta: boolean
 }
 
 export interface Produto {
@@ -84,6 +85,23 @@ export interface Produto {
   captador_nome: string | null
   parceiro_id: string | null
   parceiro_nome?: string
+  ano: number | null
+  motorizacao_tipo: string | null
+  motorizacao_potencia: string | null
+  motorizacao_marca_modelo: string | null
+  combustivel: string | null
+  horas_uso: string | null
+  ultima_revisao: string | null
+}
+
+export interface ProdutoItemIncluso {
+  id: string
+  produto_id: string
+  nome: string
+  descricao: string | null
+  quantidade: number | null
+  estado: string | null
+  marca: string | null
 }
 
 export interface Parceiro {

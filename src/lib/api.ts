@@ -3,6 +3,7 @@ import type {
   CategoriaProduto,
   SubcategoriaProduto,
   Produto,
+  ProdutoItemIncluso,
   FotoProduto,
   VideoProduto,
   ManualProduto,
@@ -125,7 +126,7 @@ export async function deleteParceiro(id: string): Promise<void> {
 // ---------- Produtos ----------
 
 const PRODUTO_SELECT =
-  'id, nome, descricao, preco_base, comprimento, subcategoria_id, origem_captacao, captador_nome, parceiro_id, fotos_produto(url_imagem, principal), parceiros(nome)'
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, fotos_produto(url_imagem, principal), parceiros(nome)'
 
 function mapProdutoRow({
   fotos_produto,
@@ -243,6 +244,40 @@ export async function deleteFoto(foto: { id: string; url_imagem: string }): Prom
     await supabase.storage.from('produtos').remove([path])
   }
   const { error } = await supabase.from('fotos_produto').delete().eq('id', foto.id)
+  if (error) throw error
+}
+
+export async function listItensInclusosProduto(produtoId: string): Promise<ProdutoItemIncluso[]> {
+  const { data, error } = await supabase
+    .from('produto_itens_inclusos')
+    .select('*')
+    .eq('produto_id', produtoId)
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createItemInclusoProduto(
+  item: Omit<ProdutoItemIncluso, 'id'>
+): Promise<ProdutoItemIncluso> {
+  const { data, error } = await supabase
+    .from('produto_itens_inclusos')
+    .insert(item)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateItemInclusoProduto(
+  id: string,
+  patch: Partial<Omit<ProdutoItemIncluso, 'id' | 'produto_id'>>
+): Promise<void> {
+  const { error } = await supabase.from('produto_itens_inclusos').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteItemInclusoProduto(id: string): Promise<void> {
+  const { error } = await supabase.from('produto_itens_inclusos').delete().eq('id', id)
   if (error) throw error
 }
 
@@ -663,10 +698,32 @@ export async function publicarCaptacao(
       preco_base: dadosProduto.preco_base,
       comprimento: null,
       subcategoria_id: captacao.subcategoria_id,
+      ano: captacao.ano,
+      motorizacao_tipo: captacao.motorizacao_tipo,
+      motorizacao_potencia: captacao.motorizacao_potencia,
+      motorizacao_marca_modelo: captacao.motorizacao_marca_modelo,
+      combustivel: captacao.combustivel,
+      horas_uso: captacao.horas_uso,
+      ultima_revisao: captacao.ultima_revisao,
     })
     .select()
     .single()
   if (produtoError) throw produtoError
+
+  const itens = await listCaptacaoItens(captacaoId)
+  if (itens.length > 0) {
+    const { error: itensError } = await supabase.from('produto_itens_inclusos').insert(
+      itens.map((item) => ({
+        produto_id: produto.id,
+        nome: item.nome,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        estado: item.estado,
+        marca: item.marca,
+      }))
+    )
+    if (itensError) throw itensError
+  }
 
   const fotos = await listFotosCaptacao(captacaoId)
   for (const foto of fotos) {

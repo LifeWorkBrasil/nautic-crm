@@ -9,11 +9,22 @@ import {
   criarOrcamento,
   getEmpresaConfig,
   listManuaisProduto,
+  listSubcategorias,
+  listItensInclusosProduto,
 } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import type { Produto, Motor, Acessorio, ClienteLead, EmpresaConfig, ManualProduto } from '@/types'
+import type {
+  Produto,
+  Motor,
+  Acessorio,
+  ClienteLead,
+  EmpresaConfig,
+  ManualProduto,
+  SubcategoriaProduto,
+  ProdutoItemIncluso,
+} from '@/types'
 
-const PASSOS = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
+const PASSOS_BASE = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
 
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
@@ -24,6 +35,8 @@ export default function Orcamentos() {
   const [acessorios, setAcessorios] = useState<Acessorio[]>([])
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null)
+  const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
+  const [itensInclusos, setItensInclusos] = useState<ProdutoItemIncluso[]>([])
 
   const [passo, setPasso] = useState(0)
   const [clienteId, setClienteId] = useState<string | null>(null)
@@ -44,28 +57,34 @@ export default function Orcamentos() {
   useEffect(() => {
     if (!produtoId) {
       setManuais([])
+      setItensInclusos([])
       return
     }
     listManuaisProduto(produtoId)
       .then(setManuais)
       .catch(() => setManuais([]))
+    listItensInclusosProduto(produtoId)
+      .then(setItensInclusos)
+      .catch(() => setItensInclusos([]))
   }, [produtoId])
 
   useEffect(() => {
     async function carregar() {
       try {
-        const [md, mo, ac, ld, emp] = await Promise.all([
+        const [md, mo, ac, ld, emp, sc] = await Promise.all([
           listProdutos(),
           listMotores(),
           listAcessorios(),
           listLeads(),
           getEmpresaConfig(),
+          listSubcategorias(),
         ])
         setProdutos(md)
         setMotores(mo.filter((m) => m.ativo))
         setAcessorios(ac)
         setLeads(ld)
         setEmpresa(emp)
+        setSubcategorias(sc)
       } catch (e) {
         setErro(e instanceof Error ? e.message : 'Erro ao carregar dados')
       } finally {
@@ -78,6 +97,16 @@ export default function Orcamentos() {
   const cliente = leads.find((l) => l.id === clienteId) ?? null
   const produto = produtos.find((p) => p.id === produtoId) ?? null
   const motor = motores.find((m) => m.id === motorId) ?? null
+  const subcategoriaSelecionada = subcategorias.find((s) => s.id === produto?.subcategoria_id)
+  const pularConfiguracao = subcategoriaSelecionada?.vendido_como_esta ?? false
+  const passosAtivos = pularConfiguracao
+    ? PASSOS_BASE.filter((p) => p !== 'Motorização' && p !== 'Opcionais')
+    : PASSOS_BASE
+
+  useEffect(() => {
+    setPasso((p) => Math.min(p, passosAtivos.length - 1))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passosAtivos.length])
 
   const acessoriosDisponiveis = useMemo(
     () => acessorios.filter((a) => a.produto_id === null || a.produto_id === produtoId),
@@ -188,11 +217,11 @@ export default function Orcamentos() {
   }
 
   const podeAvancar =
-    (passo === 0 && clienteId !== null && produtoId !== null) ||
-    (passo === 1 && motorId !== null) ||
-    passo === 2 ||
-    (passo === 3 && pagamentoValido) ||
-    passo === 4
+    (passosAtivos[passo] === 'Cliente & Barco' && clienteId !== null && produtoId !== null) ||
+    (passosAtivos[passo] === 'Motorização' && motorId !== null) ||
+    passosAtivos[passo] === 'Opcionais' ||
+    (passosAtivos[passo] === 'Pagamento' && pagamentoValido) ||
+    passosAtivos[passo] === 'Visualização & Envio'
 
   if (carregando) {
     return <div className="p-8 text-sm text-slate-400">Carregando dados…</div>
@@ -223,7 +252,7 @@ export default function Orcamentos() {
       )}
 
       <ol className="mb-8 flex items-center gap-2 text-sm">
-        {PASSOS.map((p, i) => (
+        {passosAtivos.map((p, i) => (
           <li key={p} className="flex items-center gap-2">
             <button
               onClick={() => i <= passo && setPasso(i)}
@@ -238,14 +267,14 @@ export default function Orcamentos() {
               {i < passo ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : i + 1}
             </button>
             <span className={i === passo ? 'text-hull-900' : 'text-slate-400'}>{p}</span>
-            {i < PASSOS.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-foam-200" />}
+            {i < passosAtivos.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-foam-200" />}
           </li>
         ))}
       </ol>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="rounded-md border border-foam-200 bg-white p-6">
-          {passo === 0 && (
+          {passosAtivos[passo] === 'Cliente & Barco' && (
             <div className="space-y-6">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-hull-900">Cliente</label>
@@ -303,7 +332,7 @@ export default function Orcamentos() {
             </div>
           )}
 
-          {passo === 1 && (
+          {passosAtivos[passo] === 'Motorização' && (
             <div>
               <p className="mb-2 text-sm font-medium text-hull-900">
                 Motores compatíveis com {produto?.nome}
@@ -337,7 +366,7 @@ export default function Orcamentos() {
             </div>
           )}
 
-          {passo === 2 && (
+          {passosAtivos[passo] === 'Opcionais' && (
             <div>
               <p className="mb-2 text-sm font-medium text-hull-900">Opcionais disponíveis</p>
               {acessoriosDisponiveis.length === 0 && (
@@ -368,7 +397,7 @@ export default function Orcamentos() {
             </div>
           )}
 
-          {passo === 3 && (
+          {passosAtivos[passo] === 'Pagamento' && (
             <div className="space-y-6">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-hull-900">
@@ -455,7 +484,7 @@ export default function Orcamentos() {
             </div>
           )}
 
-          {passo === 4 && (
+          {passosAtivos[passo] === 'Visualização & Envio' && (
             <div className="space-y-5">
               <div ref={previewRef} className="space-y-5 bg-white p-1">
                 <div className="flex items-center gap-3 border-b border-foam-200 pb-4">
@@ -499,12 +528,78 @@ export default function Orcamentos() {
                   )}
                 </div>
 
+                {pularConfiguracao && (
+                  <div className="rounded-md border border-foam-200 p-4">
+                    <p className="mb-2 text-sm font-medium text-hull-900">
+                      Barco vendido como está — dados do checklist
+                    </p>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                      {produto?.ano && (
+                        <>
+                          <dt className="text-slate-400">Ano</dt>
+                          <dd className="text-hull-900">{produto.ano}</dd>
+                        </>
+                      )}
+                      {produto?.motorizacao_tipo && (
+                        <>
+                          <dt className="text-slate-400">Motorização</dt>
+                          <dd className="text-hull-900">{produto.motorizacao_tipo}</dd>
+                        </>
+                      )}
+                      {produto?.motorizacao_potencia && (
+                        <>
+                          <dt className="text-slate-400">Potência</dt>
+                          <dd className="text-hull-900">{produto.motorizacao_potencia}</dd>
+                        </>
+                      )}
+                      {produto?.motorizacao_marca_modelo && (
+                        <>
+                          <dt className="text-slate-400">Marca/modelo do motor</dt>
+                          <dd className="text-hull-900">{produto.motorizacao_marca_modelo}</dd>
+                        </>
+                      )}
+                      {produto?.combustivel && (
+                        <>
+                          <dt className="text-slate-400">Combustível</dt>
+                          <dd className="text-hull-900">{produto.combustivel}</dd>
+                        </>
+                      )}
+                      {produto?.horas_uso && (
+                        <>
+                          <dt className="text-slate-400">Horas de uso</dt>
+                          <dd className="text-hull-900">{produto.horas_uso}</dd>
+                        </>
+                      )}
+                      {produto?.ultima_revisao && (
+                        <>
+                          <dt className="text-slate-400">Última revisão</dt>
+                          <dd className="text-hull-900">{produto.ultima_revisao}</dd>
+                        </>
+                      )}
+                    </dl>
+                    {itensInclusos.length > 0 && (
+                      <div className="mt-3 border-t border-foam-200 pt-3">
+                        <p className="mb-1.5 text-xs font-medium text-hull-900">Itens inclusos</p>
+                        <ul className="space-y-1 text-xs text-slate-500">
+                          {itensInclusos.map((item) => (
+                            <li key={item.id}>
+                              {item.nome}
+                              {item.descricao ? ` — ${item.descricao}` : ''}
+                              {item.quantidade ? ` (x${item.quantidade})` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <dl className="divide-y divide-foam-200 rounded-md border border-foam-200">
                   <div className="flex justify-between px-4 py-2.5 text-sm">
                     <dt className="text-slate-500">Casco {produto?.nome}</dt>
                     <dd className="font-mono text-hull-900">{formatBRL(produto?.preco_base ?? 0)}</dd>
                   </div>
-                  {motor && (
+                  {!pularConfiguracao && motor && (
                     <div className="flex justify-between px-4 py-2.5 text-sm">
                       <dt className="text-slate-500">
                         Motor {motor.marca} {motor.modelo}
@@ -512,14 +607,15 @@ export default function Orcamentos() {
                       <dd className="font-mono text-hull-900">{formatBRL(motor.preco)}</dd>
                     </div>
                   )}
-                  {acessoriosDisponiveis
-                    .filter((a) => acessoriosSelecionados.has(a.id))
-                    .map((a) => (
-                      <div key={a.id} className="flex justify-between px-4 py-2.5 text-sm">
-                        <dt className="text-slate-500">{a.nome}</dt>
-                        <dd className="font-mono text-hull-900">{formatBRL(a.preco)}</dd>
-                      </div>
-                    ))}
+                  {!pularConfiguracao &&
+                    acessoriosDisponiveis
+                      .filter((a) => acessoriosSelecionados.has(a.id))
+                      .map((a) => (
+                        <div key={a.id} className="flex justify-between px-4 py-2.5 text-sm">
+                          <dt className="text-slate-500">{a.nome}</dt>
+                          <dd className="font-mono text-hull-900">{formatBRL(a.preco)}</dd>
+                        </div>
+                      ))}
                   <div className="flex justify-between px-4 py-3 text-sm font-medium">
                     <dt className="text-hull-900">Total</dt>
                     <dd className="font-mono text-hull-900">{formatBRL(total)}</dd>
@@ -610,9 +706,9 @@ export default function Orcamentos() {
             >
               Voltar
             </button>
-            {passo < PASSOS.length - 1 && (
+            {passo < passosAtivos.length - 1 && (
               <button
-                onClick={() => setPasso((p) => Math.min(PASSOS.length - 1, p + 1))}
+                onClick={() => setPasso((p) => Math.min(passosAtivos.length - 1, p + 1))}
                 disabled={!podeAvancar}
                 className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -630,14 +726,18 @@ export default function Orcamentos() {
               <dt className="text-slate-400">Casco</dt>
               <dd className="font-mono">{formatBRL(produto?.preco_base ?? 0)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-400">Motor</dt>
-              <dd className="font-mono">{formatBRL(motor?.preco ?? 0)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-400">Opcionais ({acessoriosSelecionados.size})</dt>
-              <dd className="font-mono">{formatBRL(totalAcessorios)}</dd>
-            </div>
+            {!pularConfiguracao && (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-slate-400">Motor</dt>
+                  <dd className="font-mono">{formatBRL(motor?.preco ?? 0)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-slate-400">Opcionais ({acessoriosSelecionados.size})</dt>
+                  <dd className="font-mono">{formatBRL(totalAcessorios)}</dd>
+                </div>
+              </>
+            )}
           </dl>
         </aside>
       </div>

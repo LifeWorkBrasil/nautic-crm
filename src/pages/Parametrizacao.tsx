@@ -554,7 +554,11 @@ function AbaCategorias() {
 
   const [criandoSubcategoriaPara, setCriandoSubcategoriaPara] = useState<string | null>(null)
   const [editandoSubcategoria, setEditandoSubcategoria] = useState<SubcategoriaProduto | null>(null)
-  const [formSubcategoria, setFormSubcategoria] = useState({ nome: '', ordem: 0 })
+  const [formSubcategoria, setFormSubcategoria] = useState({
+    nome: '',
+    ordem: 0,
+    vendido_como_esta: false,
+  })
 
   async function carregar() {
     setCarregando(true)
@@ -615,12 +619,16 @@ function AbaCategorias() {
 
   function abrirCriacaoSubcategoria(categoriaId: string) {
     const doCategoria = subcategorias.filter((s) => s.categoria_id === categoriaId)
-    setFormSubcategoria({ nome: '', ordem: doCategoria.length })
+    setFormSubcategoria({ nome: '', ordem: doCategoria.length, vendido_como_esta: false })
     setCriandoSubcategoriaPara(categoriaId)
   }
 
   function abrirEdicaoSubcategoria(s: SubcategoriaProduto) {
-    setFormSubcategoria({ nome: s.nome, ordem: s.ordem })
+    setFormSubcategoria({
+      nome: s.nome,
+      ordem: s.ordem,
+      vendido_como_esta: s.vendido_como_esta,
+    })
     setEditandoSubcategoria(s)
   }
 
@@ -804,6 +812,17 @@ function AbaCategorias() {
               value={formSubcategoria.ordem}
               onChange={(v) => setFormSubcategoria({ ...formSubcategoria, ordem: v })}
             />
+            <label className="flex items-start gap-2 text-sm text-hull-900">
+              <input
+                type="checkbox"
+                checked={formSubcategoria.vendido_como_esta}
+                onChange={(e) =>
+                  setFormSubcategoria({ ...formSubcategoria, vendido_como_esta: e.target.checked })
+                }
+                className="mt-0.5"
+              />
+              Vendido como está (pula motor/opcionais no orçamento e puxa dados do checklist)
+            </label>
           </div>
         </Modal>
       )}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck } from 'lucide-react'
+import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck, FileSignature } from 'lucide-react'
 import Modal from '@/components/Modal'
+import GerarContratoModal from '@/components/GerarContratoModal'
 import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import { formatBRL } from '@/lib/format'
@@ -130,6 +131,9 @@ export default function CRM() {
   const [mostrandoFormContraproposta, setMostrandoFormContraproposta] = useState(false)
   const [formContraproposta, setFormContraproposta] = useState(FORM_CONTRAPROPOSTA_VAZIO)
   const [salvandoContraproposta, setSalvandoContraproposta] = useState(false)
+  const [mostrandoGerarContratoPara, setMostrandoGerarContratoPara] = useState<ClienteLead | null>(
+    null
+  )
 
   async function carregar() {
     setCarregando(true)
@@ -448,6 +452,15 @@ export default function CRM() {
                       >
                         <Pencil className="h-3 w-3" strokeWidth={1.75} />
                       </button>
+                      {lead.status_crm === 'Venda Concluída' && (
+                        <button
+                          onClick={() => setMostrandoGerarContratoPara(lead)}
+                          title="Emitir contrato"
+                          className="flex items-center gap-1 text-[11px] hover:text-wake-500"
+                        >
+                          <FileSignature className="h-3 w-3" strokeWidth={1.75} />
+                        </button>
+                      )}
                       <span className="ml-auto font-mono text-[11px]">
                         {new Date(lead.criado_em).toLocaleDateString('pt-BR')}
                       </span>
@@ -1009,6 +1022,13 @@ export default function CRM() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {mostrandoGerarContratoPara && (
+        <GerarContratoModal
+          clienteIdInicial={mostrandoGerarContratoPara.id}
+          onClose={() => setMostrandoGerarContratoPara(null)}
+        />
       )}
     </div>
   )

@@ -28,17 +28,19 @@ type ContrapropostaComItens = Contraproposta & {
 
 export default function GerarContratoModal({
   minutaInicial,
+  clienteIdInicial,
   onClose,
 }: {
-  minutaInicial: MinutaContrato
+  minutaInicial?: MinutaContrato
+  clienteIdInicial?: string
   onClose: () => void
 }) {
   const [minutas, setMinutas] = useState<MinutaContrato[]>([])
-  const [minutaId, setMinutaId] = useState(minutaInicial.id)
+  const [minutaId, setMinutaId] = useState(minutaInicial?.id ?? '')
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null)
 
-  const [clienteId, setClienteId] = useState<string | null>(null)
+  const [clienteId, setClienteId] = useState<string | null>(clienteIdInicial ?? null)
   const [orcamentos, setOrcamentos] = useState<OrcamentoDetalhado[]>([])
   const [orcamentoId, setOrcamentoId] = useState<string | null>(null)
 
@@ -61,9 +63,11 @@ export default function GerarContratoModal({
 
   useEffect(() => {
     Promise.all([listMinutas(), listLeads(), getEmpresaConfig()]).then(([m, l, e]) => {
-      setMinutas(m.filter((x) => x.ativo))
+      const ativas = m.filter((x) => x.ativo)
+      setMinutas(ativas)
       setLeads(l)
       setEmpresa(e)
+      setMinutaId((atual) => atual || ativas[0]?.id || '')
     })
   }, [])
 
@@ -85,7 +89,7 @@ export default function GerarContratoModal({
 
   const cliente = leads.find((l) => l.id === clienteId) ?? null
   const orcamento = orcamentos.find((o) => o.id === orcamentoId) ?? null
-  const minuta = minutas.find((m) => m.id === minutaId) ?? minutaInicial
+  const minuta = minutas.find((m) => m.id === minutaId) ?? minutaInicial ?? null
   const contrapropostaExistente = contrapropostas.find((c) => c.id === contrapropostaId) ?? null
 
   const trading = !temTrading
@@ -100,9 +104,11 @@ export default function GerarContratoModal({
           }
         : null
 
-  const textoContrato = cliente
-    ? preencherMinuta(minuta.corpo, { cliente, orcamento, empresa, trading })
-    : minuta.corpo
+  const textoContrato = !minuta
+    ? ''
+    : cliente
+      ? preencherMinuta(minuta.corpo, { cliente, orcamento, empresa, trading })
+      : minuta.corpo
 
   async function handleRegistrarTradingNovo() {
     if (!clienteId) return
@@ -145,7 +151,7 @@ export default function GerarContratoModal({
   }
 
   async function gerarPdf() {
-    if (!previewRef.current) return
+    if (!previewRef.current || !minuta) return
     setGerandoPdf(true)
     try {
       const { default: html2pdf } = await import('html2pdf.js')
@@ -376,25 +382,32 @@ export default function GerarContratoModal({
 
         <div>
           <p className="mb-2 text-sm font-medium text-hull-900">Preview</p>
-          <div
-            ref={previewRef}
-            className="space-y-4 rounded-md border border-foam-200 bg-white p-6 font-serif text-sm leading-relaxed text-hull-900"
-          >
-            <div className="flex items-center gap-3 border-b border-foam-200 pb-4">
-              {empresa?.logo_url ? (
-                <img src={empresa.logo_url} alt={empresa.nome_empresa} className="h-10 w-10 object-contain" crossOrigin="anonymous" />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-hull-900/[0.06] text-slate-400">
-                  <Building2 className="h-5 w-5" strokeWidth={1.5} />
+          {!minuta ? (
+            <p className="text-sm text-slate-400">
+              Nenhuma minuta de contrato ativa cadastrada. Crie uma em Parametrização › Minutas de
+              Contrato.
+            </p>
+          ) : (
+            <div
+              ref={previewRef}
+              className="space-y-4 rounded-md border border-foam-200 bg-white p-6 font-serif text-sm leading-relaxed text-hull-900"
+            >
+              <div className="flex items-center gap-3 border-b border-foam-200 pb-4">
+                {empresa?.logo_url ? (
+                  <img src={empresa.logo_url} alt={empresa.nome_empresa} className="h-10 w-10 object-contain" crossOrigin="anonymous" />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-hull-900/[0.06] text-slate-400">
+                    <Building2 className="h-5 w-5" strokeWidth={1.5} />
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-hull-900">{empresa?.nome_empresa ?? 'Sua empresa'}</p>
+                  <p className="text-xs text-slate-400">{minuta.nome}</p>
                 </div>
-              )}
-              <div>
-                <p className="text-sm font-medium text-hull-900">{empresa?.nome_empresa ?? 'Sua empresa'}</p>
-                <p className="text-xs text-slate-400">{minuta.nome}</p>
               </div>
+              <div className="whitespace-pre-wrap">{textoContrato}</div>
             </div>
-            <div className="whitespace-pre-wrap">{textoContrato}</div>
-          </div>
+          )}
         </div>
       </div>
     </Modal>

@@ -81,6 +81,13 @@ export default function ProdutosTerceiros() {
         origem_captacao: 'Terceiro',
         captador_nome: f.captador_nome || null,
         parceiro_id: f.parceiro_id || null,
+        ano: null,
+        motorizacao_tipo: null,
+        motorizacao_potencia: null,
+        motorizacao_marca_modelo: null,
+        combustivel: null,
+        horas_uso: null,
+        ultima_revisao: null,
       }),
     update: (id, f) =>
       updateProduto(id, {
