@@ -62,6 +62,65 @@ function tradingDescricao(dados: DadosContrato): string {
   return 'Bem de troca registrado sem detalhamento.'
 }
 
+function normalizeToken(raw: string): string {
+  return raw
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/[\s\-_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+type Resolver = (d: DadosContrato) => string | null
+
+const BRACKET_ALIASES: Record<string, Resolver> = {
+  // Cliente
+  NOME_DO_CLIENTE: (d) => d.cliente.nome || null,
+  RAZAO_SOCIAL: (d) => d.cliente.razao_social || null,
+  ENDERECO_COMPLETO: (d) => {
+    const e = enderecoCliente(d.cliente)
+    return e !== '—' ? e : null
+  },
+  CNPJ: (d) => d.cliente.cnpj || null,
+  CPF: (d) => d.cliente.cpf || null,
+  NUMERO_RG: (d) => d.cliente.rg || null,
+  NOME_DO_REPREENTANTE_LEGAL: () => null,
+  NACIONALIDADE: () => null,
+  DATA_DE_NASCIMENTO: () => null,
+  ESTADO_CIVIL: () => null,
+  PROFISSAO: () => null,
+  ORGAO_EXPEDIDOR: () => null,
+
+  // Produto / embarcação
+  TIPO_DE_PRODUTO: () => null,
+  MODELO: (d) => d.orcamento?.produto?.nome ?? null,
+  TAMANHO: (d) => (d.orcamento?.produto?.comprimento ? `${d.orcamento.produto.comprimento} m` : null),
+  ANO: (d) => (d.orcamento?.produto?.ano ? String(d.orcamento.produto.ano) : null),
+  SERIAL: () => null,
+
+  // Motorização — cai no campo combinado do produto quando não há Motor vinculado
+  // (caso "vendido como está" / barcos usados: motor_id fica null no orçamento)
+  QUANTIDADE_DE_MOTORES: () => null,
+  MARCA_MOTOR: (d) => d.orcamento?.motor?.marca ?? d.orcamento?.produto?.motorizacao_marca_modelo ?? null,
+  MODELO_MOTOR: (d) => d.orcamento?.motor?.modelo ?? null,
+  ANO_MOTOR: () => null,
+  COMBUSTIVEL: (d) => d.orcamento?.motor?.combustivel ?? d.orcamento?.produto?.combustivel ?? null,
+  SERIAL_DOS_MOTORES: () => null,
+
+  // Financeiro
+  VALOR_DA_VENDA: (d) => (d.orcamento ? formatBRL(d.orcamento.valor_total) : null),
+  CONDICOES_DE_PAGAMENTO: (d) => (d.orcamento ? parcelasDetalhe(d.orcamento) : null),
+
+  // Trading
+  DADOS_DO_TRADING: (d) => tradingDescricao(d),
+
+  // Fechamento
+  LOCAL: () => null,
+  DIA: () => String(new Date().getDate()),
+  MES: () => new Date().toLocaleDateString('pt-BR', { month: 'long' }),
+  ANO_ATUAL: () => String(new Date().getFullYear()),
+}
+
 export function preencherMinuta(corpo: string, dados: DadosContrato): string {
   const tokens: Record<string, string> = {
     cliente_nome: dados.cliente.nome,
@@ -85,6 +144,12 @@ export function preencherMinuta(corpo: string, dados: DadosContrato): string {
   for (const [chave, valor] of Object.entries(tokens)) {
     resultado = resultado.split(`{{${chave}}}`).join(valor)
   }
+  resultado = resultado.replace(/\[([^[\]\n]+)\]/g, (match, inner: string) => {
+    const resolver = BRACKET_ALIASES[normalizeToken(inner)]
+    if (!resolver) return match
+    const valor = resolver(dados)
+    return valor && valor.trim() ? valor : match
+  })
   return resultado
 }
 
@@ -105,3 +170,5 @@ export const PLACEHOLDERS_DISPONIVEIS = [
   '{{empresa_endereco}}',
   '{{data_hoje}}',
 ]
+
+export const PLACEHOLDERS_COLCHETES_DISPONIVEIS = Object.keys(BRACKET_ALIASES).map((k) => `[${k}]`)

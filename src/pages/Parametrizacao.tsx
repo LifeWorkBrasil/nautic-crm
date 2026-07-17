@@ -32,7 +32,7 @@ import {
   updateMinuta,
   deleteMinuta,
 } from '@/lib/api'
-import { PLACEHOLDERS_DISPONIVEIS } from '@/lib/contratos'
+import { PLACEHOLDERS_DISPONIVEIS, PLACEHOLDERS_COLCHETES_DISPONIVEIS } from '@/lib/contratos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import type {
   Motor,
@@ -1111,6 +1111,14 @@ function AbaMinutas() {
               <p className="mb-1.5 text-xs font-medium text-hull-900">Placeholders disponíveis</p>
               <p className="font-mono text-[11px] leading-relaxed text-slate-500">
                 {PLACEHOLDERS_DISPONIVEIS.join('  ')}
+              </p>
+            </div>
+            <div className="rounded-md border border-foam-200 bg-foam-100 p-3">
+              <p className="mb-1.5 text-xs font-medium text-hull-900">
+                Placeholders em colchetes (também reconhecidos)
+              </p>
+              <p className="font-mono text-[11px] leading-relaxed text-slate-500">
+                {PLACEHOLDERS_COLCHETES_DISPONIVEIS.join('  ')}
               </p>
             </div>
           </div>
