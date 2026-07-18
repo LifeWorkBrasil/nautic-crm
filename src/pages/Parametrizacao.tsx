@@ -351,11 +351,18 @@ function AbaMotores() {
 // Acessórios
 // ---------------------------------------------------------------------------
 
-const ACESSORIO_VAZIO = { nome: '', preco: 0, categoria: '', produto_id: null as string | null }
+const ACESSORIO_VAZIO = {
+  nome: '',
+  preco: 0,
+  categoria: '',
+  produto_id: null as string | null,
+  subcategoria_ids: [] as string[],
+}
 
 function AbaAcessorios() {
   const [itens, setItens] = useState<Acessorio[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [editando, setEditando] = useState<Acessorio | null>(null)
@@ -366,9 +373,10 @@ function AbaAcessorios() {
   async function carregar() {
     setCarregando(true)
     try {
-      const [ac, pr] = await Promise.all([listAcessorios(), listProdutos()])
+      const [ac, pr, sc] = await Promise.all([listAcessorios(), listProdutos(), listSubcategorias()])
       setItens(ac)
       setProdutos(pr)
+      setSubcategorias(sc)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar acessórios')
@@ -387,8 +395,23 @@ function AbaAcessorios() {
   }
 
   function abrirEdicao(a: Acessorio) {
-    setForm({ nome: a.nome, preco: a.preco, categoria: a.categoria, produto_id: a.produto_id })
+    setForm({
+      nome: a.nome,
+      preco: a.preco,
+      categoria: a.categoria,
+      produto_id: a.produto_id,
+      subcategoria_ids: a.subcategoria_ids,
+    })
     setEditando(a)
+  }
+
+  function toggleSubcategoria(id: string) {
+    setForm((prev) => ({
+      ...prev,
+      subcategoria_ids: prev.subcategoria_ids.includes(id)
+        ? prev.subcategoria_ids.filter((x) => x !== id)
+        : [...prev.subcategoria_ids, id],
+    }))
   }
 
   async function salvar() {
@@ -438,6 +461,7 @@ function AbaAcessorios() {
                 <th className="px-4 py-3 font-medium">Item</th>
                 <th className="px-4 py-3 font-medium">Categoria</th>
                 <th className="px-4 py-3 font-medium">Vínculo</th>
+                <th className="px-4 py-3 font-medium">Subcategorias</th>
                 <th className="px-4 py-3 font-medium">Preço</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
@@ -451,6 +475,13 @@ function AbaAcessorios() {
                     {item.produto_id
                       ? produtos.find((p) => p.id === item.produto_id)?.nome ?? '—'
                       : 'Universal'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {item.subcategoria_ids.length === 0
+                      ? 'Todas'
+                      : item.subcategoria_ids
+                          .map((id) => subcategorias.find((s) => s.id === id)?.nome ?? '—')
+                          .join(', ')}
                   </td>
                   <td className="px-4 py-3 font-mono text-slate-600">{formatBRL(item.preco)}</td>
                   <td className="px-4 py-3">
@@ -528,6 +559,24 @@ function AbaAcessorios() {
                 ))}
               </select>
             </label>
+            <div className="block">
+              <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                Vincular a subcategorias (opcional — vazio = todas)
+              </span>
+              <div className="grid grid-cols-2 gap-1.5">
+                {subcategorias.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm text-hull-900">
+                    <input
+                      type="checkbox"
+                      checked={form.subcategoria_ids.includes(s.id)}
+                      onChange={() => toggleSubcategoria(s.id)}
+                      className="h-4 w-4 accent-brass-500"
+                    />
+                    {s.nome}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </Modal>
       )}

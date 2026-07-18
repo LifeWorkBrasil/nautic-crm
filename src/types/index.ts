@@ -151,6 +151,7 @@ export interface Acessorio {
   preco: number
   categoria: string
   produto_id: string | null
+  subcategoria_ids: string[]
 }
 
 export interface EmpresaConfig {

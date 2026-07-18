@@ -374,23 +374,56 @@ export async function deleteMotor(id: string): Promise<void> {
 // ---------- Acessórios ----------
 
 export async function listAcessorios(): Promise<Acessorio[]> {
-  const { data, error } = await supabase.from('acessorios').select('*').order('categoria')
+  const { data, error } = await supabase
+    .from('acessorios')
+    .select('*, acessorios_subcategorias(subcategoria_id)')
+    .order('categoria')
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map(({ acessorios_subcategorias, ...a }) => ({
+    ...a,
+    subcategoria_ids: (acessorios_subcategorias ?? []).map(
+      (x: { subcategoria_id: string }) => x.subcategoria_id
+    ),
+  }))
 }
 
-export async function createAcessorio(acessorio: Omit<Acessorio, 'id'>): Promise<Acessorio> {
-  const { data, error } = await supabase.from('acessorios').insert(acessorio).select().single()
+export async function createAcessorio(
+  acessorio: Omit<Acessorio, 'id' | 'subcategoria_ids'> & { subcategoria_ids?: string[] }
+): Promise<Acessorio> {
+  const { subcategoria_ids, ...campos } = acessorio
+  const { data, error } = await supabase.from('acessorios').insert(campos).select().single()
   if (error) throw error
-  return data
+  if (subcategoria_ids && subcategoria_ids.length > 0) {
+    const { error: vinculoError } = await supabase.from('acessorios_subcategorias').insert(
+      subcategoria_ids.map((subcategoria_id) => ({ acessorio_id: data.id, subcategoria_id }))
+    )
+    if (vinculoError) throw vinculoError
+  }
+  return { ...data, subcategoria_ids: subcategoria_ids ?? [] }
 }
 
 export async function updateAcessorio(
   id: string,
-  patch: Partial<Omit<Acessorio, 'id'>>
+  patch: Partial<Omit<Acessorio, 'id' | 'subcategoria_ids'>> & { subcategoria_ids?: string[] }
 ): Promise<void> {
-  const { error } = await supabase.from('acessorios').update(patch).eq('id', id)
-  if (error) throw error
+  const { subcategoria_ids, ...campos } = patch
+  if (Object.keys(campos).length > 0) {
+    const { error } = await supabase.from('acessorios').update(campos).eq('id', id)
+    if (error) throw error
+  }
+  if (subcategoria_ids !== undefined) {
+    const { error: deleteError } = await supabase
+      .from('acessorios_subcategorias')
+      .delete()
+      .eq('acessorio_id', id)
+    if (deleteError) throw deleteError
+    if (subcategoria_ids.length > 0) {
+      const { error: insertError } = await supabase.from('acessorios_subcategorias').insert(
+        subcategoria_ids.map((subcategoria_id) => ({ acessorio_id: id, subcategoria_id }))
+      )
+      if (insertError) throw insertError
+    }
+  }
 }
 
 export async function deleteAcessorio(id: string): Promise<void> {

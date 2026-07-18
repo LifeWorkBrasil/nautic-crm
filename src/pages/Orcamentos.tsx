@@ -109,8 +109,13 @@ export default function Orcamentos() {
   }, [passosAtivos.length])
 
   const acessoriosDisponiveis = useMemo(
-    () => acessorios.filter((a) => a.produto_id === null || a.produto_id === produtoId),
-    [acessorios, produtoId]
+    () =>
+      acessorios.filter((a) => {
+        if (a.produto_id !== null) return a.produto_id === produtoId
+        if (a.subcategoria_ids.length === 0) return true
+        return produto ? a.subcategoria_ids.includes(produto.subcategoria_id) : false
+      }),
+    [acessorios, produtoId, produto]
   )
 
   const totalAcessorios = useMemo(
