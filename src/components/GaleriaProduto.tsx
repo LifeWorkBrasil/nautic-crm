@@ -61,10 +61,12 @@ export default function GaleriaProduto({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produtoId])
 
-  async function handleUpload(file: File) {
+  async function handleUpload(files: FileList | File[]) {
     setEnviandoFoto(true)
     try {
-      await uploadFotoProduto(produtoId, file)
+      for (const file of Array.from(files)) {
+        await uploadFotoProduto(produtoId, file)
+      }
       await carregar()
       onAlterar()
     } catch (e) {
@@ -161,11 +163,12 @@ export default function GaleriaProduto({
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 disabled={enviandoFoto}
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleUpload(file)
+                  const files = e.target.files
+                  if (files && files.length > 0) handleUpload(files)
                   e.target.value = ''
                 }}
               />

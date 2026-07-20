@@ -402,11 +402,13 @@ function DetalheCaptacao({
     }
   }
 
-  async function handleUploadFoto(file: File) {
+  async function handleUploadFoto(files: FileList | File[]) {
     setEnviandoFoto(true)
     try {
-      const foto = await uploadFotoCaptacao(captacao.id, file)
-      setFotos((prev) => [...prev, foto])
+      for (const file of Array.from(files)) {
+        const foto = await uploadFotoCaptacao(captacao.id, file)
+        setFotos((prev) => [...prev, foto])
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao enviar foto')
     } finally {
@@ -723,11 +725,12 @@ function DetalheCaptacao({
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 disabled={enviandoFoto}
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) handleUploadFoto(file)
+                  const files = e.target.files
+                  if (files && files.length > 0) handleUploadFoto(files)
                   e.target.value = ''
                 }}
               />
