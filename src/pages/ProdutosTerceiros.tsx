@@ -78,6 +78,7 @@ export default function ProdutosTerceiros() {
         preco_base: f.preco_base,
         comprimento: f.comprimento,
         subcategoria_id: f.subcategoria_id,
+        grupo_id: null,
         origem_captacao: 'Terceiro',
         captador_nome: f.captador_nome || null,
         parceiro_id: f.parceiro_id || null,

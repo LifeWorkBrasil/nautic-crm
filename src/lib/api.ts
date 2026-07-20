@@ -2,6 +2,7 @@ import { supabase } from './supabase'
 import type {
   CategoriaProduto,
   SubcategoriaProduto,
+  GrupoProduto,
   Produto,
   ProdutoItemIncluso,
   FotoProduto,
@@ -96,6 +97,33 @@ export async function deleteSubcategoria(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function listGrupos(subcategoriaId?: string): Promise<GrupoProduto[]> {
+  let query = supabase.from('grupos_produto').select('*').order('ordem')
+  if (subcategoriaId) query = query.eq('subcategoria_id', subcategoriaId)
+  const { data, error } = await query
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createGrupo(grupo: Omit<GrupoProduto, 'id'>): Promise<GrupoProduto> {
+  const { data, error } = await supabase.from('grupos_produto').insert(grupo).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateGrupo(
+  id: string,
+  patch: Partial<Omit<GrupoProduto, 'id'>>
+): Promise<void> {
+  const { error } = await supabase.from('grupos_produto').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteGrupo(id: string): Promise<void> {
+  const { error } = await supabase.from('grupos_produto').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ---------- Parceiros ----------
 
 export async function listParceiros(): Promise<Parceiro[]> {
@@ -126,7 +154,7 @@ export async function deleteParceiro(id: string): Promise<void> {
 // ---------- Produtos ----------
 
 const PRODUTO_SELECT =
-  'id, nome, descricao, preco_base, comprimento, subcategoria_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, fotos_produto(url_imagem, principal), parceiros(nome)'
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, fotos_produto(url_imagem, principal), parceiros(nome)'
 
 function mapProdutoRow({
   fotos_produto,

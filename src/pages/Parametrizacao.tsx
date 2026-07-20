@@ -23,6 +23,10 @@ import {
   createSubcategoria,
   updateSubcategoria,
   deleteSubcategoria,
+  listGrupos,
+  createGrupo,
+  updateGrupo,
+  deleteGrupo,
   listParceiros,
   createParceiro,
   updateParceiro,
@@ -40,6 +44,7 @@ import type {
   Produto,
   CategoriaProduto,
   SubcategoriaProduto,
+  GrupoProduto,
   Parceiro,
   MinutaContrato,
 } from '@/types'
@@ -609,12 +614,18 @@ function AbaCategorias() {
     vendido_como_esta: false,
   })
 
+  const [grupos, setGrupos] = useState<GrupoProduto[]>([])
+  const [criandoGrupoPara, setCriandoGrupoPara] = useState<string | null>(null)
+  const [editandoGrupo, setEditandoGrupo] = useState<GrupoProduto | null>(null)
+  const [formGrupo, setFormGrupo] = useState({ nome: '', ordem: 0 })
+
   async function carregar() {
     setCarregando(true)
     try {
-      const [c, s] = await Promise.all([listCategorias(), listSubcategorias()])
+      const [c, s, g] = await Promise.all([listCategorias(), listSubcategorias(), listGrupos()])
       setCategorias(c)
       setSubcategorias(s)
+      setGrupos(g)
       setErro(null)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao carregar categorias')
@@ -710,8 +721,48 @@ function AbaCategorias() {
     }
   }
 
+  function abrirCriacaoGrupo(subcategoriaId: string) {
+    const daSubcategoria = grupos.filter((g) => g.subcategoria_id === subcategoriaId)
+    setFormGrupo({ nome: '', ordem: daSubcategoria.length })
+    setCriandoGrupoPara(subcategoriaId)
+  }
+
+  function abrirEdicaoGrupo(g: GrupoProduto) {
+    setFormGrupo({ nome: g.nome, ordem: g.ordem })
+    setEditandoGrupo(g)
+  }
+
+  async function salvarGrupo() {
+    setSalvando(true)
+    try {
+      if (editandoGrupo) {
+        await updateGrupo(editandoGrupo.id, formGrupo)
+      } else if (criandoGrupoPara) {
+        await createGrupo({ ...formGrupo, subcategoria_id: criandoGrupoPara })
+      }
+      setEditandoGrupo(null)
+      setCriandoGrupoPara(null)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar grupo')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluirGrupo(id: string) {
+    if (!confirm('Excluir este grupo? Produtos vinculados ficam sem grupo.')) return
+    try {
+      await deleteGrupo(id)
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir grupo')
+    }
+  }
+
   const modalCategoriaAberto = criandoCategoria || editandoCategoria !== null
   const modalSubcategoriaAberto = criandoSubcategoriaPara !== null || editandoSubcategoria !== null
+  const modalGrupoAberto = criandoGrupoPara !== null || editandoGrupo !== null
 
   return (
     <div>
@@ -748,20 +799,52 @@ function AbaCategorias() {
                 {subcategorias
                   .filter((s) => s.categoria_id === categoria.id)
                   .map((sub) => (
-                    <div key={sub.id} className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">{sub.nome}</span>
-                      <div className="flex items-center gap-3">
+                    <div key={sub.id}>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-600">{sub.nome}</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => abrirEdicaoSubcategoria(sub)}
+                            className="text-wake-500 hover:text-wake-600"
+                          >
+                            <Pencil className="h-3 w-3" strokeWidth={1.75} />
+                          </button>
+                          <button
+                            onClick={() => excluirSubcategoria(sub.id)}
+                            className="text-signal-red/80 hover:text-signal-red"
+                          >
+                            <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="ml-4 mt-1 space-y-1 border-l border-foam-200 pl-3">
+                        {grupos
+                          .filter((g) => g.subcategoria_id === sub.id)
+                          .map((g) => (
+                            <div key={g.id} className="flex items-center justify-between text-xs">
+                              <span className="text-slate-400">{g.nome}</span>
+                              <div className="flex items-center gap-2.5">
+                                <button
+                                  onClick={() => abrirEdicaoGrupo(g)}
+                                  className="text-wake-500 hover:text-wake-600"
+                                >
+                                  <Pencil className="h-2.5 w-2.5" strokeWidth={1.75} />
+                                </button>
+                                <button
+                                  onClick={() => excluirGrupo(g.id)}
+                                  className="text-signal-red/80 hover:text-signal-red"
+                                >
+                                  <Trash2 className="h-2.5 w-2.5" strokeWidth={1.75} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         <button
-                          onClick={() => abrirEdicaoSubcategoria(sub)}
-                          className="text-wake-500 hover:text-wake-600"
+                          onClick={() => abrirCriacaoGrupo(sub.id)}
+                          className="flex items-center gap-1 text-[11px] text-wake-500 hover:text-wake-600"
                         >
-                          <Pencil className="h-3 w-3" strokeWidth={1.75} />
-                        </button>
-                        <button
-                          onClick={() => excluirSubcategoria(sub.id)}
-                          className="text-signal-red/80 hover:text-signal-red"
-                        >
-                          <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+                          <Plus className="h-3 w-3" strokeWidth={2} />
+                          Novo grupo
                         </button>
                       </div>
                     </div>
@@ -872,6 +955,49 @@ function AbaCategorias() {
               />
               Vendido como está (pula motor/opcionais no orçamento e puxa dados do checklist)
             </label>
+          </div>
+        </Modal>
+      )}
+
+      {modalGrupoAberto && (
+        <Modal
+          title={editandoGrupo ? `Editar ${editandoGrupo.nome}` : 'Novo grupo'}
+          onClose={() => {
+            setCriandoGrupoPara(null)
+            setEditandoGrupo(null)
+          }}
+          footer={
+            <>
+              <button
+                onClick={() => {
+                  setCriandoGrupoPara(null)
+                  setEditandoGrupo(null)
+                }}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarGrupo}
+                disabled={salvando || !formGrupo.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto
+              label="Nome"
+              value={formGrupo.nome}
+              onChange={(v) => setFormGrupo({ ...formGrupo, nome: v })}
+            />
+            <CampoNumero
+              label="Ordem"
+              value={formGrupo.ordem}
+              onChange={(v) => setFormGrupo({ ...formGrupo, ordem: v })}
+            />
           </div>
         </Modal>
       )}

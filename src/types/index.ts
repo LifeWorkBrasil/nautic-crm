@@ -73,6 +73,13 @@ export interface SubcategoriaProduto {
   vendido_como_esta: boolean
 }
 
+export interface GrupoProduto {
+  id: string
+  subcategoria_id: string
+  nome: string
+  ordem: number
+}
+
 export interface Produto {
   id: string
   nome: string
@@ -80,6 +87,7 @@ export interface Produto {
   preco_base: number
   comprimento: number | null
   subcategoria_id: string
+  grupo_id: string | null
   foto_principal_url?: string
   origem_captacao: 'Próprio' | 'Terceiro'
   captador_nome: string | null

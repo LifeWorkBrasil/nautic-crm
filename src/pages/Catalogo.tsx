@@ -14,8 +14,9 @@ import {
   deleteProduto,
   listCategorias,
   listSubcategorias,
+  listGrupos,
 } from '@/lib/api'
-import type { Produto, CategoriaProduto, SubcategoriaProduto } from '@/types'
+import type { Produto, CategoriaProduto, SubcategoriaProduto, GrupoProduto } from '@/types'
 
 type ProdutoForm = {
   nome: string
@@ -23,6 +24,7 @@ type ProdutoForm = {
   preco_base: number
   comprimento: number | null
   subcategoria_id: string
+  grupo_id: string | null
   ano: number | null
   motorizacao_tipo: string | null
   motorizacao_potencia: string | null
@@ -36,19 +38,23 @@ export default function Catalogo() {
   const { subcategoriaId } = useParams<{ subcategoriaId: string }>()
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
+  const [grupos, setGrupos] = useState<GrupoProduto[]>([])
   const [produtoMidia, setProdutoMidia] = useState<Produto | null>(null)
   const [produtoItens, setProdutoItens] = useState<Produto | null>(null)
+  const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([listCategorias(), listSubcategorias()]).then(([c, s]) => {
+    Promise.all([listCategorias(), listSubcategorias(), listGrupos()]).then(([c, s, g]) => {
       setCategorias(c)
       setSubcategorias(s)
+      setGrupos(g)
     })
   }, [])
 
   const subcategoria = subcategorias.find((s) => s.id === subcategoriaId)
   const categoria = categorias.find((c) => c.id === subcategoria?.categoria_id)
   const subcategoriaVendidoComoEsta = subcategoria?.vendido_como_esta ?? false
+  const gruposDaSubcategoria = grupos.filter((g) => g.subcategoria_id === subcategoriaId)
 
   const listaProdutos = useCallback(() => listProdutos(subcategoriaId), [subcategoriaId])
 
@@ -58,6 +64,7 @@ export default function Catalogo() {
     preco_base: 0,
     comprimento: null,
     subcategoria_id: subcategoriaId ?? '',
+    grupo_id: null,
     ano: null,
     motorizacao_tipo: null,
     motorizacao_potencia: null,
@@ -93,6 +100,7 @@ export default function Catalogo() {
 
   useEffect(() => {
     carregar()
+    setGrupoFiltroId(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subcategoriaId])
 
@@ -123,13 +131,43 @@ export default function Catalogo() {
         </div>
       )}
 
+      {gruposDaSubcategoria.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => setGrupoFiltroId(null)}
+            className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+              grupoFiltroId === null
+                ? 'border-brass-500 bg-brass-200/30 text-hull-900'
+                : 'border-foam-200 text-slate-500 hover:border-wake-400'
+            }`}
+          >
+            Todos
+          </button>
+          {gruposDaSubcategoria.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => setGrupoFiltroId(g.id)}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                grupoFiltroId === g.id
+                  ? 'border-brass-500 bg-brass-200/30 text-hull-900'
+                  : 'border-foam-200 text-slate-500 hover:border-wake-400'
+              }`}
+            >
+              {g.nome}
+            </button>
+          ))}
+        </div>
+      )}
+
       {carregando ? (
         <p className="text-sm text-slate-400">Carregando…</p>
       ) : itens.length === 0 ? (
         <p className="text-sm text-slate-400">Nenhum produto cadastrado nesta subcategoria ainda.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {itens.map((produto) => (
+          {itens
+            .filter((produto) => !grupoFiltroId || produto.grupo_id === grupoFiltroId)
+            .map((produto) => (
             <article key={produto.id} className="rounded-md border border-foam-200 bg-white p-4">
               <button
                 onClick={() => setProdutoMidia(produto)}
@@ -153,6 +191,11 @@ export default function Catalogo() {
                 {produto.origem_captacao === 'Terceiro' && (
                   <span className="rounded-full bg-brass-400/15 px-2 py-0.5 text-[10px] font-medium text-brass-600">
                     Terceiro{produto.parceiro_nome ? ` · ${produto.parceiro_nome}` : ''}
+                  </span>
+                )}
+                {produto.grupo_id && (
+                  <span className="rounded-full bg-wake-400/15 px-2 py-0.5 text-[10px] font-medium text-wake-600">
+                    {grupos.find((g) => g.id === produto.grupo_id)?.nome ?? '—'}
                   </span>
                 )}
               </div>
@@ -181,6 +224,7 @@ export default function Catalogo() {
                       preco_base: produto.preco_base,
                       comprimento: produto.comprimento,
                       subcategoria_id: produto.subcategoria_id,
+                      grupo_id: produto.grupo_id,
                       ano: produto.ano,
                       motorizacao_tipo: produto.motorizacao_tipo,
                       motorizacao_potencia: produto.motorizacao_potencia,
@@ -255,6 +299,26 @@ export default function Catalogo() {
                 onChange={(v) => setForm({ ...form, comprimento: v || null })}
               />
             </div>
+
+            {gruposDaSubcategoria.length > 0 && (
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                  Grupo (opcional)
+                </span>
+                <select
+                  value={form.grupo_id ?? ''}
+                  onChange={(e) => setForm({ ...form, grupo_id: e.target.value || null })}
+                  className="input"
+                >
+                  <option value="">Nenhum</option>
+                  {gruposDaSubcategoria.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {subcategoriaVendidoComoEsta && (
               <div className="space-y-4 border-t border-foam-200 pt-4">
