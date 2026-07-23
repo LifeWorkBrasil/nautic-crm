@@ -19,6 +19,7 @@ import type {
   CaptacaoFoto,
   PostMarketing,
   MidiaBancoItem,
+  InstagramStatus,
   Parceiro,
   MinutaContrato,
   Contraproposta,
@@ -855,6 +856,7 @@ export async function gerarLegendaSocial(input: {
   descricao?: string | null
   tom?: string
   precoBase?: number | null
+  provider?: 'claude' | 'gemini'
 }): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession()
   const resp = await fetch(
@@ -890,9 +892,42 @@ export async function salvarPostMarketing(post: {
   tom?: string | null
   legenda_gerada: string
   foto_urls?: string[] | null
+  provedor_ia?: string | null
 }): Promise<PostMarketing> {
   const { data, error } = await supabase.from('posts_marketing').insert(post).select().single()
   if (error) throw error
+  return data
+}
+
+export async function getInstagramStatus(): Promise<InstagramStatus | null> {
+  const { data, error } = await supabase.from('instagram_status').select('*').maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export function getInstagramConectarUrl(): string {
+  const params = new URLSearchParams({
+    client_id: import.meta.env.VITE_INSTAGRAM_APP_ID,
+    redirect_uri: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-oauth-callback`,
+    scope: 'instagram_business_basic,instagram_business_content_publish',
+    response_type: 'code',
+  })
+  return `https://api.instagram.com/oauth/authorize?${params.toString()}`
+}
+
+export async function publicarNoInstagram(postId: string): Promise<{ media_id: string }> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-publicar`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${sessionData.session?.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ post_id: postId }),
+  })
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao publicar no Instagram.')
   return data
 }
 

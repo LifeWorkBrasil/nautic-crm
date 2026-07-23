@@ -1,30 +1,44 @@
 import { useEffect, useState } from 'react'
-import { Megaphone, Sparkles, Copy, Check, Save, ImageOff } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Megaphone, Sparkles, Copy, Check, Save, ImageOff, Instagram, Link2 } from 'lucide-react'
 import {
   listMidiaBanco,
   gerarLegendaSocial,
   listPostsMarketing,
   salvarPostMarketing,
+  getInstagramStatus,
+  getInstagramConectarUrl,
+  publicarNoInstagram,
 } from '@/lib/api'
-import type { MidiaBancoItem, PostMarketing } from '@/types'
+import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
 const TONS = ['Profissional', 'Descontraído', 'Urgente/Promocional', 'Inspirador']
+const PROVEDORES = [
+  { valor: 'claude' as const, label: 'Claude' },
+  { valor: 'gemini' as const, label: 'Gemini' },
+]
 
 export default function Marketing() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [midia, setMidia] = useState<MidiaBancoItem[]>([])
   const [carregandoMidia, setCarregandoMidia] = useState(true)
   const [selecionado, setSelecionado] = useState<MidiaBancoItem | null>(null)
 
   const [tom, setTom] = useState(TONS[0])
+  const [provedor, setProvedor] = useState<'claude' | 'gemini'>('claude')
   const [legenda, setLegenda] = useState('')
   const [gerando, setGerando] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [salvando, setSalvando] = useState(false)
-  const [salvo, setSalvo] = useState(false)
+  const [ultimoPostSalvo, setUltimoPostSalvo] = useState<PostMarketing | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   const [posts, setPosts] = useState<PostMarketing[]>([])
   const [carregandoPosts, setCarregandoPosts] = useState(true)
+
+  const [instagram, setInstagram] = useState<InstagramStatus | null>(null)
+  const [avisoInstagram, setAvisoInstagram] = useState<string | null>(null)
+  const [publicandoId, setPublicandoId] = useState<string | null>(null)
 
   useEffect(() => {
     listMidiaBanco()
@@ -35,12 +49,32 @@ export default function Marketing() {
       .then(setPosts)
       .catch(() => {})
       .finally(() => setCarregandoPosts(false))
+    getInstagramStatus()
+      .then(setInstagram)
+      .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const status = searchParams.get('instagram')
+    if (!status) return
+    if (status === 'conectado') {
+      setAvisoInstagram('Instagram conectado com sucesso.')
+      getInstagramStatus().then(setInstagram).catch(() => {})
+    } else if (status === 'erro') {
+      setAvisoInstagram(searchParams.get('instagram_msg') || 'Não foi possível conectar o Instagram.')
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('instagram')
+      next.delete('instagram_msg')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
 
   function selecionar(item: MidiaBancoItem) {
     setSelecionado(item)
     setLegenda('')
-    setSalvo(false)
+    setUltimoPostSalvo(null)
     setErro(null)
   }
 
@@ -48,13 +82,14 @@ export default function Marketing() {
     if (!selecionado) return
     setGerando(true)
     setErro(null)
-    setSalvo(false)
+    setUltimoPostSalvo(null)
     try {
       const texto = await gerarLegendaSocial({
         nome: selecionado.nome,
         descricao: selecionado.descricao,
         tom,
         precoBase: selecionado.precoBase,
+        provider: provedor,
       })
       setLegenda(texto)
     } catch (e) {
@@ -80,13 +115,32 @@ export default function Marketing() {
         tom,
         legenda_gerada: legenda,
         foto_urls: selecionado.fotos.map((f) => f.url_imagem),
+        provedor_ia: provedor,
       })
       setPosts((prev) => [novo, ...prev])
-      setSalvo(true)
+      setUltimoPostSalvo(novo)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar')
     } finally {
       setSalvando(false)
+    }
+  }
+
+  async function handlePublicarInstagram(postId: string) {
+    setPublicandoId(postId)
+    setErro(null)
+    try {
+      const { media_id } = await publicarNoInstagram(postId)
+      const atualiza = (p: PostMarketing) =>
+        p.id === postId
+          ? { ...p, instagram_media_id: media_id, publicado_instagram_em: new Date().toISOString() }
+          : p
+      setPosts((prev) => prev.map(atualiza))
+      setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao publicar no Instagram')
+    } finally {
+      setPublicandoId(null)
     }
   }
 
@@ -106,6 +160,40 @@ export default function Marketing() {
           {erro}
         </div>
       )}
+
+      {avisoInstagram && (
+        <div className="mb-5 flex items-center justify-between rounded-md border border-wake-400/40 bg-wake-400/5 px-4 py-2.5 text-sm text-hull-900">
+          {avisoInstagram}
+          <button onClick={() => setAvisoInstagram(null)} className="text-xs text-slate-400 hover:text-hull-900">
+            Fechar
+          </button>
+        </div>
+      )}
+
+      <div className="mb-6 flex items-center justify-between rounded-md border border-foam-200 bg-white p-4">
+        <div className="flex items-center gap-3">
+          <Instagram className="h-5 w-5 text-brass-400" strokeWidth={1.75} />
+          <div>
+            <p className="text-sm font-medium text-hull-900">
+              {instagram?.conectado ? `Conectado como @${instagram.instagram_username}` : 'Instagram não conectado'}
+            </p>
+            <p className="text-[11px] text-slate-400">
+              {instagram?.conectado
+                ? 'Você pode publicar legendas geradas direto no feed.'
+                : 'Conecte a conta do Instagram do cliente para publicar direto pelo CRM.'}
+            </p>
+          </div>
+        </div>
+        {!instagram?.conectado && (
+          <a
+            href={getInstagramConectarUrl()}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+          >
+            <Link2 className="h-4 w-4" strokeWidth={1.75} />
+            Conectar Instagram
+          </a>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
         {/* Banco de Mídia */}
@@ -182,6 +270,21 @@ export default function Marketing() {
                 </select>
               </label>
 
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">Gerar com</span>
+                <select
+                  value={provedor}
+                  onChange={(e) => setProvedor(e.target.value as 'claude' | 'gemini')}
+                  className="input"
+                >
+                  {PROVEDORES.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <button
                 onClick={handleGerar}
                 disabled={gerando}
@@ -198,11 +301,11 @@ export default function Marketing() {
                     value={legenda}
                     onChange={(e) => {
                       setLegenda(e.target.value)
-                      setSalvo(false)
+                      setUltimoPostSalvo(null)
                     }}
                     className="input resize-none"
                   />
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={handleCopiar}
                       className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
@@ -222,10 +325,26 @@ export default function Marketing() {
                       <Save className="h-4 w-4" strokeWidth={1.75} />
                       {salvando ? 'Salvando…' : 'Salvar no histórico'}
                     </button>
-                    {salvo && (
+                    {ultimoPostSalvo && !ultimoPostSalvo.instagram_media_id && (
                       <span className="flex items-center gap-1.5 text-sm text-signal-green">
                         <Check className="h-4 w-4" strokeWidth={2} />
                         Salvo
+                      </span>
+                    )}
+                    {ultimoPostSalvo && instagram?.conectado && !ultimoPostSalvo.instagram_media_id && (
+                      <button
+                        onClick={() => handlePublicarInstagram(ultimoPostSalvo.id)}
+                        disabled={publicandoId === ultimoPostSalvo.id}
+                        className="flex items-center gap-2 rounded-md bg-brass-400 px-3 py-2 text-sm font-medium text-hull-900 hover:bg-brass-500 disabled:opacity-50"
+                      >
+                        <Instagram className="h-4 w-4" strokeWidth={1.75} />
+                        {publicandoId === ultimoPostSalvo.id ? 'Publicando…' : 'Publicar no Instagram'}
+                      </button>
+                    )}
+                    {ultimoPostSalvo?.instagram_media_id && (
+                      <span className="flex items-center gap-1.5 text-sm text-signal-green">
+                        <Check className="h-4 w-4" strokeWidth={2} />
+                        Publicado no Instagram
                       </span>
                     )}
                   </div>
@@ -251,10 +370,32 @@ export default function Marketing() {
             {posts.map((post) => (
               <div key={post.id} className="rounded-md border border-foam-200 p-3">
                 <p className="whitespace-pre-wrap text-sm text-hull-900">{post.legenda_gerada}</p>
-                <p className="mt-2 text-[11px] text-slate-400">
-                  {post.tom ? `Tom: ${post.tom} · ` : ''}
-                  {new Date(post.criado_em).toLocaleString('pt-BR')}
-                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <p className="text-[11px] text-slate-400">
+                    {post.tom ? `Tom: ${post.tom} · ` : ''}
+                    {post.provedor_ia ? `${post.provedor_ia === 'gemini' ? 'Gemini' : 'Claude'} · ` : ''}
+                    {new Date(post.criado_em).toLocaleString('pt-BR')}
+                  </p>
+                  {post.instagram_media_id ? (
+                    <span className="flex items-center gap-1 rounded-full bg-signal-green/10 px-2 py-0.5 text-[11px] text-signal-green">
+                      <Instagram className="h-3 w-3" strokeWidth={1.75} />
+                      Publicado
+                    </span>
+                  ) : (
+                    instagram?.conectado &&
+                    post.foto_urls &&
+                    post.foto_urls.length > 0 && (
+                      <button
+                        onClick={() => handlePublicarInstagram(post.id)}
+                        disabled={publicandoId === post.id}
+                        className="flex items-center gap-1 rounded-full border border-foam-200 px-2 py-0.5 text-[11px] text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                      >
+                        <Instagram className="h-3 w-3" strokeWidth={1.75} />
+                        {publicandoId === post.id ? 'Publicando…' : 'Publicar'}
+                      </button>
+                    )
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -254,7 +254,16 @@ export interface PostMarketing {
   tom: string | null
   legenda_gerada: string
   foto_urls: string[] | null
+  provedor_ia: string | null
+  instagram_media_id: string | null
+  publicado_instagram_em: string | null
   criado_em: string
+}
+
+export interface InstagramStatus {
+  conectado: boolean
+  instagram_username: string | null
+  token_expira_em: string | null
 }
 
 export interface MidiaBancoItem {
