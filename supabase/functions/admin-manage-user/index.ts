@@ -37,11 +37,23 @@ Deno.serve(async (req: Request) => {
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { data: perfil } = await adminClient
       .from("usuarios_perfil")
-      .select("is_admin")
+      .select("is_admin, empresa_id")
       .eq("id", user.id)
       .single();
     if (!perfil?.is_admin) {
       return json({ error: "Apenas administradores podem gerenciar usuários" }, 403);
+    }
+    const empresaId = perfil.empresa_id as string;
+
+    // Garante que o usuário-alvo (quando informado) pertence ao mesmo tenant do admin chamador —
+    // sem isso, um admin de uma empresa poderia mexer em usuário/permissão de outra empresa.
+    async function pertenceAoTenant(usuarioId: string): Promise<boolean> {
+      const { data } = await adminClient
+        .from("usuarios_perfil")
+        .select("empresa_id")
+        .eq("id", usuarioId)
+        .single();
+      return data?.empresa_id === empresaId;
     }
 
     const body = await req.json();
@@ -65,6 +77,7 @@ Deno.serve(async (req: Request) => {
         comissao_percentual: body.comissao_percentual ?? 0,
         is_admin: false,
         ativo: true,
+        empresa_id: empresaId,
       });
       if (perfilError) throw perfilError;
 
@@ -80,6 +93,9 @@ Deno.serve(async (req: Request) => {
 
     if (body.action === "atualizar_permissoes") {
       if (!body.usuario_id) return json({ error: "usuario_id é obrigatório." }, 400);
+      if (!(await pertenceAoTenant(body.usuario_id))) {
+        return json({ error: "Usuário não encontrado." }, 404);
+      }
 
       const { error: deleteError } = await adminClient
         .from("permissoes_usuario")
@@ -99,6 +115,9 @@ Deno.serve(async (req: Request) => {
 
     if (body.action === "atualizar_usuario") {
       if (!body.usuario_id) return json({ error: "usuario_id é obrigatório." }, 400);
+      if (!(await pertenceAoTenant(body.usuario_id))) {
+        return json({ error: "Usuário não encontrado." }, 404);
+      }
 
       const { error: updateError } = await adminClient
         .from("usuarios_perfil")
