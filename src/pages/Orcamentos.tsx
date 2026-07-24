@@ -45,6 +45,26 @@ function normalizar(texto: string): string {
     .replace(/[^a-z0-9]/g, '')
 }
 
+interface ChecklistEditavel {
+  ano: string
+  motorizacao_tipo: string
+  motorizacao_potencia: string
+  motorizacao_marca_modelo: string
+  combustivel: string
+  horas_uso: string
+  ultima_revisao: string
+}
+
+const CHECKLIST_VAZIO: ChecklistEditavel = {
+  ano: '',
+  motorizacao_tipo: '',
+  motorizacao_potencia: '',
+  motorizacao_marca_modelo: '',
+  combustivel: '',
+  horas_uso: '',
+  ultima_revisao: '',
+}
+
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -82,6 +102,8 @@ export default function Orcamentos() {
   const [gerandoMensagem, setGerandoMensagem] = useState(false)
   const [fotosProduto, setFotosProduto] = useState<FotoProduto[]>([])
   const [videosProduto, setVideosProduto] = useState<VideoProduto[]>([])
+  const [checklist, setChecklist] = useState<ChecklistEditavel>(CHECKLIST_VAZIO)
+  const [precoCasco, setPrecoCasco] = useState<number | null>(null)
 
   useEffect(() => {
     if (!produtoId) {
@@ -139,6 +161,24 @@ export default function Orcamentos() {
   const produto = produtos.find((p) => p.id === produtoId) ?? null
   const motor = motores.find((m) => m.id === motorId) ?? null
 
+  useEffect(() => {
+    if (!produto) {
+      setChecklist(CHECKLIST_VAZIO)
+      setPrecoCasco(null)
+      return
+    }
+    setChecklist({
+      ano: produto.ano != null ? String(produto.ano) : '',
+      motorizacao_tipo: produto.motorizacao_tipo ?? '',
+      motorizacao_potencia: produto.motorizacao_potencia ?? '',
+      motorizacao_marca_modelo: produto.motorizacao_marca_modelo ?? '',
+      combustivel: produto.combustivel ?? '',
+      horas_uso: produto.horas_uso ?? '',
+      ultima_revisao: produto.ultima_revisao ?? '',
+    })
+    setPrecoCasco(produto.preco_base)
+  }, [produtoId])
+
   const produtosFiltrados = useMemo(() => {
     const termos = buscaProduto
       .split(/\s+/)
@@ -189,7 +229,7 @@ export default function Orcamentos() {
     [acessoriosDisponiveis, acessoriosSelecionados]
   )
 
-  const total = (produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
+  const total = (precoCasco ?? produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
 
   const somaParcelas = parcelas.reduce((soma, p) => soma + p.percentual, 0)
   const somaPagamento = entradaPercentual + somaParcelas
@@ -665,49 +705,69 @@ export default function Orcamentos() {
                     <p className="mb-2 text-sm font-medium text-hull-900">
                       Barco vendido como está — dados do checklist
                     </p>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                      {produto?.ano && (
-                        <>
-                          <dt className="text-slate-400">Ano</dt>
-                          <dd className="text-hull-900">{produto.ano}</dd>
-                        </>
-                      )}
-                      {produto?.motorizacao_tipo && (
-                        <>
-                          <dt className="text-slate-400">Motorização</dt>
-                          <dd className="text-hull-900">{produto.motorizacao_tipo}</dd>
-                        </>
-                      )}
-                      {produto?.motorizacao_potencia && (
-                        <>
-                          <dt className="text-slate-400">Potência</dt>
-                          <dd className="text-hull-900">{produto.motorizacao_potencia}</dd>
-                        </>
-                      )}
-                      {produto?.motorizacao_marca_modelo && (
-                        <>
-                          <dt className="text-slate-400">Marca/modelo do motor</dt>
-                          <dd className="text-hull-900">{produto.motorizacao_marca_modelo}</dd>
-                        </>
-                      )}
-                      {produto?.combustivel && (
-                        <>
-                          <dt className="text-slate-400">Combustível</dt>
-                          <dd className="text-hull-900">{produto.combustivel}</dd>
-                        </>
-                      )}
-                      {produto?.horas_uso && (
-                        <>
-                          <dt className="text-slate-400">Horas de uso</dt>
-                          <dd className="text-hull-900">{produto.horas_uso}</dd>
-                        </>
-                      )}
-                      {produto?.ultima_revisao && (
-                        <>
-                          <dt className="text-slate-400">Última revisão</dt>
-                          <dd className="text-hull-900">{produto.ultima_revisao}</dd>
-                        </>
-                      )}
+                    <p className="mb-2 text-[11px] text-slate-400">
+                      Pode ajustar os valores abaixo antes de gerar o PDF ou enviar — a alteração
+                      vale só para esta proposta, sem mudar o cadastro do produto.
+                    </p>
+                    <dl className="grid grid-cols-2 items-center gap-x-4 gap-y-1 text-xs">
+                      <dt className="text-slate-400">Ano</dt>
+                      <dd>
+                        <input
+                          value={checklist.ano}
+                          onChange={(e) => setChecklist((c) => ({ ...c, ano: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Motorização</dt>
+                      <dd>
+                        <input
+                          value={checklist.motorizacao_tipo}
+                          onChange={(e) => setChecklist((c) => ({ ...c, motorizacao_tipo: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Potência</dt>
+                      <dd>
+                        <input
+                          value={checklist.motorizacao_potencia}
+                          onChange={(e) => setChecklist((c) => ({ ...c, motorizacao_potencia: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Marca/modelo do motor</dt>
+                      <dd>
+                        <input
+                          value={checklist.motorizacao_marca_modelo}
+                          onChange={(e) =>
+                            setChecklist((c) => ({ ...c, motorizacao_marca_modelo: e.target.value }))
+                          }
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Combustível</dt>
+                      <dd>
+                        <input
+                          value={checklist.combustivel}
+                          onChange={(e) => setChecklist((c) => ({ ...c, combustivel: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Horas de uso</dt>
+                      <dd>
+                        <input
+                          value={checklist.horas_uso}
+                          onChange={(e) => setChecklist((c) => ({ ...c, horas_uso: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
+                      <dt className="text-slate-400">Última revisão</dt>
+                      <dd>
+                        <input
+                          value={checklist.ultima_revisao}
+                          onChange={(e) => setChecklist((c) => ({ ...c, ultima_revisao: e.target.value }))}
+                          className="w-full rounded border-0 bg-transparent text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                        />
+                      </dd>
                     </dl>
                     {itensInclusos.length > 0 && (
                       <div className="mt-3 border-t border-foam-200 pt-3">
@@ -729,7 +789,16 @@ export default function Orcamentos() {
                 <dl className="divide-y divide-foam-200 rounded-md border border-foam-200">
                   <div className="flex justify-between px-4 py-2.5 text-sm">
                     <dt className="text-slate-500">Casco {produto?.nome}</dt>
-                    <dd className="font-mono text-hull-900">{formatBRL(produto?.preco_base ?? 0)}</dd>
+                    <dd className="flex items-center gap-1 font-mono text-hull-900">
+                      R$
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={precoCasco ?? ''}
+                        onChange={(e) => setPrecoCasco(e.target.value === '' ? null : Number(e.target.value))}
+                        className="w-28 rounded border-0 bg-transparent text-right font-mono text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                      />
+                    </dd>
                   </div>
                   {!pularConfiguracao && motor && (
                     <div className="flex justify-between px-4 py-2.5 text-sm">
