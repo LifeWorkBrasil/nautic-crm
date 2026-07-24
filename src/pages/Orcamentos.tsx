@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2, MessageCircle, Sparkles } from 'lucide-react'
+import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2, MessageCircle, Sparkles, Search } from 'lucide-react'
 import {
   listProdutos,
   listMotores,
@@ -9,7 +9,9 @@ import {
   criarOrcamento,
   getEmpresaConfig,
   listManuaisProduto,
+  listCategorias,
   listSubcategorias,
+  listGrupos,
   listItensInclusosProduto,
   listFotosProduto,
   listVideosProduto,
@@ -24,7 +26,9 @@ import type {
   ClienteLead,
   EmpresaConfig,
   ManualProduto,
+  CategoriaProduto,
   SubcategoriaProduto,
+  GrupoProduto,
   ProdutoItemIncluso,
   FotoProduto,
   VideoProduto,
@@ -32,6 +36,14 @@ import type {
 
 const PASSOS_BASE = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
 const MAX_FOTOS_WHATSAPP = 6
+
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+}
 
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
@@ -42,10 +54,13 @@ export default function Orcamentos() {
   const [acessorios, setAcessorios] = useState<Acessorio[]>([])
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null)
+  const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
+  const [grupos, setGrupos] = useState<GrupoProduto[]>([])
   const [itensInclusos, setItensInclusos] = useState<ProdutoItemIncluso[]>([])
 
   const [passo, setPasso] = useState(0)
+  const [buscaProduto, setBuscaProduto] = useState('')
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [novoClienteNome, setNovoClienteNome] = useState('')
   const [produtoId, setProdutoId] = useState<string | null>(null)
@@ -93,20 +108,24 @@ export default function Orcamentos() {
   useEffect(() => {
     async function carregar() {
       try {
-        const [md, mo, ac, ld, emp, sc] = await Promise.all([
+        const [md, mo, ac, ld, emp, cat, sc, gr] = await Promise.all([
           listProdutos(),
           listMotores(),
           listAcessorios(),
           listLeads(),
           getEmpresaConfig(),
+          listCategorias(),
           listSubcategorias(),
+          listGrupos(),
         ])
         setProdutos(md)
         setMotores(mo.filter((m) => m.ativo))
         setAcessorios(ac)
         setLeads(ld)
         setEmpresa(emp)
+        setCategorias(cat)
         setSubcategorias(sc)
+        setGrupos(gr)
       } catch (e) {
         setErro(e instanceof Error ? e.message : 'Erro ao carregar dados')
       } finally {
@@ -119,6 +138,28 @@ export default function Orcamentos() {
   const cliente = leads.find((l) => l.id === clienteId) ?? null
   const produto = produtos.find((p) => p.id === produtoId) ?? null
   const motor = motores.find((m) => m.id === motorId) ?? null
+
+  const produtosFiltrados = useMemo(() => {
+    const termos = buscaProduto
+      .split(/\s+/)
+      .map((t) => normalizar(t))
+      .filter(Boolean)
+    if (termos.length === 0) return produtos
+
+    const subcategoriaPorId = new Map(subcategorias.map((s) => [s.id, s]))
+    const categoriaPorId = new Map(categorias.map((c) => [c.id, c]))
+    const grupoPorId = new Map(grupos.map((g) => [g.id, g]))
+
+    return produtos.filter((p) => {
+      const sub = p.subcategoria_id ? subcategoriaPorId.get(p.subcategoria_id) : undefined
+      const cat = sub?.categoria_id ? categoriaPorId.get(sub.categoria_id) : undefined
+      const grupo = p.grupo_id ? grupoPorId.get(p.grupo_id) : undefined
+      const textoBusca = normalizar(
+        [p.nome, p.descricao, sub?.nome, cat?.nome, grupo?.nome].filter(Boolean).join(' ')
+      )
+      return termos.every((termo) => textoBusca.includes(termo))
+    })
+  }, [produtos, subcategorias, categorias, grupos, buscaProduto])
   const subcategoriaSelecionada = subcategorias.find((s) => s.id === produto?.subcategoria_id)
   const pularConfiguracao = subcategoriaSelecionada?.vendido_como_esta ?? false
   const passosAtivos = pularConfiguracao
@@ -384,25 +425,41 @@ export default function Orcamentos() {
 
               <div>
                 <p className="mb-2 text-sm font-medium text-hull-900">Produto</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {produtos.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setProdutoId(p.id)}
-                      className={`rounded-md border p-3 text-left transition-colors ${
-                        produtoId === p.id
-                          ? 'border-brass-500 bg-brass-200/20'
-                          : 'border-foam-200 hover:border-wake-400'
-                      }`}
-                    >
-                      <p className="font-display text-base text-hull-900">{p.nome}</p>
-                      <p className="text-xs text-slate-500">{p.descricao}</p>
-                      <p className="mt-1 font-mono text-xs text-slate-600">
-                        {formatBRL(p.preco_base)}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+                <label className="relative mb-3 block">
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    strokeWidth={1.75}
+                  />
+                  <input
+                    value={buscaProduto}
+                    onChange={(e) => setBuscaProduto(e.target.value)}
+                    placeholder="Buscar por nome, categoria, subcategoria ou grupo…"
+                    className="input pl-9"
+                  />
+                </label>
+                {produtosFiltrados.length === 0 ? (
+                  <p className="text-sm text-slate-400">Nenhum produto encontrado para essa busca.</p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    {produtosFiltrados.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setProdutoId(p.id)}
+                        className={`rounded-md border p-3 text-left transition-colors ${
+                          produtoId === p.id
+                            ? 'border-brass-500 bg-brass-200/20'
+                            : 'border-foam-200 hover:border-wake-400'
+                        }`}
+                      >
+                        <p className="font-display text-base text-hull-900">{p.nome}</p>
+                        <p className="text-xs text-slate-500">{p.descricao}</p>
+                        <p className="mt-1 font-mono text-xs text-slate-600">
+                          {formatBRL(p.preco_base)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
