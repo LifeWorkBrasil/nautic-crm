@@ -119,6 +119,7 @@ export default function Admin() {
   const [form, setForm] = useState<UsuarioForm>(FORM_VAZIO)
   const [novaSenha, setNovaSenha] = useState('')
   const [tabKeysSelecionadas, setTabKeysSelecionadas] = useState<Set<string>>(new Set())
+  const [perfilAplicado, setPerfilAplicado] = useState<string | null>(null)
 
   const [criandoPerfil, setCriandoPerfil] = useState(false)
   const [editandoPerfil, setEditandoPerfil] = useState<PerfilAcesso | null>(null)
@@ -157,6 +158,7 @@ export default function Admin() {
     setForm(FORM_VAZIO)
     setNovaSenha('')
     setTabKeysSelecionadas(new Set())
+    setPerfilAplicado(null)
     setCriando(true)
   }
 
@@ -169,6 +171,7 @@ export default function Admin() {
       ativo: usuario.ativo,
     })
     setNovaSenha('')
+    setPerfilAplicado(null)
     setEditando(usuario)
     try {
       const chaves = await listPermissoesUsuario(usuario.id)
@@ -184,6 +187,7 @@ export default function Admin() {
   }
 
   function toggleTabKey(chave: string) {
+    setPerfilAplicado(null)
     setTabKeysSelecionadas((prev) => {
       const proximo = new Set(prev)
       proximo.has(chave) ? proximo.delete(chave) : proximo.add(chave)
@@ -193,7 +197,10 @@ export default function Admin() {
 
   function aplicarPerfil(perfilId: string) {
     const perfilEscolhido = perfis.find((p) => p.id === perfilId)
-    if (perfilEscolhido) setTabKeysSelecionadas(new Set(perfilEscolhido.tabKeys))
+    if (perfilEscolhido) {
+      setTabKeysSelecionadas(new Set(perfilEscolhido.tabKeys))
+      setPerfilAplicado(perfilEscolhido.nome)
+    }
   }
 
   async function salvar() {
@@ -483,6 +490,12 @@ export default function Admin() {
                           ))}
                         </select>
                       </label>
+                    )}
+                    {perfilAplicado && (
+                      <div className="rounded-md border border-signal-green/30 bg-signal-green/5 px-3 py-2 text-xs text-signal-green">
+                        Perfil "{perfilAplicado}" aplicado nas permissões abaixo — clique em{' '}
+                        <strong>Salvar</strong> para confirmar.
+                      </div>
                     )}
                     <GradePermissoes
                       tabsSistema={tabsSistema}
