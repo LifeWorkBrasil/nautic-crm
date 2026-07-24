@@ -12,6 +12,7 @@ import {
   criarUsuario,
   atualizarUsuario,
   atualizarPermissoes,
+  redefinirSenha,
   listPerfisAcesso,
   createPerfilAcesso,
   updatePerfilAcesso,
@@ -116,6 +117,7 @@ export default function Admin() {
   const [criando, setCriando] = useState(false)
   const [editando, setEditando] = useState<UsuarioPerfil | null>(null)
   const [form, setForm] = useState<UsuarioForm>(FORM_VAZIO)
+  const [novaSenha, setNovaSenha] = useState('')
   const [tabKeysSelecionadas, setTabKeysSelecionadas] = useState<Set<string>>(new Set())
 
   const [criandoPerfil, setCriandoPerfil] = useState(false)
@@ -153,6 +155,7 @@ export default function Admin() {
 
   function abrirCriacao() {
     setForm(FORM_VAZIO)
+    setNovaSenha('')
     setTabKeysSelecionadas(new Set())
     setCriando(true)
   }
@@ -165,6 +168,7 @@ export default function Admin() {
       comissao_percentual: usuario.comissao_percentual,
       ativo: usuario.ativo,
     })
+    setNovaSenha('')
     setEditando(usuario)
     try {
       const chaves = await listPermissoesUsuario(usuario.id)
@@ -203,6 +207,12 @@ export default function Admin() {
           ativo: form.ativo,
         })
         await atualizarPermissoes(editando.id, Array.from(tabKeysSelecionadas))
+        if (novaSenha.trim()) {
+          if (novaSenha.trim().length < 6) {
+            throw new Error('A nova senha deve ter pelo menos 6 caracteres.')
+          }
+          await redefinirSenha(editando.id, novaSenha.trim())
+        }
       } else {
         await criarUsuario({
           nome: form.nome,
@@ -415,8 +425,18 @@ export default function Admin() {
                       label="Senha temporária"
                       value={form.senha}
                       onChange={(v) => setForm({ ...form, senha: v })}
+                      type="password"
                     />
                   </>
+                )}
+
+                {editando && (
+                  <CampoTexto
+                    label="Nova senha (deixe em branco para não alterar)"
+                    value={novaSenha}
+                    onChange={setNovaSenha}
+                    type="password"
+                  />
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
