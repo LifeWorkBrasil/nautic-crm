@@ -257,6 +257,9 @@ export interface PostMarketing {
   provedor_ia: string | null
   instagram_media_id: string | null
   publicado_instagram_em: string | null
+  agendado_para: string | null
+  status_agendamento: 'agendado' | 'publicado' | 'erro' | null
+  erro_agendamento: string | null
   criado_em: string
 }
 

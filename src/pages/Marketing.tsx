@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Megaphone, Sparkles, Copy, Check, Save, ImageOff, Instagram, Link2 } from 'lucide-react'
+import { Megaphone, Sparkles, Copy, Check, Save, ImageOff, Instagram, Link2, CalendarClock, X } from 'lucide-react'
 import {
   listMidiaBanco,
   gerarLegendaSocial,
   listPostsMarketing,
   salvarPostMarketing,
+  cancelarAgendamentoPost,
   getInstagramStatus,
   getInstagramConectarUrl,
   publicarNoInstagram,
@@ -33,6 +34,9 @@ export default function Marketing() {
   const [salvando, setSalvando] = useState(false)
   const [ultimoPostSalvo, setUltimoPostSalvo] = useState<PostMarketing | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+  const [mostrarAgendamento, setMostrarAgendamento] = useState(false)
+  const [dataAgendamento, setDataAgendamento] = useState('')
+  const [programando, setProgramando] = useState(false)
 
   const [posts, setPosts] = useState<PostMarketing[]>([])
   const [carregandoPosts, setCarregandoPosts] = useState(true)
@@ -78,6 +82,8 @@ export default function Marketing() {
     setOrigemLegenda(null)
     setUltimoPostSalvo(null)
     setErro(null)
+    setMostrarAgendamento(false)
+    setDataAgendamento('')
   }
 
   async function handleGerar() {
@@ -126,6 +132,49 @@ export default function Marketing() {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar')
     } finally {
       setSalvando(false)
+    }
+  }
+
+  async function handleProgramar() {
+    if (!selecionado || !legenda || !dataAgendamento) return
+    const dataEscolhida = new Date(dataAgendamento)
+    if (dataEscolhida.getTime() <= Date.now()) {
+      setErro('Escolha uma data e horário no futuro.')
+      return
+    }
+    setProgramando(true)
+    setErro(null)
+    try {
+      const novo = await salvarPostMarketing({
+        produto_id: selecionado.origem === 'produto' ? selecionado.origemId : null,
+        captacao_id: selecionado.origem === 'captacao' ? selecionado.origemId : null,
+        tom,
+        legenda_gerada: legenda,
+        foto_urls: selecionado.fotos.map((f) => f.url_imagem),
+        provedor_ia: origemLegenda ?? 'manual',
+        agendado_para: dataEscolhida.toISOString(),
+      })
+      setPosts((prev) => [novo, ...prev])
+      setUltimoPostSalvo(novo)
+      setMostrarAgendamento(false)
+      setDataAgendamento('')
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao programar publicação')
+    } finally {
+      setProgramando(false)
+    }
+  }
+
+  async function handleCancelarAgendamento(postId: string) {
+    setErro(null)
+    try {
+      await cancelarAgendamentoPost(postId)
+      const atualiza = (p: PostMarketing) =>
+        p.id === postId ? { ...p, agendado_para: null, status_agendamento: null, erro_agendamento: null } : p
+      setPosts((prev) => prev.map(atualiza))
+      setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao cancelar agendamento')
     }
   }
 
@@ -333,10 +382,26 @@ export default function Marketing() {
                       <Save className="h-4 w-4" strokeWidth={1.75} />
                       {salvando ? 'Salvando…' : 'Salvar no histórico'}
                     </button>
-                    {ultimoPostSalvo && !ultimoPostSalvo.instagram_media_id && (
+                    {instagram?.conectado && (
+                      <button
+                        onClick={() => setMostrarAgendamento((v) => !v)}
+                        className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                      >
+                        <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                        Programar
+                      </button>
+                    )}
+                    {ultimoPostSalvo && !ultimoPostSalvo.instagram_media_id && ultimoPostSalvo.status_agendamento !== 'agendado' && (
                       <span className="flex items-center gap-1.5 text-sm text-signal-green">
                         <Check className="h-4 w-4" strokeWidth={2} />
                         Salvo
+                      </span>
+                    )}
+                    {ultimoPostSalvo?.status_agendamento === 'agendado' && (
+                      <span className="flex items-center gap-1.5 text-sm text-signal-green">
+                        <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                        Programado para{' '}
+                        {ultimoPostSalvo.agendado_para && new Date(ultimoPostSalvo.agendado_para).toLocaleString('pt-BR')}
                       </span>
                     )}
                     {ultimoPostSalvo && instagram?.conectado && !ultimoPostSalvo.instagram_media_id && (
@@ -355,6 +420,35 @@ export default function Marketing() {
                         Publicado no Instagram
                       </span>
                     )}
+                  </div>
+                )}
+                {mostrarAgendamento && (
+                  <div className="flex flex-wrap items-end gap-3 rounded-md border border-foam-200 bg-foam-100 p-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-sm font-medium text-hull-900">Publicar em</span>
+                      <input
+                        type="datetime-local"
+                        value={dataAgendamento}
+                        min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                        onChange={(e) => setDataAgendamento(e.target.value)}
+                        className="input"
+                      />
+                    </label>
+                    <button
+                      onClick={handleProgramar}
+                      disabled={programando || !dataAgendamento}
+                      className="flex items-center gap-2 rounded-md bg-hull-900 px-3 py-2 text-sm font-medium text-foam-50 hover:bg-hull-800 disabled:opacity-50"
+                    >
+                      <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                      {programando ? 'Programando…' : 'Confirmar agendamento'}
+                    </button>
+                    <button
+                      onClick={() => setMostrarAgendamento(false)}
+                      className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                    >
+                      <X className="h-4 w-4" strokeWidth={1.75} />
+                      Cancelar
+                    </button>
                   </div>
                 )}
               </div>
@@ -394,18 +488,38 @@ export default function Marketing() {
                       Publicado
                     </span>
                   ) : (
-                    instagram?.conectado &&
-                    post.foto_urls &&
-                    post.foto_urls.length > 0 && (
-                      <button
-                        onClick={() => handlePublicarInstagram(post.id)}
-                        disabled={publicandoId === post.id}
-                        className="flex items-center gap-1 rounded-full border border-foam-200 px-2 py-0.5 text-[11px] text-hull-900 hover:border-wake-400 disabled:opacity-50"
-                      >
-                        <Instagram className="h-3 w-3" strokeWidth={1.75} />
-                        {publicandoId === post.id ? 'Publicando…' : 'Publicar'}
-                      </button>
-                    )
+                    <>
+                      {post.status_agendamento === 'agendado' && (
+                        <>
+                          <span className="flex items-center gap-1 rounded-full bg-brass-200/40 px-2 py-0.5 text-[11px] text-hull-900">
+                            <CalendarClock className="h-3 w-3" strokeWidth={1.75} />
+                            Agendado para{' '}
+                            {post.agendado_para && new Date(post.agendado_para).toLocaleString('pt-BR')}
+                          </span>
+                          <button
+                            onClick={() => handleCancelarAgendamento(post.id)}
+                            className="text-[11px] text-slate-400 hover:text-signal-red"
+                          >
+                            Cancelar agendamento
+                          </button>
+                        </>
+                      )}
+                      {post.status_agendamento === 'erro' && (
+                        <span className="flex items-center gap-1 rounded-full bg-signal-red/10 px-2 py-0.5 text-[11px] text-signal-red">
+                          Falha ao publicar{post.erro_agendamento ? `: ${post.erro_agendamento}` : ''}
+                        </span>
+                      )}
+                      {instagram?.conectado && post.foto_urls && post.foto_urls.length > 0 && (
+                        <button
+                          onClick={() => handlePublicarInstagram(post.id)}
+                          disabled={publicandoId === post.id}
+                          className="flex items-center gap-1 rounded-full border border-foam-200 px-2 py-0.5 text-[11px] text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                        >
+                          <Instagram className="h-3 w-3" strokeWidth={1.75} />
+                          {publicandoId === post.id ? 'Publicando…' : 'Publicar agora'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

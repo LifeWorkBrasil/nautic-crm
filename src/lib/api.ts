@@ -893,10 +893,26 @@ export async function salvarPostMarketing(post: {
   legenda_gerada: string
   foto_urls?: string[] | null
   provedor_ia?: string | null
+  agendado_para?: string | null
 }): Promise<PostMarketing> {
-  const { data, error } = await supabase.from('posts_marketing').insert(post).select().single()
+  const { data, error } = await supabase
+    .from('posts_marketing')
+    .insert({
+      ...post,
+      status_agendamento: post.agendado_para ? 'agendado' : null,
+    })
+    .select()
+    .single()
   if (error) throw error
   return data
+}
+
+export async function cancelarAgendamentoPost(postId: string): Promise<void> {
+  const { error } = await supabase
+    .from('posts_marketing')
+    .update({ agendado_para: null, status_agendamento: null, erro_agendamento: null })
+    .eq('id', postId)
+  if (error) throw error
 }
 
 export async function getInstagramStatus(): Promise<InstagramStatus | null> {
