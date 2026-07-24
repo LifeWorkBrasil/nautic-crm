@@ -156,8 +156,9 @@ export default function Marketing() {
         foto_urls: selecionado.fotos.map((f) => f.url_imagem),
         provedor_ia: origemLegenda ?? 'manual',
       })
-      setPosts((prev) => [novo, ...prev])
-      setUltimoPostSalvo(novo)
+      const novoComNome = { ...novo, produto_nome: selecionado.nome }
+      setPosts((prev) => [novoComNome, ...prev])
+      setUltimoPostSalvo(novoComNome)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar')
     } finally {
@@ -184,8 +185,9 @@ export default function Marketing() {
         provedor_ia: origemLegenda ?? 'manual',
         agendado_para: dataEscolhida.toISOString(),
       })
-      setPosts((prev) => [novo, ...prev])
-      setUltimoPostSalvo(novo)
+      const novoComNome = { ...novo, produto_nome: selecionado.nome }
+      setPosts((prev) => [novoComNome, ...prev])
+      setUltimoPostSalvo(novoComNome)
       setMostrarAgendamento(false)
       setDataAgendamento('')
     } catch (e) {
@@ -276,10 +278,10 @@ export default function Marketing() {
           provedor_ia: post.provedor_ia,
           agendado_para: dataEscolhida.toISOString(),
         })
-        setPosts((prev) => [novo, ...prev])
+        setPosts((prev) => [{ ...novo, produto_nome: post.produto_nome }, ...prev])
       } else {
         const atualizado = await agendarPostExistente(post.id, dataEscolhida.toISOString())
-        setPosts((prev) => prev.map((p) => (p.id === post.id ? atualizado : p)))
+        setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, ...atualizado } : p)))
       }
       setAgendandoItemId(null)
       setDataAgendamentoItem('')
