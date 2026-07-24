@@ -11,6 +11,8 @@ import {
   listManuaisProduto,
   listSubcategorias,
   listItensInclusosProduto,
+  listFotosProduto,
+  listVideosProduto,
   gerarMensagemWhatsapp,
 } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -24,9 +26,12 @@ import type {
   ManualProduto,
   SubcategoriaProduto,
   ProdutoItemIncluso,
+  FotoProduto,
+  VideoProduto,
 } from '@/types'
 
 const PASSOS_BASE = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
+const MAX_FOTOS_WHATSAPP = 6
 
 export default function Orcamentos() {
   const [carregando, setCarregando] = useState(true)
@@ -60,11 +65,15 @@ export default function Orcamentos() {
   const [provedorWhatsapp, setProvedorWhatsapp] = useState<'claude' | 'gemini'>('claude')
   const [mensagemWhatsapp, setMensagemWhatsapp] = useState('')
   const [gerandoMensagem, setGerandoMensagem] = useState(false)
+  const [fotosProduto, setFotosProduto] = useState<FotoProduto[]>([])
+  const [videosProduto, setVideosProduto] = useState<VideoProduto[]>([])
 
   useEffect(() => {
     if (!produtoId) {
       setManuais([])
       setItensInclusos([])
+      setFotosProduto([])
+      setVideosProduto([])
       return
     }
     listManuaisProduto(produtoId)
@@ -73,6 +82,12 @@ export default function Orcamentos() {
     listItensInclusosProduto(produtoId)
       .then(setItensInclusos)
       .catch(() => setItensInclusos([]))
+    listFotosProduto(produtoId)
+      .then(setFotosProduto)
+      .catch(() => setFotosProduto([]))
+    listVideosProduto(produtoId)
+      .then(setVideosProduto)
+      .catch(() => setVideosProduto([]))
   }, [produtoId])
 
   useEffect(() => {
@@ -205,6 +220,31 @@ export default function Orcamentos() {
     }
   }
 
+  function montarBlocoMidia(): string {
+    const linhas: string[] = []
+    const fotos = fotosProduto.slice(0, MAX_FOTOS_WHATSAPP)
+    if (fotos.length > 0) {
+      linhas.push('Fotos:')
+      fotos.forEach((f) => linhas.push(f.url_imagem))
+    }
+    if (videosProduto.length > 0) {
+      if (linhas.length > 0) linhas.push('')
+      linhas.push('Vídeo:')
+      videosProduto.forEach((v) => linhas.push(v.url_youtube))
+    }
+    return linhas.length > 0 ? `\n\n${linhas.join('\n')}` : ''
+  }
+
+  function abrirEnvioWhatsapp() {
+    setMostrarEnvioWhatsapp((v) => {
+      const abrindo = !v
+      if (abrindo && !mensagemWhatsapp) {
+        setMensagemWhatsapp(montarBlocoMidia().trim())
+      }
+      return abrindo
+    })
+  }
+
   async function handleGerarMensagemWhatsapp() {
     if (!cliente || !produto) return
     setGerandoMensagem(true)
@@ -220,7 +260,7 @@ export default function Orcamentos() {
         nomeEmpresa: empresa?.nome_empresa ?? null,
         provider: provedorWhatsapp,
       })
-      setMensagemWhatsapp(texto)
+      setMensagemWhatsapp(`${texto}${montarBlocoMidia()}`)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao gerar mensagem')
     } finally {
@@ -717,7 +757,7 @@ export default function Orcamentos() {
                   {salvo ? 'Orçamento salvo' : salvando ? 'Salvando…' : 'Salvar no CRM'}
                 </button>
                 <button
-                  onClick={() => setMostrarEnvioWhatsapp((v) => !v)}
+                  onClick={abrirEnvioWhatsapp}
                   disabled={!cliente || !produto}
                   className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2.5 text-sm font-medium text-hull-900 hover:border-wake-400 disabled:opacity-60"
                 >
@@ -769,6 +809,17 @@ export default function Orcamentos() {
                     placeholder="Gere com IA acima ou escreva a mensagem manualmente."
                     className="input resize-none"
                   />
+                  {(fotosProduto.length > 0 || videosProduto.length > 0) && (
+                    <p className="text-[11px] text-slate-400">
+                      Links de mídia inclusos no texto acima:{' '}
+                      {fotosProduto.length > 0 &&
+                        `${Math.min(fotosProduto.length, MAX_FOTOS_WHATSAPP)} foto(s)${
+                          fotosProduto.length > MAX_FOTOS_WHATSAPP ? ` de ${fotosProduto.length}` : ''
+                        }`}
+                      {fotosProduto.length > 0 && videosProduto.length > 0 && ' · '}
+                      {videosProduto.length > 0 && `${videosProduto.length} vídeo(s)`}. Pode editar ou remover linhas do texto antes de enviar.
+                    </p>
+                  )}
                   <a
                     href={mensagemWhatsapp && cliente.telefone ? linkWhatsappComTexto(cliente.telefone, mensagemWhatsapp) : undefined}
                     target="_blank"
