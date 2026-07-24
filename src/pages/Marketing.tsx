@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Megaphone, Sparkles, Copy, Check, Save, ImageOff, Instagram, Link2, CalendarClock, X } from 'lucide-react'
+import {
+  Megaphone,
+  Sparkles,
+  Copy,
+  Check,
+  Save,
+  ImageOff,
+  Instagram,
+  Link2,
+  CalendarClock,
+  X,
+  ChevronDown,
+} from 'lucide-react'
 import {
   listMidiaBanco,
   gerarLegendaSocial,
   listPostsMarketing,
   salvarPostMarketing,
   cancelarAgendamentoPost,
+  agendarPostExistente,
   getInstagramStatus,
   getInstagramConectarUrl,
   publicarNoInstagram,
@@ -53,6 +66,11 @@ export default function Marketing() {
   const [instagram, setInstagram] = useState<InstagramStatus | null>(null)
   const [avisoInstagram, setAvisoInstagram] = useState<string | null>(null)
   const [publicandoId, setPublicandoId] = useState<string | null>(null)
+
+  const [itensAbertos, setItensAbertos] = useState<Set<string>>(new Set())
+  const [agendandoItemId, setAgendandoItemId] = useState<string | null>(null)
+  const [dataAgendamentoItem, setDataAgendamentoItem] = useState('')
+  const [programandoItemId, setProgramandoItemId] = useState<string | null>(null)
 
   useEffect(() => {
     listMidiaBanco()
@@ -202,6 +220,55 @@ export default function Marketing() {
       setErro(e instanceof Error ? e.message : 'Erro ao publicar no Instagram')
     } finally {
       setPublicandoId(null)
+    }
+  }
+
+  function toggleItemAberto(postId: string) {
+    setItensAbertos((prev) => {
+      const next = new Set(prev)
+      next.has(postId) ? next.delete(postId) : next.add(postId)
+      return next
+    })
+  }
+
+  function abrirAgendamentoItem(postId: string) {
+    setAgendandoItemId((atual) => (atual === postId ? null : postId))
+    setDataAgendamentoItem('')
+    setErro(null)
+  }
+
+  async function handleConfirmarAgendamentoItem(post: PostMarketing) {
+    if (!dataAgendamentoItem) return
+    const dataEscolhida = new Date(dataAgendamentoItem)
+    if (dataEscolhida.getTime() < Date.now() + ANTECEDENCIA_MINIMA_MS) {
+      setErro('Escolha um horário com pelo menos 5 minutos de antecedência.')
+      return
+    }
+    setProgramandoItemId(post.id)
+    setErro(null)
+    try {
+      if (post.instagram_media_id) {
+        // Já publicado: agendar uma repostagem cria um novo item no histórico.
+        const novo = await salvarPostMarketing({
+          produto_id: post.produto_id,
+          captacao_id: post.captacao_id,
+          tom: post.tom,
+          legenda_gerada: post.legenda_gerada,
+          foto_urls: post.foto_urls,
+          provedor_ia: post.provedor_ia,
+          agendado_para: dataEscolhida.toISOString(),
+        })
+        setPosts((prev) => [novo, ...prev])
+      } else {
+        const atualizado = await agendarPostExistente(post.id, dataEscolhida.toISOString())
+        setPosts((prev) => prev.map((p) => (p.id === post.id ? atualizado : p)))
+      }
+      setAgendandoItemId(null)
+      setDataAgendamentoItem('')
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao programar publicação')
+    } finally {
+      setProgramandoItemId(null)
     }
   }
 
@@ -477,62 +544,149 @@ export default function Marketing() {
         ) : posts.length === 0 ? (
           <p className="text-sm text-slate-400">Nenhuma legenda salva ainda.</p>
         ) : (
-          <div className="space-y-3">
-            {posts.map((post) => (
-              <div key={post.id} className="rounded-md border border-foam-200 p-3">
-                <p className="whitespace-pre-wrap text-sm text-hull-900">{post.legenda_gerada}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <p className="text-[11px] text-slate-400">
-                    {post.tom ? `Tom: ${post.tom} · ` : ''}
-                    {post.provedor_ia
-                      ? `${
-                          post.provedor_ia === 'gemini' ? 'Gemini' : post.provedor_ia === 'manual' ? 'Manual' : 'Claude'
-                        } · `
-                      : ''}
-                    {new Date(post.criado_em).toLocaleString('pt-BR')}
-                  </p>
-                  {post.instagram_media_id ? (
-                    <span className="flex items-center gap-1 rounded-full bg-signal-green/10 px-2 py-0.5 text-[11px] text-signal-green">
-                      <Instagram className="h-3 w-3" strokeWidth={1.75} />
-                      Publicado
+          <div className="space-y-2">
+            {posts.map((post) => {
+              const aberto = itensAbertos.has(post.id)
+              const publicado = !!post.instagram_media_id
+              const agendado = post.status_agendamento === 'agendado'
+              const comErro = post.status_agendamento === 'erro'
+              const podePublicar = !!instagram?.conectado && !!post.foto_urls && post.foto_urls.length > 0
+
+              return (
+                <div key={post.id} className="rounded-md border border-foam-200">
+                  <button
+                    onClick={() => toggleItemAberto(post.id)}
+                    className="flex w-full items-center justify-between gap-3 p-3 text-left"
+                  >
+                    <span className="truncate text-sm font-medium text-hull-900">
+                      {post.produto_nome ?? 'Sem produto vinculado'}
                     </span>
-                  ) : (
-                    <>
-                      {post.status_agendamento === 'agendado' && (
-                        <>
-                          <span className="flex items-center gap-1 rounded-full bg-brass-200/40 px-2 py-0.5 text-[11px] text-hull-900">
-                            <CalendarClock className="h-3 w-3" strokeWidth={1.75} />
-                            Agendado para{' '}
-                            {post.agendado_para && new Date(post.agendado_para).toLocaleString('pt-BR')}
-                          </span>
-                          <button
-                            onClick={() => handleCancelarAgendamento(post.id)}
-                            className="text-[11px] text-slate-400 hover:text-signal-red"
-                          >
-                            Cancelar agendamento
-                          </button>
-                        </>
-                      )}
-                      {post.status_agendamento === 'erro' && (
-                        <span className="flex items-center gap-1 rounded-full bg-signal-red/10 px-2 py-0.5 text-[11px] text-signal-red">
-                          Falha ao publicar{post.erro_agendamento ? `: ${post.erro_agendamento}` : ''}
+                    <div className="flex shrink-0 items-center gap-2">
+                      {publicado && (
+                        <span className="flex items-center gap-1 rounded-full bg-signal-green/10 px-2 py-0.5 text-[11px] text-signal-green">
+                          <Instagram className="h-3 w-3" strokeWidth={1.75} />
+                          Publicado
                         </span>
                       )}
-                      {instagram?.conectado && post.foto_urls && post.foto_urls.length > 0 && (
-                        <button
-                          onClick={() => handlePublicarInstagram(post.id)}
-                          disabled={publicandoId === post.id}
-                          className="flex items-center gap-1 rounded-full border border-foam-200 px-2 py-0.5 text-[11px] text-hull-900 hover:border-wake-400 disabled:opacity-50"
-                        >
-                          <Instagram className="h-3 w-3" strokeWidth={1.75} />
-                          {publicandoId === post.id ? 'Publicando…' : 'Publicar agora'}
-                        </button>
+                      {!publicado && agendado && (
+                        <span className="flex items-center gap-1 rounded-full bg-brass-200/40 px-2 py-0.5 text-[11px] text-hull-900">
+                          <CalendarClock className="h-3 w-3" strokeWidth={1.75} />
+                          Agendado
+                        </span>
                       )}
-                    </>
+                      {!publicado && comErro && (
+                        <span className="flex items-center gap-1 rounded-full bg-signal-red/10 px-2 py-0.5 text-[11px] text-signal-red">
+                          Falha
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={`h-4 w-4 text-slate-400 transition-transform ${aberto ? 'rotate-180' : ''}`}
+                        strokeWidth={1.75}
+                      />
+                    </div>
+                  </button>
+
+                  {aberto && (
+                    <div className="space-y-3 border-t border-foam-200 p-3">
+                      <p className="whitespace-pre-wrap text-sm text-hull-900">{post.legenda_gerada}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {post.tom ? `Tom: ${post.tom} · ` : ''}
+                        {post.provedor_ia
+                          ? `${
+                              post.provedor_ia === 'gemini'
+                                ? 'Gemini'
+                                : post.provedor_ia === 'manual'
+                                  ? 'Manual'
+                                  : 'Claude'
+                            } · `
+                          : ''}
+                        {new Date(post.criado_em).toLocaleString('pt-BR')}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        {publicado && (
+                          <span className="flex items-center gap-1.5 text-sm text-signal-green">
+                            <Check className="h-4 w-4" strokeWidth={2} />
+                            Publicado em{' '}
+                            {post.publicado_instagram_em &&
+                              new Date(post.publicado_instagram_em).toLocaleString('pt-BR')}
+                          </span>
+                        )}
+                        {agendado && (
+                          <>
+                            <span className="flex items-center gap-1.5 text-sm text-hull-900">
+                              <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                              Agendado para{' '}
+                              {post.agendado_para && new Date(post.agendado_para).toLocaleString('pt-BR')}
+                            </span>
+                            <button
+                              onClick={() => handleCancelarAgendamento(post.id)}
+                              className="text-[11px] text-slate-400 hover:text-signal-red"
+                            >
+                              Cancelar agendamento
+                            </button>
+                          </>
+                        )}
+                        {comErro && (
+                          <span className="text-sm text-signal-red">
+                            Falha ao publicar{post.erro_agendamento ? `: ${post.erro_agendamento}` : ''}
+                          </span>
+                        )}
+                        {podePublicar && !publicado && (
+                          <button
+                            onClick={() => handlePublicarInstagram(post.id)}
+                            disabled={publicandoId === post.id}
+                            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                          >
+                            <Instagram className="h-4 w-4" strokeWidth={1.75} />
+                            {publicandoId === post.id ? 'Publicando…' : 'Publicar agora'}
+                          </button>
+                        )}
+                        {podePublicar && !agendado && (
+                          <button
+                            onClick={() => abrirAgendamentoItem(post.id)}
+                            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                          >
+                            <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                            {publicado ? 'Programar repostagem' : 'Programar'}
+                          </button>
+                        )}
+                      </div>
+
+                      {agendandoItemId === post.id && (
+                        <div className="flex flex-wrap items-end gap-3 rounded-md border border-foam-200 bg-foam-100 p-3">
+                          <label className="block">
+                            <span className="mb-1.5 block text-sm font-medium text-hull-900">Publicar em</span>
+                            <input
+                              type="datetime-local"
+                              value={dataAgendamentoItem}
+                              min={formatarDatetimeLocal(new Date(Date.now() + ANTECEDENCIA_MINIMA_MS))}
+                              onChange={(e) => setDataAgendamentoItem(e.target.value)}
+                              className="input"
+                            />
+                          </label>
+                          <button
+                            onClick={() => handleConfirmarAgendamentoItem(post)}
+                            disabled={programandoItemId === post.id || !dataAgendamentoItem}
+                            className="flex items-center gap-2 rounded-md bg-hull-900 px-3 py-2 text-sm font-medium text-foam-50 hover:bg-hull-800 disabled:opacity-50"
+                          >
+                            <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                            {programandoItemId === post.id ? 'Programando…' : 'Confirmar'}
+                          </button>
+                          <button
+                            onClick={() => setAgendandoItemId(null)}
+                            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                          >
+                            <X className="h-4 w-4" strokeWidth={1.75} />
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

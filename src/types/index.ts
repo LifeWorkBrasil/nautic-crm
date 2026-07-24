@@ -261,6 +261,8 @@ export interface PostMarketing {
   status_agendamento: 'agendado' | 'publicado' | 'erro' | null
   erro_agendamento: string | null
   criado_em: string
+  /** Nome do produto/captação vinculado — populado por listPostsMarketing() via join, não existe na tabela. */
+  produto_nome?: string | null
 }
 
 export interface InstagramStatus {

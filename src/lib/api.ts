@@ -879,10 +879,16 @@ export async function gerarLegendaSocial(input: {
 export async function listPostsMarketing(): Promise<PostMarketing[]> {
   const { data, error } = await supabase
     .from('posts_marketing')
-    .select('*')
+    .select('*, produtos(nome), captacoes(nome)')
     .order('criado_em', { ascending: false })
   if (error) throw error
-  return data ?? []
+  return (data ?? []).map((p) => {
+    const { produtos, captacoes, ...resto } = p as typeof p & {
+      produtos: { nome: string } | null
+      captacoes: { nome: string } | null
+    }
+    return { ...resto, produto_nome: produtos?.nome ?? captacoes?.nome ?? null }
+  })
 }
 
 export async function salvarPostMarketing(post: {
@@ -913,6 +919,17 @@ export async function cancelarAgendamentoPost(postId: string): Promise<void> {
     .update({ agendado_para: null, status_agendamento: null, erro_agendamento: null })
     .eq('id', postId)
   if (error) throw error
+}
+
+export async function agendarPostExistente(postId: string, agendadoPara: string): Promise<PostMarketing> {
+  const { data, error } = await supabase
+    .from('posts_marketing')
+    .update({ agendado_para: agendadoPara, status_agendamento: 'agendado', erro_agendamento: null })
+    .eq('id', postId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
 
 export async function getInstagramStatus(): Promise<InstagramStatus | null> {
