@@ -7,6 +7,7 @@ import {
   FileText,
   Building2,
   LogOut,
+  KeyRound,
   ChevronDown,
   Sailboat,
   Compass,
@@ -19,6 +20,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import AlterarSenhaModal from '@/components/AlterarSenhaModal'
 import type { CategoriaProduto, SubcategoriaProduto } from '@/types'
 
 const CATEGORIA_ICONES: Record<string, typeof Sailboat> = {
@@ -47,6 +49,7 @@ export default function Layout() {
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null)
+  const [alterandoSenha, setAlterandoSenha] = useState(false)
   const { perfil, temPermissao, temAlgumaPermissao } = usePermissoes()
 
   function itemVisivel(permissao: string): boolean {
@@ -195,8 +198,15 @@ export default function Layout() {
             produtos vêm do Supabase — nada fica hardcoded na proposta.
           </p>
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => setAlterandoSenha(true)}
             className="mt-4 flex items-center gap-2 text-xs text-slate-400 hover:text-foam-100"
+          >
+            <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Alterar senha
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="mt-2 flex items-center gap-2 text-xs text-slate-400 hover:text-foam-100"
           >
             <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
             Sair
@@ -207,6 +217,8 @@ export default function Layout() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+
+      {alterandoSenha && <AlterarSenhaModal onClose={() => setAlterandoSenha(false)} />}
     </div>
   )
 }

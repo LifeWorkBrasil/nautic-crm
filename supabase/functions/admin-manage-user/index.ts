@@ -113,6 +113,22 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true });
     }
 
+    if (body.action === "redefinir_senha") {
+      if (!body.usuario_id || !body.nova_senha) {
+        return json({ error: "usuario_id e nova_senha são obrigatórios." }, 400);
+      }
+      if (!(await pertenceAoTenant(body.usuario_id))) {
+        return json({ error: "Usuário não encontrado." }, 404);
+      }
+
+      const { error: senhaError } = await adminClient.auth.admin.updateUserById(body.usuario_id, {
+        password: body.nova_senha,
+      });
+      if (senhaError) throw senhaError;
+
+      return json({ ok: true });
+    }
+
     if (body.action === "atualizar_usuario") {
       if (!body.usuario_id) return json({ error: "usuario_id é obrigatório." }, 400);
       if (!(await pertenceAoTenant(body.usuario_id))) {

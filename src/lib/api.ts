@@ -1173,6 +1173,14 @@ export async function atualizarPermissoes(usuarioId: string, tabKeys: string[]):
   })
 }
 
+export async function redefinirSenha(usuarioId: string, novaSenha: string): Promise<void> {
+  await chamarAdminManageUser({
+    action: 'redefinir_senha',
+    usuario_id: usuarioId,
+    nova_senha: novaSenha,
+  })
+}
+
 // ---------- Perfis de Acesso ----------
 
 export async function listPerfisAcesso(): Promise<(PerfilAcesso & { tabKeys: string[] })[]> {
