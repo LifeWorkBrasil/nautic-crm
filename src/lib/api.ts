@@ -876,6 +876,34 @@ export async function gerarLegendaSocial(input: {
   return data.legenda as string
 }
 
+export async function gerarMensagemWhatsapp(input: {
+  clienteNome: string
+  produtoNome: string
+  valorTotal?: number | null
+  entradaPercentual?: number | null
+  parcelas?: { percentual: number }[]
+  dataPrevistaEntrega?: string | null
+  nomeEmpresa?: string | null
+  provider?: 'claude' | 'gemini'
+}): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar-mensagem-whatsapp`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionData.session?.access_token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(input),
+    }
+  )
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao gerar mensagem.')
+  return data.mensagem as string
+}
+
 export async function listPostsMarketing(): Promise<PostMarketing[]> {
   const { data, error } = await supabase
     .from('posts_marketing')

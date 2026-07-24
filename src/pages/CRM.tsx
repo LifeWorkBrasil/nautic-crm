@@ -5,6 +5,7 @@ import GerarContratoModal from '@/components/GerarContratoModal'
 import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import { formatBRL } from '@/lib/format'
+import { linkWhatsapp } from '@/lib/whatsapp'
 import {
   listLeads,
   createLead,
@@ -52,12 +53,6 @@ const STATUS_STYLES: Record<StatusCRM, string> = {
   Negociação: 'border-brass-500/50 bg-brass-200/30',
   'Venda Concluída': 'border-signal-green/40 bg-signal-green/5',
   Perdido: 'border-slate-400/30 bg-foam-200',
-}
-
-function linkWhatsapp(telefone: string): string {
-  const digitos = telefone.replace(/\D/g, '')
-  const comDdi = digitos.startsWith('55') ? digitos : `55${digitos}`
-  return `https://wa.me/${comDdi}`
 }
 
 const LEAD_VAZIO = {

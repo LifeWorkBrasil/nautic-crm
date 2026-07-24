@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2 } from 'lucide-react'
+import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2, MessageCircle, Sparkles } from 'lucide-react'
 import {
   listProdutos,
   listMotores,
@@ -11,8 +11,10 @@ import {
   listManuaisProduto,
   listSubcategorias,
   listItensInclusosProduto,
+  gerarMensagemWhatsapp,
 } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import type {
   Produto,
   Motor,
@@ -53,6 +55,11 @@ export default function Orcamentos() {
   const [gerandoPdf, setGerandoPdf] = useState(false)
   const [manuais, setManuais] = useState<ManualProduto[]>([])
   const previewRef = useRef<HTMLDivElement>(null)
+
+  const [mostrarEnvioWhatsapp, setMostrarEnvioWhatsapp] = useState(false)
+  const [provedorWhatsapp, setProvedorWhatsapp] = useState<'claude' | 'gemini'>('claude')
+  const [mensagemWhatsapp, setMensagemWhatsapp] = useState('')
+  const [gerandoMensagem, setGerandoMensagem] = useState(false)
 
   useEffect(() => {
     if (!produtoId) {
@@ -195,6 +202,29 @@ export default function Orcamentos() {
       setErro(e instanceof Error ? e.message : 'Erro ao gerar PDF')
     } finally {
       setGerandoPdf(false)
+    }
+  }
+
+  async function handleGerarMensagemWhatsapp() {
+    if (!cliente || !produto) return
+    setGerandoMensagem(true)
+    setErro(null)
+    try {
+      const texto = await gerarMensagemWhatsapp({
+        clienteNome: cliente.nome,
+        produtoNome: produto.nome,
+        valorTotal: total,
+        entradaPercentual,
+        parcelas,
+        dataPrevistaEntrega: dataPrevistaEntrega || null,
+        nomeEmpresa: empresa?.nome_empresa ?? null,
+        provider: provedorWhatsapp,
+      })
+      setMensagemWhatsapp(texto)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao gerar mensagem')
+    } finally {
+      setGerandoMensagem(false)
     }
   }
 
@@ -687,6 +717,14 @@ export default function Orcamentos() {
                   {salvo ? 'Orçamento salvo' : salvando ? 'Salvando…' : 'Salvar no CRM'}
                 </button>
                 <button
+                  onClick={() => setMostrarEnvioWhatsapp((v) => !v)}
+                  disabled={!cliente || !produto}
+                  className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2.5 text-sm font-medium text-hull-900 hover:border-wake-400 disabled:opacity-60"
+                >
+                  <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+                  Enviar por WhatsApp
+                </button>
+                <button
                   disabled
                   title="Disponível em breve — link público de cotação ainda não implementado"
                   className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2.5 text-sm font-medium text-slate-400"
@@ -695,6 +733,61 @@ export default function Orcamentos() {
                   Copiar link da cotação
                 </button>
               </div>
+
+              {mostrarEnvioWhatsapp && cliente && produto && (
+                <div className="space-y-3 rounded-md border border-foam-200 bg-foam-100 p-4">
+                  {!cliente.telefone && (
+                    <p className="text-xs text-signal-red">
+                      Este cliente não tem telefone cadastrado. Adicione um telefone no CRM antes de enviar.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-end gap-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-hull-900">Gerar com</span>
+                      <select
+                        value={provedorWhatsapp}
+                        onChange={(e) => setProvedorWhatsapp(e.target.value as 'claude' | 'gemini')}
+                        className="input"
+                      >
+                        <option value="claude">Claude</option>
+                        <option value="gemini">Gemini</option>
+                      </select>
+                    </label>
+                    <button
+                      onClick={handleGerarMensagemWhatsapp}
+                      disabled={gerandoMensagem}
+                      className="flex items-center gap-2 rounded-md border border-foam-200 bg-white px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                    >
+                      <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+                      {gerandoMensagem ? 'Gerando…' : 'Gerar mensagem com IA'}
+                    </button>
+                  </div>
+                  <textarea
+                    rows={6}
+                    value={mensagemWhatsapp}
+                    onChange={(e) => setMensagemWhatsapp(e.target.value)}
+                    placeholder="Gere com IA acima ou escreva a mensagem manualmente."
+                    className="input resize-none"
+                  />
+                  <a
+                    href={mensagemWhatsapp && cliente.telefone ? linkWhatsappComTexto(cliente.telefone, mensagemWhatsapp) : undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-disabled={!mensagemWhatsapp || !cliente.telefone}
+                    onClick={(e) => {
+                      if (!mensagemWhatsapp || !cliente.telefone) e.preventDefault()
+                    }}
+                    className={`flex w-fit items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium ${
+                      mensagemWhatsapp && cliente.telefone
+                        ? 'bg-signal-green text-foam-50 hover:opacity-90'
+                        : 'cursor-not-allowed bg-foam-200 text-slate-400'
+                    }`}
+                  >
+                    <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+                    Abrir WhatsApp
+                  </a>
+                </div>
+              )}
               {salvo && (
                 <p className="text-xs text-signal-green">
                   Orçamento gravado em "Rascunho" — o PDF ainda não está implementado nesta versão.
