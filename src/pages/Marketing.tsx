@@ -13,6 +13,15 @@ import {
 } from '@/lib/api'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
+const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
+
+function formatarDatetimeLocal(data: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}T${pad(data.getHours())}:${pad(
+    data.getMinutes()
+  )}`
+}
+
 const TONS = ['Profissional', 'Descontraído', 'Urgente/Promocional', 'Inspirador']
 const PROVEDORES = [
   { valor: 'claude' as const, label: 'Claude' },
@@ -138,8 +147,8 @@ export default function Marketing() {
   async function handleProgramar() {
     if (!selecionado || !legenda || !dataAgendamento) return
     const dataEscolhida = new Date(dataAgendamento)
-    if (dataEscolhida.getTime() <= Date.now()) {
-      setErro('Escolha uma data e horário no futuro.')
+    if (dataEscolhida.getTime() < Date.now() + ANTECEDENCIA_MINIMA_MS) {
+      setErro('Escolha um horário com pelo menos 5 minutos de antecedência.')
       return
     }
     setProgramando(true)
@@ -429,7 +438,7 @@ export default function Marketing() {
                       <input
                         type="datetime-local"
                         value={dataAgendamento}
-                        min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                        min={formatarDatetimeLocal(new Date(Date.now() + ANTECEDENCIA_MINIMA_MS))}
                         onChange={(e) => setDataAgendamento(e.target.value)}
                         className="input"
                       />
