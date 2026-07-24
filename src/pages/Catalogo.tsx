@@ -7,6 +7,7 @@ import ItensInclusosProduto from '@/components/ItensInclusosProduto'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import {
   listProdutos,
   createProduto,
@@ -35,6 +36,7 @@ type ProdutoForm = {
 }
 
 export default function Catalogo() {
+  const { perfil } = usePermissoes()
   const { subcategoriaId } = useParams<{ subcategoriaId: string }>()
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
@@ -368,8 +370,9 @@ export default function Catalogo() {
         </Modal>
       )}
 
-      {produtoMidia && (
+      {produtoMidia && perfil?.empresa_id && (
         <GaleriaProduto
+          empresaId={perfil.empresa_id}
           produtoId={produtoMidia.id}
           nomeProduto={produtoMidia.nome}
           onClose={() => setProdutoMidia(null)}

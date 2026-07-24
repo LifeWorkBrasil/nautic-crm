@@ -21,11 +21,13 @@ function extrairYoutubeId(url: string): string | null {
 }
 
 export default function GaleriaProduto({
+  empresaId,
   produtoId,
   nomeProduto,
   onClose,
   onAlterar,
 }: {
+  empresaId: string
   produtoId: string
   nomeProduto: string
   onClose: () => void
@@ -65,7 +67,7 @@ export default function GaleriaProduto({
     setEnviandoFoto(true)
     try {
       for (const file of Array.from(files)) {
-        await uploadFotoProduto(produtoId, file)
+        await uploadFotoProduto(empresaId, produtoId, file)
       }
       await carregar()
       onAlterar()
@@ -126,7 +128,7 @@ export default function GaleriaProduto({
   async function handleUploadManual(file: File) {
     setEnviandoManual(true)
     try {
-      await uploadManualProduto(produtoId, file)
+      await uploadManualProduto(empresaId, produtoId, file)
       await carregar()
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao enviar manual')
