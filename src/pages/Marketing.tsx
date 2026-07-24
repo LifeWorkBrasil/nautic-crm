@@ -27,6 +27,7 @@ export default function Marketing() {
   const [tom, setTom] = useState(TONS[0])
   const [provedor, setProvedor] = useState<'claude' | 'gemini'>('claude')
   const [legenda, setLegenda] = useState('')
+  const [origemLegenda, setOrigemLegenda] = useState<'claude' | 'gemini' | 'manual' | null>(null)
   const [gerando, setGerando] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -74,6 +75,7 @@ export default function Marketing() {
   function selecionar(item: MidiaBancoItem) {
     setSelecionado(item)
     setLegenda('')
+    setOrigemLegenda(null)
     setUltimoPostSalvo(null)
     setErro(null)
   }
@@ -92,6 +94,7 @@ export default function Marketing() {
         provider: provedor,
       })
       setLegenda(texto)
+      setOrigemLegenda(provedor)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao gerar legenda')
     } finally {
@@ -115,7 +118,7 @@ export default function Marketing() {
         tom,
         legenda_gerada: legenda,
         foto_urls: selecionado.fotos.map((f) => f.url_imagem),
-        provedor_ia: provedor,
+        provedor_ia: origemLegenda ?? 'manual',
       })
       setPosts((prev) => [novo, ...prev])
       setUltimoPostSalvo(novo)
@@ -294,17 +297,22 @@ export default function Marketing() {
                 {gerando ? 'Gerando…' : 'Gerar legenda com IA'}
               </button>
 
-              {legenda && (
-                <div className="space-y-3 border-t border-foam-200 pt-4">
+              <div className="space-y-3 border-t border-foam-200 pt-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-hull-900">Legenda</span>
                   <textarea
                     rows={8}
                     value={legenda}
                     onChange={(e) => {
                       setLegenda(e.target.value)
+                      setOrigemLegenda(e.target.value ? 'manual' : null)
                       setUltimoPostSalvo(null)
                     }}
+                    placeholder="Gere com IA acima ou escreva sua própria legenda aqui."
                     className="input resize-none"
                   />
+                </label>
+                {legenda && (
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={handleCopiar}
@@ -348,8 +356,8 @@ export default function Marketing() {
                       </span>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </div>
@@ -373,7 +381,11 @@ export default function Marketing() {
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <p className="text-[11px] text-slate-400">
                     {post.tom ? `Tom: ${post.tom} · ` : ''}
-                    {post.provedor_ia ? `${post.provedor_ia === 'gemini' ? 'Gemini' : 'Claude'} · ` : ''}
+                    {post.provedor_ia
+                      ? `${
+                          post.provedor_ia === 'gemini' ? 'Gemini' : post.provedor_ia === 'manual' ? 'Manual' : 'Claude'
+                        } · `
+                      : ''}
                     {new Date(post.criado_em).toLocaleString('pt-BR')}
                   </p>
                   {post.instagram_media_id ? (
