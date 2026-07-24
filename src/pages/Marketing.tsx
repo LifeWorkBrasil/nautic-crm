@@ -12,12 +12,14 @@ import {
   CalendarClock,
   X,
   ChevronDown,
+  Trash2,
 } from 'lucide-react'
 import {
   listMidiaBanco,
   gerarLegendaSocial,
   listPostsMarketing,
   salvarPostMarketing,
+  excluirPostMarketing,
   cancelarAgendamentoPost,
   agendarPostExistente,
   getInstagramStatus,
@@ -71,6 +73,7 @@ export default function Marketing() {
   const [agendandoItemId, setAgendandoItemId] = useState<string | null>(null)
   const [dataAgendamentoItem, setDataAgendamentoItem] = useState('')
   const [programandoItemId, setProgramandoItemId] = useState<string | null>(null)
+  const [excluindoId, setExcluindoId] = useState<string | null>(null)
 
   useEffect(() => {
     listMidiaBanco()
@@ -220,6 +223,21 @@ export default function Marketing() {
       setErro(e instanceof Error ? e.message : 'Erro ao publicar no Instagram')
     } finally {
       setPublicandoId(null)
+    }
+  }
+
+  async function handleExcluirPost(postId: string) {
+    if (!confirm('Excluir esta legenda do histórico? Essa ação não pode ser desfeita.')) return
+    setExcluindoId(postId)
+    setErro(null)
+    try {
+      await excluirPostMarketing(postId)
+      setPosts((prev) => prev.filter((p) => p.id !== postId))
+      setUltimoPostSalvo((prev) => (prev?.id === postId ? null : prev))
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir legenda')
+    } finally {
+      setExcluindoId(null)
     }
   }
 
@@ -651,6 +669,14 @@ export default function Marketing() {
                             {publicado ? 'Programar repostagem' : 'Programar'}
                           </button>
                         )}
+                        <button
+                          onClick={() => handleExcluirPost(post.id)}
+                          disabled={excluindoId === post.id}
+                          className="ml-auto flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-signal-red/80 hover:border-signal-red/40 hover:text-signal-red disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                          {excluindoId === post.id ? 'Excluindo…' : 'Excluir'}
+                        </button>
                       </div>
 
                       {agendandoItemId === post.id && (

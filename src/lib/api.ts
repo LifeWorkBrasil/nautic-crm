@@ -913,6 +913,11 @@ export async function salvarPostMarketing(post: {
   return data
 }
 
+export async function excluirPostMarketing(postId: string): Promise<void> {
+  const { error } = await supabase.from('posts_marketing').delete().eq('id', postId)
+  if (error) throw error
+}
+
 export async function cancelarAgendamentoPost(postId: string): Promise<void> {
   const { error } = await supabase
     .from('posts_marketing')
