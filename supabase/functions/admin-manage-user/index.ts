@@ -37,9 +37,57 @@ Deno.serve(async (req: Request) => {
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { data: perfil } = await adminClient
       .from("usuarios_perfil")
-      .select("is_admin, empresa_id")
+      .select("is_admin, empresa_id, plataforma_admin")
       .eq("id", user.id)
       .single();
+
+    const body = await req.json();
+
+    // bootstrap_tenant: cria um tenant (empresa) novo + seu primeiro admin. Reservado ao dono da
+    // plataforma (plataforma_admin) — não é uma ação de administração de tenant, é criação de
+    // tenant, então não usa a checagem de is_admin/pertenceAoTenant abaixo.
+    if (body.action === "bootstrap_tenant") {
+      if (!perfil?.plataforma_admin) {
+        return json({ error: "Apenas o dono da plataforma pode criar novos tenants." }, 403);
+      }
+      if (!body.nome_empresa || !body.slug || !body.admin_nome || !body.admin_email || !body.admin_senha) {
+        return json({ error: "nome_empresa, slug, admin_nome, admin_email e admin_senha são obrigatórios." }, 400);
+      }
+
+      const { data: empresa, error: empresaError } = await adminClient
+        .from("empresas")
+        .insert({
+          nome_empresa: body.nome_empresa,
+          slug: body.slug,
+          segmento: body.segmento ?? null,
+          ativo: true,
+        })
+        .select()
+        .single();
+      if (empresaError) throw empresaError;
+
+      const { data: created, error: userError } = await adminClient.auth.admin.createUser({
+        email: body.admin_email,
+        password: body.admin_senha,
+        email_confirm: true,
+      });
+      if (userError) throw userError;
+
+      const { error: perfilError } = await adminClient.from("usuarios_perfil").insert({
+        id: created.user.id,
+        nome: body.admin_nome,
+        email: body.admin_email,
+        comissao_percentual: 0,
+        is_admin: true,
+        ativo: true,
+        empresa_id: empresa.id,
+        plataforma_admin: false,
+      });
+      if (perfilError) throw perfilError;
+
+      return json({ ok: true, empresa_id: empresa.id });
+    }
+
     if (!perfil?.is_admin) {
       return json({ error: "Apenas administradores podem gerenciar usuários" }, 403);
     }
@@ -55,8 +103,6 @@ Deno.serve(async (req: Request) => {
         .single();
       return data?.empresa_id === empresaId;
     }
-
-    const body = await req.json();
 
     if (body.action === "criar_usuario") {
       if (!body.nome || !body.email || !body.senha) {

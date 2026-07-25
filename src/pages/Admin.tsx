@@ -17,6 +17,7 @@ import {
   createPerfilAcesso,
   updatePerfilAcesso,
   deletePerfilAcesso,
+  bootstrapTenant,
 } from '@/lib/api'
 import type {
   UsuarioPerfil,
@@ -36,7 +37,7 @@ type UsuarioForm = {
 
 const FORM_VAZIO: UsuarioForm = { nome: '', email: '', senha: '', comissao_percentual: 0, ativo: true }
 
-type SecaoAdmin = 'usuarios' | 'perfis'
+type SecaoAdmin = 'usuarios' | 'perfis' | 'tenants'
 
 function GradePermissoes({
   tabsSistema,
@@ -125,6 +126,18 @@ export default function Admin() {
   const [editandoPerfil, setEditandoPerfil] = useState<PerfilAcesso | null>(null)
   const [nomePerfil, setNomePerfil] = useState('')
   const [tabKeysPerfil, setTabKeysPerfil] = useState<Set<string>>(new Set())
+
+  const [formTenant, setFormTenant] = useState({
+    nomeEmpresa: '',
+    slug: '',
+    segmento: '',
+    adminNome: '',
+    adminEmail: '',
+    adminSenha: '',
+  })
+  const [criandoTenant, setCriandoTenant] = useState(false)
+  const [tenantCriado, setTenantCriado] = useState<string | null>(null)
+  const [erroTenant, setErroTenant] = useState<string | null>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -292,6 +305,36 @@ export default function Admin() {
     }
   }
 
+  function gerarSlug(nome: string): string {
+    return nome
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  }
+
+  async function salvarTenant() {
+    setCriandoTenant(true)
+    setErroTenant(null)
+    try {
+      await bootstrapTenant(formTenant)
+      setTenantCriado(formTenant.nomeEmpresa)
+      setFormTenant({
+        nomeEmpresa: '',
+        slug: '',
+        segmento: '',
+        adminNome: '',
+        adminEmail: '',
+        adminSenha: '',
+      })
+    } catch (e) {
+      setErroTenant(e instanceof Error ? e.message : 'Erro ao criar tenant')
+    } finally {
+      setCriandoTenant(false)
+    }
+  }
+
   if (carregandoPermissoes) {
     return <div className="p-8 text-sm text-slate-400">Carregando…</div>
   }
@@ -323,6 +366,7 @@ export default function Admin() {
           [
             { key: 'usuarios', label: 'Usuários' },
             { key: 'perfis', label: 'Perfis de Acesso' },
+            ...(perfil?.plataforma_admin ? [{ key: 'tenants', label: 'Tenants' } as const] : []),
           ] as const
         ).map(({ key, label }) => (
           <button
@@ -591,6 +635,86 @@ export default function Admin() {
             </Modal>
           )}
         </>
+      )}
+
+      {secao === 'tenants' && perfil?.plataforma_admin && (
+        <div className="max-w-lg space-y-4">
+          <p className="text-sm text-slate-500">
+            Cria um novo tenant (empresa cliente) e seu primeiro usuário administrador. A pessoa
+            pode trocar a senha depois pelo botão "Alterar senha".
+          </p>
+
+          {erroTenant && (
+            <div className="rounded-md border border-signal-red/30 bg-signal-red/5 px-4 py-2.5 text-sm text-signal-red">
+              {erroTenant}
+            </div>
+          )}
+          {tenantCriado && (
+            <div className="rounded-md border border-signal-green/30 bg-signal-green/5 px-4 py-2.5 text-sm text-signal-green">
+              Tenant "{tenantCriado}" criado com sucesso.
+            </div>
+          )}
+
+          <CampoTexto
+            label="Nome da empresa"
+            value={formTenant.nomeEmpresa}
+            onChange={(v) =>
+              setFormTenant((prev) => ({
+                ...prev,
+                nomeEmpresa: v,
+                slug: prev.slug === gerarSlug(prev.nomeEmpresa) ? gerarSlug(v) : prev.slug,
+              }))
+            }
+          />
+          <CampoTexto
+            label="Slug (identificador único)"
+            value={formTenant.slug}
+            onChange={(v) => setFormTenant({ ...formTenant, slug: v })}
+          />
+          <CampoTexto
+            label="Segmento (opcional)"
+            value={formTenant.segmento}
+            onChange={(v) => setFormTenant({ ...formTenant, segmento: v })}
+          />
+          <div className="border-t border-foam-200 pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+              Primeiro usuário (admin do tenant)
+            </p>
+            <div className="space-y-4">
+              <CampoTexto
+                label="Nome"
+                value={formTenant.adminNome}
+                onChange={(v) => setFormTenant({ ...formTenant, adminNome: v })}
+              />
+              <CampoTexto
+                label="E-mail"
+                value={formTenant.adminEmail}
+                onChange={(v) => setFormTenant({ ...formTenant, adminEmail: v })}
+              />
+              <CampoTexto
+                label="Senha temporária"
+                value={formTenant.adminSenha}
+                onChange={(v) => setFormTenant({ ...formTenant, adminSenha: v })}
+                type="password"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={salvarTenant}
+            disabled={
+              criandoTenant ||
+              !formTenant.nomeEmpresa.trim() ||
+              !formTenant.slug.trim() ||
+              !formTenant.adminNome.trim() ||
+              !formTenant.adminEmail.trim() ||
+              !formTenant.adminSenha.trim()
+            }
+            className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+          >
+            {criandoTenant ? 'Criando…' : 'Criar tenant'}
+          </button>
+        </div>
       )}
     </div>
   )

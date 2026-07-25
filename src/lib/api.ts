@@ -1221,6 +1221,25 @@ export async function redefinirSenha(usuarioId: string, novaSenha: string): Prom
   })
 }
 
+export async function bootstrapTenant(input: {
+  nomeEmpresa: string
+  slug: string
+  segmento: string
+  adminNome: string
+  adminEmail: string
+  adminSenha: string
+}): Promise<void> {
+  await chamarAdminManageUser({
+    action: 'bootstrap_tenant',
+    nome_empresa: input.nomeEmpresa,
+    slug: input.slug,
+    segmento: input.segmento || null,
+    admin_nome: input.adminNome,
+    admin_email: input.adminEmail,
+    admin_senha: input.adminSenha,
+  })
+}
+
 // ---------- Perfis de Acesso ----------
 
 export async function listPerfisAcesso(): Promise<(PerfilAcesso & { tabKeys: string[] })[]> {
