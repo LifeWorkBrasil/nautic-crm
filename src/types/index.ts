@@ -38,6 +38,7 @@ export interface UsuarioPerfil {
   ativo: boolean
   comissao_percentual: number
   empresa_id: string
+  plataforma_admin: boolean
   criado_em: string
 }
 
