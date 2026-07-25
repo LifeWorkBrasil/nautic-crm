@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2, Users, FileSignature, FileEdit } from 'lucide-react'
+import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2, Users, FileSignature, FileEdit, Tag } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import { CampoTexto, CampoNumero, CampoTextArea } from '@/components/campos'
@@ -27,6 +27,10 @@ import {
   createGrupo,
   updateGrupo,
   deleteGrupo,
+  listCamposPersonalizados,
+  createCampoPersonalizado,
+  updateCampoPersonalizado,
+  deleteCampoPersonalizado,
   listParceiros,
   createParceiro,
   updateParceiro,
@@ -45,6 +49,8 @@ import type {
   CategoriaProduto,
   SubcategoriaProduto,
   GrupoProduto,
+  CampoPersonalizado,
+  TipoCampoPersonalizado,
   Parceiro,
   MinutaContrato,
 } from '@/types'
@@ -127,6 +133,199 @@ function ErroBanner({ erro }: { erro: string | null }) {
     <div className="mb-4 rounded-md border border-signal-red/30 bg-signal-red/5 px-4 py-2.5 text-sm text-signal-red">
       {erro}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Campos personalizados (por categoria ou por grupo)
+// ---------------------------------------------------------------------------
+
+const TIPOS_CAMPO: { valor: TipoCampoPersonalizado; label: string }[] = [
+  { valor: 'texto', label: 'Texto' },
+  { valor: 'numero', label: 'Número' },
+  { valor: 'booleano', label: 'Sim/Não' },
+  { valor: 'selecao', label: 'Seleção' },
+]
+
+function CamposPersonalizadosModal({
+  categoriaId,
+  grupoId,
+  titulo,
+  onClose,
+}: {
+  categoriaId?: string
+  grupoId?: string
+  titulo: string
+  onClose: () => void
+}) {
+  const [campos, setCampos] = useState<CampoPersonalizado[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [nome, setNome] = useState('')
+  const [tipo, setTipo] = useState<TipoCampoPersonalizado>('texto')
+  const [opcoesTexto, setOpcoesTexto] = useState('')
+  const [salvando, setSalvando] = useState(false)
+
+  async function carregar() {
+    setCarregando(true)
+    try {
+      const todos = await listCamposPersonalizados()
+      setCampos(
+        todos.filter((c) => (categoriaId ? c.categoria_id === categoriaId : c.grupo_id === grupoId))
+      )
+      setErro(null)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao carregar campos')
+    } finally {
+      setCarregando(false)
+    }
+  }
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function limparForm() {
+    setEditandoId(null)
+    setNome('')
+    setTipo('texto')
+    setOpcoesTexto('')
+  }
+
+  function iniciarEdicao(c: CampoPersonalizado) {
+    setEditandoId(c.id)
+    setNome(c.nome)
+    setTipo(c.tipo)
+    setOpcoesTexto((c.opcoes ?? []).join(', '))
+  }
+
+  async function salvarCampo() {
+    if (!nome.trim()) return
+    setSalvando(true)
+    try {
+      const opcoes =
+        tipo === 'selecao'
+          ? opcoesTexto
+              .split(',')
+              .map((o) => o.trim())
+              .filter(Boolean)
+          : null
+      if (editandoId) {
+        await updateCampoPersonalizado(editandoId, { nome: nome.trim(), tipo, opcoes })
+      } else {
+        await createCampoPersonalizado({
+          categoria_id: categoriaId ?? null,
+          grupo_id: grupoId ?? null,
+          nome: nome.trim(),
+          tipo,
+          opcoes,
+          ordem: campos.length,
+        })
+      }
+      limparForm()
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar campo')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluirCampo(id: string) {
+    if (!confirm('Excluir este campo? Valores já preenchidos em produtos serão perdidos.')) return
+    try {
+      await deleteCampoPersonalizado(id)
+      if (editandoId === id) limparForm()
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir campo')
+    }
+  }
+
+  return (
+    <Modal title={`Campos personalizados — ${titulo}`} onClose={onClose} size="md">
+      <div className="space-y-4">
+        <ErroBanner erro={erro} />
+        {carregando ? (
+          <p className="text-sm text-slate-400">Carregando…</p>
+        ) : (
+          <div className="space-y-2">
+            {campos.length === 0 ? (
+              <p className="text-sm text-slate-400">Nenhum campo personalizado ainda.</p>
+            ) : (
+              campos.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between rounded-md border border-foam-200 px-3 py-2 text-sm"
+                >
+                  <div>
+                    <span className="text-hull-900">{c.nome}</span>
+                    <span className="ml-2 text-xs text-slate-400">
+                      {TIPOS_CAMPO.find((t) => t.valor === c.tipo)?.label}
+                      {c.tipo === 'selecao' && c.opcoes?.length ? ` (${c.opcoes.join(', ')})` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => iniciarEdicao(c)} className="text-wake-500 hover:text-wake-600">
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </button>
+                    <button
+                      onClick={() => excluirCampo(c.id)}
+                      className="text-signal-red/80 hover:text-signal-red"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        <div className="space-y-3 border-t border-foam-200 pt-4">
+          <p className="text-sm font-medium text-hull-900">
+            {editandoId ? 'Editar campo' : 'Novo campo'}
+          </p>
+          <CampoTexto label="Nome" value={nome} onChange={setNome} />
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-hull-900">Tipo</span>
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoCampoPersonalizado)}
+              className="input"
+            >
+              {TIPOS_CAMPO.map((t) => (
+                <option key={t.valor} value={t.valor}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {tipo === 'selecao' && (
+            <CampoTexto label="Opções (separadas por vírgula)" value={opcoesTexto} onChange={setOpcoesTexto} />
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={salvarCampo}
+              disabled={salvando || !nome.trim()}
+              className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando…' : editandoId ? 'Salvar alteração' : 'Adicionar campo'}
+            </button>
+            {editandoId && (
+              <button
+                onClick={limparForm}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar edição
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -619,6 +818,10 @@ function AbaCategorias() {
   const [editandoGrupo, setEditandoGrupo] = useState<GrupoProduto | null>(null)
   const [formGrupo, setFormGrupo] = useState({ nome: '', ordem: 0 })
 
+  const [camposDe, setCamposDe] = useState<
+    { categoriaId: string; titulo: string } | { grupoId: string; titulo: string } | null
+  >(null)
+
   async function carregar() {
     setCarregando(true)
     try {
@@ -781,6 +984,15 @@ function AbaCategorias() {
                 <p className="font-display text-lg text-hull-900">{categoria.nome}</p>
                 <div className="flex items-center gap-3">
                   <button
+                    onClick={() =>
+                      setCamposDe({ categoriaId: categoria.id, titulo: categoria.nome })
+                    }
+                    title="Campos personalizados"
+                    className="text-wake-500 hover:text-wake-600"
+                  >
+                    <Tag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  </button>
+                  <button
                     onClick={() => abrirEdicaoCategoria(categoria)}
                     className="text-wake-500 hover:text-wake-600"
                   >
@@ -824,6 +1036,13 @@ function AbaCategorias() {
                             <div key={g.id} className="flex items-center justify-between text-xs">
                               <span className="text-slate-400">{g.nome}</span>
                               <div className="flex items-center gap-2.5">
+                                <button
+                                  onClick={() => setCamposDe({ grupoId: g.id, titulo: g.nome })}
+                                  title="Campos personalizados"
+                                  className="text-wake-500 hover:text-wake-600"
+                                >
+                                  <Tag className="h-2.5 w-2.5" strokeWidth={1.75} />
+                                </button>
                                 <button
                                   onClick={() => abrirEdicaoGrupo(g)}
                                   className="text-wake-500 hover:text-wake-600"
@@ -1000,6 +1219,15 @@ function AbaCategorias() {
             />
           </div>
         </Modal>
+      )}
+
+      {camposDe && (
+        <CamposPersonalizadosModal
+          categoriaId={'categoriaId' in camposDe ? camposDe.categoriaId : undefined}
+          grupoId={'grupoId' in camposDe ? camposDe.grupoId : undefined}
+          titulo={camposDe.titulo}
+          onClose={() => setCamposDe(null)}
+        />
       )}
     </div>
   )
