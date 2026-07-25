@@ -80,6 +80,18 @@ export interface GrupoProduto {
   ordem: number
 }
 
+export type TipoCampoPersonalizado = 'texto' | 'numero' | 'booleano' | 'selecao'
+
+export interface CampoPersonalizado {
+  id: string
+  categoria_id: string | null
+  grupo_id: string | null
+  nome: string
+  tipo: TipoCampoPersonalizado
+  opcoes: string[] | null
+  ordem: number
+}
+
 export interface Produto {
   id: string
   nome: string
@@ -100,6 +112,7 @@ export interface Produto {
   combustivel: string | null
   horas_uso: string | null
   ultima_revisao: string | null
+  atributos: Record<string, string | number | boolean | null>
 }
 
 export interface ProdutoItemIncluso {

@@ -30,6 +30,7 @@ import type {
   UsuarioPerfil,
   TabSistema,
   PerfilAcesso,
+  CampoPersonalizado,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -125,6 +126,39 @@ export async function deleteGrupo(id: string): Promise<void> {
   if (error) throw error
 }
 
+// ---------- Campos personalizados ----------
+
+export async function listCamposPersonalizados(): Promise<CampoPersonalizado[]> {
+  const { data, error } = await supabase.from('campos_personalizados').select('*').order('ordem')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createCampoPersonalizado(
+  campo: Omit<CampoPersonalizado, 'id'>
+): Promise<CampoPersonalizado> {
+  const { data, error } = await supabase
+    .from('campos_personalizados')
+    .insert(campo)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCampoPersonalizado(
+  id: string,
+  patch: Partial<Omit<CampoPersonalizado, 'id' | 'categoria_id' | 'grupo_id'>>
+): Promise<void> {
+  const { error } = await supabase.from('campos_personalizados').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCampoPersonalizado(id: string): Promise<void> {
+  const { error } = await supabase.from('campos_personalizados').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ---------- Parceiros ----------
 
 export async function listParceiros(): Promise<Parceiro[]> {
@@ -155,7 +189,7 @@ export async function deleteParceiro(id: string): Promise<void> {
 // ---------- Produtos ----------
 
 const PRODUTO_SELECT =
-  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, fotos_produto(url_imagem, principal), parceiros(nome)'
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, atributos, fotos_produto(url_imagem, principal), parceiros(nome)'
 
 function mapProdutoRow({
   fotos_produto,
@@ -196,9 +230,15 @@ export async function listProdutosTerceiros(): Promise<Produto[]> {
 export async function createProduto(
   produto: Omit<
     Produto,
-    'id' | 'foto_principal_url' | 'parceiro_nome' | 'origem_captacao' | 'captador_nome' | 'parceiro_id'
+    | 'id'
+    | 'foto_principal_url'
+    | 'parceiro_nome'
+    | 'origem_captacao'
+    | 'captador_nome'
+    | 'parceiro_id'
+    | 'atributos'
   > &
-    Partial<Pick<Produto, 'origem_captacao' | 'captador_nome' | 'parceiro_id'>>
+    Partial<Pick<Produto, 'origem_captacao' | 'captador_nome' | 'parceiro_id' | 'atributos'>>
 ): Promise<Produto> {
   const { data, error } = await supabase
     .from('produtos')

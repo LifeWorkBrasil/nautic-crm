@@ -16,8 +16,15 @@ import {
   listCategorias,
   listSubcategorias,
   listGrupos,
+  listCamposPersonalizados,
 } from '@/lib/api'
-import type { Produto, CategoriaProduto, SubcategoriaProduto, GrupoProduto } from '@/types'
+import type {
+  Produto,
+  CategoriaProduto,
+  SubcategoriaProduto,
+  GrupoProduto,
+  CampoPersonalizado,
+} from '@/types'
 
 type ProdutoForm = {
   nome: string
@@ -33,6 +40,66 @@ type ProdutoForm = {
   combustivel: string | null
   horas_uso: string | null
   ultima_revisao: string | null
+  atributos: Record<string, string | number | boolean | null>
+}
+
+function CampoDinamico({
+  campo,
+  valor,
+  onChange,
+}: {
+  campo: CampoPersonalizado
+  valor: string | number | boolean | null
+  onChange: (v: string | number | boolean | null) => void
+}) {
+  if (campo.tipo === 'booleano') {
+    return (
+      <label className="flex items-center gap-2 text-sm text-hull-900">
+        <input
+          type="checkbox"
+          checked={Boolean(valor)}
+          onChange={(e) => onChange(e.target.checked)}
+          className="h-4 w-4 accent-brass-500"
+        />
+        {campo.nome}
+      </label>
+    )
+  }
+  if (campo.tipo === 'numero') {
+    return (
+      <CampoNumero
+        label={campo.nome}
+        value={typeof valor === 'number' ? valor : 0}
+        onChange={onChange}
+      />
+    )
+  }
+  if (campo.tipo === 'selecao') {
+    return (
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-hull-900">{campo.nome}</span>
+        <select
+          value={typeof valor === 'string' ? valor : ''}
+          onChange={(e) => onChange(e.target.value || null)}
+          className="input"
+        >
+          <option value="">Selecione…</option>
+          {(campo.opcoes ?? []).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      </label>
+    )
+  }
+  return (
+    <CampoTexto
+      label={campo.nome}
+      value={typeof valor === 'string' ? valor : ''}
+      onChange={(v) => onChange(v || null)}
+    />
+  )
 }
 
 export default function Catalogo() {
@@ -40,17 +107,21 @@ export default function Catalogo() {
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [grupos, setGrupos] = useState<GrupoProduto[]>([])
+  const [campos, setCampos] = useState<CampoPersonalizado[]>([])
   const [produtoMidia, setProdutoMidia] = useState<Produto | null>(null)
   const [produtoItens, setProdutoItens] = useState<Produto | null>(null)
   const [produtoWhatsapp, setProdutoWhatsapp] = useState<Produto | null>(null)
   const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([listCategorias(), listSubcategorias(), listGrupos()]).then(([c, s, g]) => {
-      setCategorias(c)
-      setSubcategorias(s)
-      setGrupos(g)
-    })
+    Promise.all([listCategorias(), listSubcategorias(), listGrupos(), listCamposPersonalizados()]).then(
+      ([c, s, g, cp]) => {
+        setCategorias(c)
+        setSubcategorias(s)
+        setGrupos(g)
+        setCampos(cp)
+      }
+    )
   }, [])
 
   const subcategoria = subcategorias.find((s) => s.id === subcategoriaId)
@@ -74,6 +145,7 @@ export default function Catalogo() {
     combustivel: null,
     horas_uso: null,
     ultima_revisao: null,
+    atributos: {},
   }
 
   const {
@@ -105,6 +177,10 @@ export default function Catalogo() {
     setGrupoFiltroId(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subcategoriaId])
+
+  const camposRelevantes = campos.filter(
+    (c) => c.categoria_id === categoria?.id || (form.grupo_id && c.grupo_id === form.grupo_id)
+  )
 
   return (
     <div className="p-8">
@@ -234,6 +310,7 @@ export default function Catalogo() {
                       combustivel: produto.combustivel,
                       horas_uso: produto.horas_uso,
                       ultima_revisao: produto.ultima_revisao,
+                      atributos: produto.atributos ?? {},
                     })
                   }
                   className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
@@ -327,6 +404,24 @@ export default function Catalogo() {
                   ))}
                 </select>
               </label>
+            )}
+
+            {camposRelevantes.length > 0 && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Campos personalizados
+                </p>
+                {camposRelevantes.map((campo) => (
+                  <CampoDinamico
+                    key={campo.id}
+                    campo={campo}
+                    valor={form.atributos[campo.id] ?? null}
+                    onChange={(v) =>
+                      setForm({ ...form, atributos: { ...form.atributos, [campo.id]: v } })
+                    }
+                  />
+                ))}
+              </div>
             )}
 
             {subcategoriaVendidoComoEsta && (
