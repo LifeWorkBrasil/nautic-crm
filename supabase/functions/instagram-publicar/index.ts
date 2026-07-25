@@ -43,10 +43,31 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+    const { data: chamador } = await admin
+      .from("usuarios_perfil")
+      .select("empresa_id")
+      .eq("id", user.id)
+      .single();
+
+    const { data: post, error: postError } = await admin
+      .from("posts_marketing")
+      .select("id, legenda_gerada, foto_urls, instagram_media_id, empresa_id")
+      .eq("id", post_id)
+      .single();
+    if (postError || !post) return json({ error: "Post não encontrado." }, 404);
+    if (post.empresa_id !== chamador?.empresa_id) {
+      return json({ error: "Post não encontrado." }, 404);
+    }
+    if (post.instagram_media_id) {
+      return json({ error: "Este post já foi publicado no Instagram." }, 400);
+    }
+    const fotoUrl = post.foto_urls?.[0];
+    if (!fotoUrl) return json({ error: "Este post não tem foto para publicar." }, 400);
+
     const { data: config } = await admin
       .from("instagram_config")
       .select("access_token, instagram_user_id, token_expira_em")
-      .limit(1)
+      .eq("empresa_id", post.empresa_id)
       .maybeSingle();
 
     if (!config?.access_token || !config?.instagram_user_id) {
@@ -55,18 +76,6 @@ Deno.serve(async (req: Request) => {
     if (config.token_expira_em && new Date(config.token_expira_em) < new Date()) {
       return json({ error: "O acesso ao Instagram expirou. Reconecte a conta em Marketing." }, 400);
     }
-
-    const { data: post, error: postError } = await admin
-      .from("posts_marketing")
-      .select("id, legenda_gerada, foto_urls, instagram_media_id")
-      .eq("id", post_id)
-      .single();
-    if (postError || !post) return json({ error: "Post não encontrado." }, 404);
-    if (post.instagram_media_id) {
-      return json({ error: "Este post já foi publicado no Instagram." }, 400);
-    }
-    const fotoUrl = post.foto_urls?.[0];
-    if (!fotoUrl) return json({ error: "Este post não tem foto para publicar." }, 400);
 
     const accessToken = config.access_token as string;
     const igUserId = config.instagram_user_id as string;

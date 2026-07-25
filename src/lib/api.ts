@@ -262,9 +262,9 @@ export async function deleteProduto(id: string): Promise<void> {
   if (error) throw error
 }
 
-export async function uploadFotoProduto(produtoId: string, file: File): Promise<string> {
+export async function uploadFotoProduto(empresaId: string, produtoId: string, file: File): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `${produtoId}/${crypto.randomUUID()}.${ext}`
+  const path = `${empresaId}/${produtoId}/${crypto.randomUUID()}.${ext}`
   const { error: uploadError } = await supabase.storage.from('produtos').upload(path, file)
   if (uploadError) throw uploadError
 
@@ -388,11 +388,11 @@ export async function listManuaisProduto(produtoId: string): Promise<ManualProdu
   return data ?? []
 }
 
-export async function uploadManualProduto(produtoId: string, file: File): Promise<ManualProduto> {
+export async function uploadManualProduto(empresaId: string, produtoId: string, file: File): Promise<ManualProduto> {
   if (file.type !== 'application/pdf') {
     throw new Error('O manual deve ser um arquivo PDF.')
   }
-  const path = `${produtoId}/${crypto.randomUUID()}.pdf`
+  const path = `${empresaId}/${produtoId}/${crypto.randomUUID()}.pdf`
   const { error: uploadError } = await supabase.storage.from('manuais').upload(path, file)
   if (uploadError) throw uploadError
 
@@ -666,9 +666,9 @@ export async function updateEmpresaConfig(
   if (error) throw error
 }
 
-export async function uploadLogoEmpresa(file: File): Promise<string> {
+export async function uploadLogoEmpresa(empresaId: string, file: File): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `logo-${Date.now()}.${ext}`
+  const path = `${empresaId}/logo-${Date.now()}.${ext}`
   const { error: uploadError } = await supabase.storage.from('branding').upload(path, file, {
     upsert: true,
   })
@@ -747,9 +747,9 @@ export async function listFotosCaptacao(captacaoId: string): Promise<CaptacaoFot
   return data ?? []
 }
 
-export async function uploadFotoCaptacao(captacaoId: string, file: File): Promise<CaptacaoFoto> {
+export async function uploadFotoCaptacao(empresaId: string, captacaoId: string, file: File): Promise<CaptacaoFoto> {
   const ext = file.name.split('.').pop()
-  const path = `captacao-${captacaoId}/${crypto.randomUUID()}.${ext}`
+  const path = `${empresaId}/captacao-${captacaoId}/${crypto.randomUUID()}.${ext}`
   const { error: uploadError } = await supabase.storage.from('produtos').upload(path, file)
   if (uploadError) throw uploadError
 
@@ -779,6 +779,7 @@ export async function deleteFotoCaptacao(foto: { id: string; url_imagem: string 
 }
 
 export async function publicarCaptacao(
+  empresaId: string,
   captacaoId: string,
   dadosProduto: { descricao: string; preco_base: number }
 ): Promise<Produto> {
@@ -832,7 +833,7 @@ export async function publicarCaptacao(
     const origemPath = foto.url_imagem.split('/produtos/')[1]
     if (!origemPath) continue
     const ext = origemPath.split('.').pop()
-    const destinoPath = `${produto.id}/${crypto.randomUUID()}.${ext}`
+    const destinoPath = `${empresaId}/${produto.id}/${crypto.randomUUID()}.${ext}`
     const { error: copyError } = await supabase.storage.from('produtos').copy(origemPath, destinoPath)
     if (copyError) continue
     const { data: publicUrlData } = supabase.storage.from('produtos').getPublicUrl(destinoPath)
@@ -1011,12 +1012,13 @@ export async function getInstagramStatus(): Promise<InstagramStatus | null> {
   return data
 }
 
-export function getInstagramConectarUrl(): string {
+export function getInstagramConectarUrl(empresaId: string): string {
   const params = new URLSearchParams({
     client_id: import.meta.env.VITE_INSTAGRAM_APP_ID,
     redirect_uri: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-oauth-callback`,
     scope: 'instagram_business_basic,instagram_business_content_publish',
     response_type: 'code',
+    state: empresaId,
   })
   return `https://api.instagram.com/oauth/authorize?${params.toString()}`
 }

@@ -26,6 +26,7 @@ import {
   getInstagramConectarUrl,
   publicarNoInstagram,
 } from '@/lib/api'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
 const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
@@ -44,6 +45,7 @@ const PROVEDORES = [
 ]
 
 export default function Marketing() {
+  const { perfil } = usePermissoes()
   const [searchParams, setSearchParams] = useSearchParams()
   const [midia, setMidia] = useState<MidiaBancoItem[]>([])
   const [carregandoMidia, setCarregandoMidia] = useState(true)
@@ -332,9 +334,9 @@ export default function Marketing() {
             </p>
           </div>
         </div>
-        {!instagram?.conectado && (
+        {!instagram?.conectado && perfil?.empresa_id && (
           <a
-            href={getInstagramConectarUrl()}
+            href={getInstagramConectarUrl(perfil.empresa_id)}
             className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
           >
             <Link2 className="h-4 w-4" strokeWidth={1.75} />

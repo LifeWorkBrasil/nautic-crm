@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import {
   listCaptacoes,
   createCaptacao,
@@ -310,6 +311,7 @@ function DetalheCaptacao({
   onClose: () => void
   onAlterado: () => void
 }) {
+  const { perfil } = usePermissoes()
   const [form, setForm] = useState(captacao)
   const [salvando, setSalvando] = useState(false)
   const [itens, setItens] = useState<CaptacaoItem[]>([])
@@ -403,10 +405,11 @@ function DetalheCaptacao({
   }
 
   async function handleUploadFoto(files: FileList | File[]) {
+    if (!perfil?.empresa_id) return
     setEnviandoFoto(true)
     try {
       for (const file of Array.from(files)) {
-        const foto = await uploadFotoCaptacao(captacao.id, file)
+        const foto = await uploadFotoCaptacao(perfil.empresa_id, captacao.id, file)
         setFotos((prev) => [...prev, foto])
       }
     } catch (e) {
@@ -427,9 +430,10 @@ function DetalheCaptacao({
   }
 
   async function handlePublicar() {
+    if (!perfil?.empresa_id) return
     setPublicando(true)
     try {
-      await publicarCaptacao(captacao.id, { descricao: descricaoFinal, preco_base: precoFinal })
+      await publicarCaptacao(perfil.empresa_id, captacao.id, { descricao: descricaoFinal, preco_base: precoFinal })
       onAlterado()
       onClose()
     } catch (e) {

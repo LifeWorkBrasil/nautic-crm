@@ -52,7 +52,7 @@ export default function Empresa() {
     setEnviandoLogo(true)
     setErro(null)
     try {
-      const url = await uploadLogoEmpresa(file)
+      const url = await uploadLogoEmpresa(config.id, file)
       await updateEmpresaConfig(config.id, { logo_url: url })
       setConfig((prev) => (prev ? { ...prev, logo_url: url } : prev))
     } catch (e) {

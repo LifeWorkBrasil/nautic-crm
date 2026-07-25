@@ -37,6 +37,7 @@ export interface UsuarioPerfil {
   is_admin: boolean
   ativo: boolean
   comissao_percentual: number
+  empresa_id: string
   criado_em: string
 }
 

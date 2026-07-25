@@ -18,6 +18,7 @@ Deno.serve(async (req: Request) => {
   try {
     const reqUrl = new URL(req.url);
     const code = reqUrl.searchParams.get("code");
+    const empresaId = reqUrl.searchParams.get("state");
     const errorParam = reqUrl.searchParams.get("error_description") ?? reqUrl.searchParams.get("error");
 
     if (errorParam) {
@@ -25,6 +26,9 @@ Deno.serve(async (req: Request) => {
     }
     if (!code) {
       return redirectComStatus("erro", "Código de autorização ausente.");
+    }
+    if (!empresaId) {
+      return redirectComStatus("erro", "Empresa não identificada nesta conexão (state ausente).");
     }
 
     const redirectUri = `${SUPABASE_URL}/functions/v1/instagram-oauth-callback`;
@@ -72,7 +76,11 @@ Deno.serve(async (req: Request) => {
     const meData = meResp.ok ? await meResp.json() : {};
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    const { data: existente } = await admin.from("instagram_config").select("id").limit(1).maybeSingle();
+    const { data: existente } = await admin
+      .from("instagram_config")
+      .select("id")
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
 
     const payload = {
       access_token: longLivedToken,
@@ -80,6 +88,7 @@ Deno.serve(async (req: Request) => {
       instagram_user_id: meData.id ?? tokenData.user_id ?? null,
       instagram_username: meData.username ?? null,
       atualizado_em: new Date().toISOString(),
+      empresa_id: empresaId,
     };
 
     if (existente?.id) {

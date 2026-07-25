@@ -5,6 +5,7 @@ import GaleriaProduto from '@/components/GaleriaProduto'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import {
   listProdutosTerceiros,
   createProduto,
@@ -38,6 +39,7 @@ const FORM_VAZIO: ProdutoTerceiroForm = {
 }
 
 export default function ProdutosTerceiros() {
+  const { perfil } = usePermissoes()
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [parceiros, setParceiros] = useState<Parceiro[]>([])
@@ -378,8 +380,9 @@ export default function ProdutosTerceiros() {
         </Modal>
       )}
 
-      {produtoMidia && (
+      {produtoMidia && perfil?.empresa_id && (
         <GaleriaProduto
+          empresaId={perfil.empresa_id}
           produtoId={produtoMidia.id}
           nomeProduto={produtoMidia.nome}
           onClose={() => setProdutoMidia(null)}
