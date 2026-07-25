@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
+import EnviarWhatsappProdutoModal from '@/components/EnviarWhatsappProdutoModal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -43,6 +44,7 @@ export default function Catalogo() {
   const [grupos, setGrupos] = useState<GrupoProduto[]>([])
   const [produtoMidia, setProdutoMidia] = useState<Produto | null>(null)
   const [produtoItens, setProdutoItens] = useState<Produto | null>(null)
+  const [produtoWhatsapp, setProdutoWhatsapp] = useState<Produto | null>(null)
   const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -251,6 +253,13 @@ export default function Catalogo() {
                   </button>
                 )}
                 <button
+                  onClick={() => setProdutoWhatsapp(produto)}
+                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  WhatsApp
+                </button>
+                <button
                   onClick={() => excluir(produto.id)}
                   className="ml-auto flex items-center gap-1 text-xs text-signal-red/80 hover:text-signal-red"
                 >
@@ -387,6 +396,10 @@ export default function Catalogo() {
           onClose={() => setProdutoItens(null)}
           onAlterar={carregar}
         />
+      )}
+
+      {produtoWhatsapp && (
+        <EnviarWhatsappProdutoModal produto={produtoWhatsapp} onClose={() => setProdutoWhatsapp(null)} />
       )}
     </div>
   )
