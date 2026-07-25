@@ -1,4 +1,4 @@
--- Multi-tenant: empresa_id passa a ser obrigatório em todas as tabelas de negócio
+-- Multi-tenant: empresa_id (nullable por enquanto) em todas as tabelas de negócio
 
 do $$
 declare
@@ -11,9 +11,10 @@ begin
     'captacoes','captacao_itens','captacao_fotos','posts_marketing','parceiros',
     'minutas_contrato','contrapropostas','contraproposta_veiculos','contraproposta_imoveis',
     'usuarios_perfil','permissoes_usuario','perfis_acesso','perfis_acesso_tabs',
-    'produto_itens_inclusos','acessorios_subcategorias','grupos_produto','instagram_config'
+    'produto_itens_inclusos','acessorios_subcategorias','grupos_produto','instagram_config',
+    'campos_personalizados'
   ])
   loop
-    execute format('alter table %I alter column empresa_id set not null', t);
+    execute format('alter table %I add column empresa_id uuid references empresas(id)', t);
   end loop;
 end $$;

@@ -40,7 +40,8 @@ begin
     ['perfis_acesso_tabs', 'authenticated_read_write_perfis_acesso_tabs'],
     ['produto_itens_inclusos', 'authenticated_read_write_produto_itens_inclusos'],
     ['acessorios_subcategorias', 'authenticated_read_write_acessorios_subcategorias'],
-    ['grupos_produto', 'authenticated_read_write_grupos_produto']
+    ['grupos_produto', 'authenticated_read_write_grupos_produto'],
+    ['campos_personalizados', 'authenticated_read_write_campos_personalizados']
   ]
   loop
     tabela := par[1];
@@ -54,6 +55,15 @@ begin
     );
   end loop;
 end $$;
+
+-- 2b) produtos tem uma policy extra "public_read_produtos" (anon, using(true)) fora de
+--     qualquer migração rastreada — permite anon ler a tabela base inteira, ignorando o
+--     filtro por tenant que a view produtos_publicos aplica. NÃO removida aqui de propósito:
+--     o site estático C:\Dell\INDEX NOVO\index.html (deploy manual via FTP, fora deste repo)
+--     ainda consultava `produtos` direto em vez de `produtos_publicos` na versão publicada em
+--     produção — dropar essa policy quebraria o catálogo ao vivo até o redeploy manual
+--     acontecer. O código já foi corrigido para usar `produtos_publicos`; assim que o redeploy
+--     for confirmado, rodar `drop policy "public_read_produtos" on produtos;` manualmente.
 
 -- 3) usuarios_perfil / permissoes_usuario: só SELECT (escrita continua só via Edge Function
 --    com service role); mesma lógica de tenant aplicada à leitura.
@@ -78,7 +88,7 @@ create or replace view produtos_publicos as
 select
   id, nome, descricao, preco_base, comprimento, subcategoria_id,
   ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo,
-  combustivel, horas_uso, ultima_revisao, grupo_id, empresa_id
+  combustivel, horas_uso, ultima_revisao, grupo_id, atributos, empresa_id
 from produtos;
 
 create or replace view instagram_status as

@@ -9,7 +9,7 @@ begin
   for t in select unnest(array[
     'produtos','clientes_leads','captacoes','parceiros','minutas_contrato',
     'posts_marketing','categorias_produto','subcategorias_produto','grupos_produto',
-    'motores','acessorios','perfis_acesso'
+    'motores','acessorios','perfis_acesso','campos_personalizados'
   ])
   loop
     execute format('alter table %I alter column empresa_id set default auth_empresa_id()', t);
