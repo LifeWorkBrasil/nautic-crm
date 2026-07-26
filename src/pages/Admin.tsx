@@ -13,6 +13,7 @@ import {
   atualizarUsuario,
   atualizarPermissoes,
   redefinirSenha,
+  redefinirSenhaPlataforma,
   listPerfisAcesso,
   createPerfilAcesso,
   updatePerfilAcesso,
@@ -138,6 +139,11 @@ export default function Admin() {
   const [criandoTenant, setCriandoTenant] = useState(false)
   const [tenantCriado, setTenantCriado] = useState<string | null>(null)
   const [erroTenant, setErroTenant] = useState<string | null>(null)
+
+  const [formResetSenha, setFormResetSenha] = useState({ email: '', novaSenha: '' })
+  const [resetandoSenha, setResetandoSenha] = useState(false)
+  const [senhaResetada, setSenhaResetada] = useState<string | null>(null)
+  const [erroResetSenha, setErroResetSenha] = useState<string | null>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -332,6 +338,23 @@ export default function Admin() {
       setErroTenant(e instanceof Error ? e.message : 'Erro ao criar tenant')
     } finally {
       setCriandoTenant(false)
+    }
+  }
+
+  async function salvarResetSenha() {
+    setResetandoSenha(true)
+    setErroResetSenha(null)
+    try {
+      if (formResetSenha.novaSenha.trim().length < 6) {
+        throw new Error('A nova senha deve ter pelo menos 6 caracteres.')
+      }
+      await redefinirSenhaPlataforma(formResetSenha.email.trim(), formResetSenha.novaSenha.trim())
+      setSenhaResetada(formResetSenha.email)
+      setFormResetSenha({ email: '', novaSenha: '' })
+    } catch (e) {
+      setErroResetSenha(e instanceof Error ? e.message : 'Erro ao redefinir senha')
+    } finally {
+      setResetandoSenha(false)
     }
   }
 
@@ -714,6 +737,51 @@ export default function Admin() {
           >
             {criandoTenant ? 'Criando…' : 'Criar tenant'}
           </button>
+
+          <div className="border-t border-foam-200 pt-6">
+            <p className="mb-1 text-sm font-medium text-hull-900">
+              Redefinir senha de um usuário (qualquer tenant)
+            </p>
+            <p className="mb-3 text-sm text-slate-500">
+              Use quando o admin de um tenant esqueceu a senha e não há outro admin daquele tenant
+              para redefinir por ele.
+            </p>
+
+            {erroResetSenha && (
+              <div className="mb-3 rounded-md border border-signal-red/30 bg-signal-red/5 px-4 py-2.5 text-sm text-signal-red">
+                {erroResetSenha}
+              </div>
+            )}
+            {senhaResetada && (
+              <div className="mb-3 rounded-md border border-signal-green/30 bg-signal-green/5 px-4 py-2.5 text-sm text-signal-green">
+                Senha de "{senhaResetada}" redefinida com sucesso.
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <CampoTexto
+                label="E-mail do usuário"
+                value={formResetSenha.email}
+                onChange={(v) => setFormResetSenha({ ...formResetSenha, email: v })}
+              />
+              <CampoTexto
+                label="Nova senha"
+                value={formResetSenha.novaSenha}
+                onChange={(v) => setFormResetSenha({ ...formResetSenha, novaSenha: v })}
+                type="password"
+              />
+            </div>
+
+            <button
+              onClick={salvarResetSenha}
+              disabled={
+                resetandoSenha || !formResetSenha.email.trim() || !formResetSenha.novaSenha.trim()
+              }
+              className="mt-4 rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+            >
+              {resetandoSenha ? 'Redefinindo…' : 'Redefinir senha'}
+            </button>
+          </div>
         </div>
       )}
     </div>

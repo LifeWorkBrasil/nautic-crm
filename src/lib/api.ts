@@ -1221,6 +1221,14 @@ export async function redefinirSenha(usuarioId: string, novaSenha: string): Prom
   })
 }
 
+export async function redefinirSenhaPlataforma(email: string, novaSenha: string): Promise<void> {
+  await chamarAdminManageUser({
+    action: 'redefinir_senha_plataforma',
+    email,
+    nova_senha: novaSenha,
+  })
+}
+
 export async function bootstrapTenant(input: {
   nomeEmpresa: string
   slug: string

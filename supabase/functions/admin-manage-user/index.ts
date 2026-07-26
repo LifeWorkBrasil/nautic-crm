@@ -88,6 +88,32 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, empresa_id: empresa.id });
     }
 
+    // redefinir_senha_plataforma: reset de senha por e-mail, cross-tenant, reservado ao dono da
+    // plataforma — usado quando o admin de um tenant esquece a senha e não há outro admin daquele
+    // tenant logado para redefinir por ele (caso do redefinir_senha comum, abaixo).
+    if (body.action === "redefinir_senha_plataforma") {
+      if (!perfil?.plataforma_admin) {
+        return json({ error: "Apenas o dono da plataforma pode redefinir senha de outro tenant." }, 403);
+      }
+      if (!body.email || !body.nova_senha) {
+        return json({ error: "email e nova_senha são obrigatórios." }, 400);
+      }
+
+      const { data: alvo } = await adminClient
+        .from("usuarios_perfil")
+        .select("id")
+        .eq("email", body.email)
+        .single();
+      if (!alvo) return json({ error: "Usuário não encontrado." }, 404);
+
+      const { error: senhaError } = await adminClient.auth.admin.updateUserById(alvo.id, {
+        password: body.nova_senha,
+      });
+      if (senhaError) throw senhaError;
+
+      return json({ ok: true });
+    }
+
     if (!perfil?.is_admin) {
       return json({ error: "Apenas administradores podem gerenciar usuários" }, 403);
     }
