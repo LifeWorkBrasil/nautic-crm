@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
 import EnviarWhatsappProdutoModal from '@/components/EnviarWhatsappProdutoModal'
+import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -69,7 +70,7 @@ function CampoDinamico({
   if (campo.tipo === 'numero') {
     return (
       <CampoNumero
-        label={campo.nome}
+        label={campo.unidade ? `${campo.nome} (${campo.unidade})` : campo.nome}
         value={typeof valor === 'number' ? valor : 0}
         onChange={onChange}
       />
@@ -114,6 +115,11 @@ export default function Catalogo() {
   const [produtoItens, setProdutoItens] = useState<Produto | null>(null)
   const [produtoWhatsapp, setProdutoWhatsapp] = useState<Produto | null>(null)
   const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
+  const [gerenciandoCampos, setGerenciandoCampos] = useState<'categoria' | 'grupo' | null>(null)
+
+  function carregarCampos() {
+    listCamposPersonalizados().then(setCampos)
+  }
 
   useEffect(() => {
     Promise.all([listCategorias(), listSubcategorias(), listGrupos(), listCamposPersonalizados()]).then(
@@ -408,12 +414,38 @@ export default function Catalogo() {
               </label>
             )}
 
-            {camposRelevantes.length > 0 && (
-              <div className="space-y-4 border-t border-foam-200 pt-4">
+            <div className="space-y-4 border-t border-foam-200 pt-4">
+              <div className="flex items-center justify-between">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Campos personalizados
                 </p>
-                {camposRelevantes.map((campo) => (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setGerenciandoCampos('categoria')}
+                    className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                  >
+                    <Tag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Gerenciar campos da categoria
+                  </button>
+                  {form.grupo_id && (
+                    <button
+                      type="button"
+                      onClick={() => setGerenciandoCampos('grupo')}
+                      className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                    >
+                      <Tag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Gerenciar campos do grupo
+                    </button>
+                  )}
+                </div>
+              </div>
+              {camposRelevantes.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  Nenhum campo personalizado ainda. Use "Gerenciar campos" para criar.
+                </p>
+              ) : (
+                camposRelevantes.map((campo) => (
                   <CampoDinamico
                     key={campo.id}
                     campo={campo}
@@ -422,9 +454,9 @@ export default function Catalogo() {
                       setForm({ ...form, atributos: { ...form.atributos, [campo.id]: v } })
                     }
                   />
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
 
             {subcategoriaVendidoComoEsta && (
               <div className="space-y-4 border-t border-foam-200 pt-4">
@@ -495,6 +527,28 @@ export default function Catalogo() {
 
       {produtoWhatsapp && (
         <EnviarWhatsappProdutoModal produto={produtoWhatsapp} onClose={() => setProdutoWhatsapp(null)} />
+      )}
+
+      {gerenciandoCampos === 'categoria' && categoria && (
+        <CamposPersonalizadosModal
+          categoriaId={categoria.id}
+          titulo={categoria.nome}
+          onClose={() => {
+            setGerenciandoCampos(null)
+            carregarCampos()
+          }}
+        />
+      )}
+
+      {gerenciandoCampos === 'grupo' && form.grupo_id && (
+        <CamposPersonalizadosModal
+          grupoId={form.grupo_id}
+          titulo={gruposDaSubcategoria.find((g) => g.id === form.grupo_id)?.nome ?? 'Grupo'}
+          onClose={() => {
+            setGerenciandoCampos(null)
+            carregarCampos()
+          }}
+        />
       )}
     </div>
   )

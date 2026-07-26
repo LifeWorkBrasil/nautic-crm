@@ -91,6 +91,7 @@ export interface CampoPersonalizado {
   nome: string
   tipo: TipoCampoPersonalizado
   opcoes: string[] | null
+  unidade: string | null
   ordem: number
 }
 
