@@ -710,7 +710,7 @@ export default function Orcamentos() {
                   )}
                 </div>
 
-                {vendidoComoEsta && (
+                {vendidoComoEsta && !pularConfiguracao && (
                   <div className="rounded-md border border-foam-200 p-4">
                     <p className="mb-2 text-sm font-medium text-hull-900">
                       Barco vendido como está — dados do checklist

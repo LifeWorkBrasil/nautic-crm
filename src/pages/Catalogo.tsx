@@ -403,7 +403,7 @@ export default function Catalogo() {
               )}
             </div>
 
-            {subcategoriaVendidoComoEsta && (
+            {subcategoriaVendidoComoEsta && subcategoriaRequerMotor && (
               <div className="space-y-4 border-t border-foam-200 pt-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Dados do checklist
