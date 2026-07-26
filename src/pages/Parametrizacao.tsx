@@ -613,6 +613,7 @@ function AbaCategorias() {
     nome: '',
     ordem: 0,
     vendido_como_esta: false,
+    requer_motor: true,
   })
 
   const [grupos, setGrupos] = useState<GrupoProduto[]>([])
@@ -684,7 +685,7 @@ function AbaCategorias() {
 
   function abrirCriacaoSubcategoria(categoriaId: string) {
     const doCategoria = subcategorias.filter((s) => s.categoria_id === categoriaId)
-    setFormSubcategoria({ nome: '', ordem: doCategoria.length, vendido_como_esta: false })
+    setFormSubcategoria({ nome: '', ordem: doCategoria.length, vendido_como_esta: false, requer_motor: true })
     setCriandoSubcategoriaPara(categoriaId)
   }
 
@@ -693,6 +694,7 @@ function AbaCategorias() {
       nome: s.nome,
       ordem: s.ordem,
       vendido_como_esta: s.vendido_como_esta,
+      requer_motor: s.requer_motor,
     })
     setEditandoSubcategoria(s)
   }
@@ -968,13 +970,25 @@ function AbaCategorias() {
             <label className="flex items-start gap-2 text-sm text-hull-900">
               <input
                 type="checkbox"
+                checked={formSubcategoria.requer_motor}
+                onChange={(e) =>
+                  setFormSubcategoria({ ...formSubcategoria, requer_motor: e.target.checked })
+                }
+                className="mt-0.5"
+              />
+              Envolve motor e comprimento (embarcações, veículos) — mostra o campo Comprimento no
+              cadastro do produto e exige Motor/Opcionais no orçamento
+            </label>
+            <label className="flex items-start gap-2 text-sm text-hull-900">
+              <input
+                type="checkbox"
                 checked={formSubcategoria.vendido_como_esta}
                 onChange={(e) =>
                   setFormSubcategoria({ ...formSubcategoria, vendido_como_esta: e.target.checked })
                 }
                 className="mt-0.5"
               />
-              Vendido como está (pula motor/opcionais no orçamento e puxa dados do checklist)
+              Vendido como está (puxa dados do checklist de captação)
             </label>
           </div>
         </Modal>

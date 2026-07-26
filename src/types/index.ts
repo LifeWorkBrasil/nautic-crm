@@ -73,6 +73,7 @@ export interface SubcategoriaProduto {
   nome: string
   ordem: number
   vendido_como_esta: boolean
+  requer_motor: boolean
 }
 
 export interface GrupoProduto {

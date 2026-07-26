@@ -201,7 +201,8 @@ export default function Orcamentos() {
     })
   }, [produtos, subcategorias, categorias, grupos, buscaProduto])
   const subcategoriaSelecionada = subcategorias.find((s) => s.id === produto?.subcategoria_id)
-  const pularConfiguracao = subcategoriaSelecionada?.vendido_como_esta ?? false
+  const vendidoComoEsta = subcategoriaSelecionada?.vendido_como_esta ?? false
+  const pularConfiguracao = !(subcategoriaSelecionada?.requer_motor ?? true)
   const passosAtivos = pularConfiguracao
     ? PASSOS_BASE.filter((p) => p !== 'Motorização' && p !== 'Opcionais')
     : PASSOS_BASE
@@ -700,7 +701,7 @@ export default function Orcamentos() {
                   )}
                 </div>
 
-                {pularConfiguracao && (
+                {vendidoComoEsta && (
                   <div className="rounded-md border border-foam-200 p-4">
                     <p className="mb-2 text-sm font-medium text-hull-900">
                       Barco vendido como está — dados do checklist

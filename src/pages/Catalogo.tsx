@@ -135,6 +135,7 @@ export default function Catalogo() {
   const subcategoria = subcategorias.find((s) => s.id === subcategoriaId)
   const categoria = categorias.find((c) => c.id === subcategoria?.categoria_id)
   const subcategoriaVendidoComoEsta = subcategoria?.vendido_como_esta ?? false
+  const subcategoriaRequerMotor = subcategoria?.requer_motor ?? true
   const gruposDaSubcategoria = grupos.filter((g) => g.subcategoria_id === subcategoriaId)
 
   const listaProdutos = useCallback(() => listProdutos(subcategoriaId), [subcategoriaId])
@@ -381,17 +382,19 @@ export default function Catalogo() {
               value={form.descricao}
               onChange={(v) => setForm({ ...form, descricao: v })}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className={subcategoriaRequerMotor ? 'grid grid-cols-2 gap-4' : ''}>
               <CampoNumero
                 label="Preço base (R$)"
                 value={form.preco_base}
                 onChange={(v) => setForm({ ...form, preco_base: v })}
               />
-              <CampoNumero
-                label="Comprimento (m)"
-                value={form.comprimento ?? 0}
-                onChange={(v) => setForm({ ...form, comprimento: v || null })}
-              />
+              {subcategoriaRequerMotor && (
+                <CampoNumero
+                  label="Comprimento (m)"
+                  value={form.comprimento ?? 0}
+                  onChange={(v) => setForm({ ...form, comprimento: v || null })}
+                />
+              )}
             </div>
 
             {gruposDaSubcategoria.length > 0 && (
