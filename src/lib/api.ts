@@ -1012,6 +1012,19 @@ export async function getInstagramStatus(): Promise<InstagramStatus | null> {
   return data
 }
 
+export async function desconectarInstagram(): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-desconectar`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${sessionData.session?.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+  })
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao desconectar Instagram.')
+}
+
 export function getInstagramConectarUrl(empresaId: string): string {
   const params = new URLSearchParams({
     client_id: import.meta.env.VITE_INSTAGRAM_APP_ID,

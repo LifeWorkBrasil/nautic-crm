@@ -24,6 +24,7 @@ import {
   agendarPostExistente,
   getInstagramStatus,
   getInstagramConectarUrl,
+  desconectarInstagram,
   publicarNoInstagram,
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
@@ -70,6 +71,7 @@ export default function Marketing() {
   const [instagram, setInstagram] = useState<InstagramStatus | null>(null)
   const [avisoInstagram, setAvisoInstagram] = useState<string | null>(null)
   const [publicandoId, setPublicandoId] = useState<string | null>(null)
+  const [desconectando, setDesconectando] = useState(false)
 
   const [itensAbertos, setItensAbertos] = useState<Set<string>>(new Set())
   const [agendandoItemId, setAgendandoItemId] = useState<string | null>(null)
@@ -230,6 +232,21 @@ export default function Marketing() {
     }
   }
 
+  async function handleDesconectarInstagram() {
+    if (!confirm('Desconectar a conta do Instagram? Você poderá conectar a mesma ou outra conta depois.'))
+      return
+    setDesconectando(true)
+    setErro(null)
+    try {
+      await desconectarInstagram()
+      setInstagram(null)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao desconectar Instagram')
+    } finally {
+      setDesconectando(false)
+    }
+  }
+
   async function handleExcluirPost(postId: string) {
     if (!confirm('Excluir esta legenda do histórico? Essa ação não pode ser desfeita.')) return
     setExcluindoId(postId)
@@ -342,6 +359,16 @@ export default function Marketing() {
             <Link2 className="h-4 w-4" strokeWidth={1.75} />
             Conectar Instagram
           </a>
+        )}
+        {instagram?.conectado && (
+          <button
+            onClick={handleDesconectarInstagram}
+            disabled={desconectando}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-signal-red hover:border-signal-red/40 disabled:opacity-50"
+          >
+            <Link2 className="h-4 w-4" strokeWidth={1.75} />
+            {desconectando ? 'Desconectando…' : 'Desconectar'}
+          </button>
         )}
       </div>
 
