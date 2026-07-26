@@ -2,12 +2,14 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { listMinhasPermissoes, getEmpresaConfig } from '@/lib/api'
-import type { UsuarioPerfil } from '@/types'
+import type { EmpresaConfig, UsuarioPerfil } from '@/types'
 
 interface PermissoesContextValue {
   perfil: UsuarioPerfil | null
+  empresaConfig: EmpresaConfig | null
   ramoNautico: boolean
   usaCaptacao: boolean
+  usaMotores: boolean
   carregando: boolean
   temPermissao: (tabKey: string) => boolean
   temAlgumaPermissao: (prefixo: string) => boolean
@@ -15,8 +17,10 @@ interface PermissoesContextValue {
 
 const PermissoesContext = createContext<PermissoesContextValue>({
   perfil: null,
+  empresaConfig: null,
   ramoNautico: true,
   usaCaptacao: true,
+  usaMotores: true,
   carregando: true,
   temPermissao: () => false,
   temAlgumaPermissao: () => false,
@@ -31,16 +35,14 @@ export function PermissoesProvider({
 }) {
   const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null)
   const [tabKeys, setTabKeys] = useState<Set<string>>(new Set())
-  const [ramoNautico, setRamoNautico] = useState(true)
-  const [usaCaptacao, setUsaCaptacao] = useState(true)
+  const [empresaConfig, setEmpresaConfig] = useState<EmpresaConfig | null>(null)
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     if (!session) {
       setPerfil(null)
       setTabKeys(new Set())
-      setRamoNautico(true)
-      setUsaCaptacao(true)
+      setEmpresaConfig(null)
       setCarregando(false)
       return
     }
@@ -52,10 +54,7 @@ export function PermissoesProvider({
       })
       .finally(() => setCarregando(false))
     getEmpresaConfig()
-      .then((config) => {
-        setRamoNautico(config?.ramo_nautico ?? true)
-        setUsaCaptacao(config?.usa_captacao ?? true)
-      })
+      .then(setEmpresaConfig)
       .catch(() => {})
   }, [session])
 
@@ -74,7 +73,16 @@ export function PermissoesProvider({
 
   return (
     <PermissoesContext.Provider
-      value={{ perfil, ramoNautico, usaCaptacao, carregando, temPermissao, temAlgumaPermissao }}
+      value={{
+        perfil,
+        empresaConfig,
+        ramoNautico: empresaConfig?.ramo_nautico ?? true,
+        usaCaptacao: empresaConfig?.usa_captacao ?? true,
+        usaMotores: empresaConfig?.usa_motores ?? true,
+        carregando,
+        temPermissao,
+        temAlgumaPermissao,
+      }}
     >
       {children}
     </PermissoesContext.Provider>

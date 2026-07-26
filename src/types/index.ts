@@ -192,6 +192,7 @@ export interface EmpresaConfig {
   termos_condicoes: string | null
   ramo_nautico: boolean
   usa_captacao: boolean
+  usa_motores: boolean
   atualizado_em: string
 }
 

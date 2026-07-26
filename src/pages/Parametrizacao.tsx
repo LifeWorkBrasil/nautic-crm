@@ -77,9 +77,11 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
 
 export default function Parametrizacao() {
   const [aba, setAba] = useState<Aba>('motores')
-  const { temPermissao } = usePermissoes()
+  const { temPermissao, usaMotores } = usePermissoes()
 
-  const tabsVisiveis = TABS.filter(({ key }) => temPermissao(`parametrizacao:${key}`))
+  const tabsVisiveis = TABS.filter(
+    ({ key }) => (key !== 'motores' || usaMotores) && temPermissao(`parametrizacao:${key}`)
+  )
 
   useEffect(() => {
     if (tabsVisiveis.length > 0 && !tabsVisiveis.some((t) => t.key === aba)) {
@@ -129,8 +131,9 @@ export default function Parametrizacao() {
 function AbaPreferencias() {
   const [empresaId, setEmpresaId] = useState<string | null>(null)
   const [usaCaptacao, setUsaCaptacao] = useState(true)
+  const [usaMotores, setUsaMotores] = useState(true)
   const [carregando, setCarregando] = useState(true)
-  const [salvando, setSalvando] = useState(false)
+  const [salvandoChave, setSalvandoChave] = useState<string | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
@@ -138,23 +141,28 @@ function AbaPreferencias() {
       .then((config) => {
         setEmpresaId(config?.id ?? null)
         setUsaCaptacao(config?.usa_captacao ?? true)
+        setUsaMotores(config?.usa_motores ?? true)
       })
       .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar preferências'))
       .finally(() => setCarregando(false))
   }, [])
 
-  async function alternarUsaCaptacao(valor: boolean) {
+  async function alternar(
+    chave: 'usa_captacao' | 'usa_motores',
+    valor: boolean,
+    setLocal: (v: boolean) => void
+  ) {
     if (!empresaId) return
-    setUsaCaptacao(valor)
-    setSalvando(true)
+    setLocal(valor)
+    setSalvandoChave(chave)
     try {
-      await updateEmpresaConfig(empresaId, { usa_captacao: valor })
+      await updateEmpresaConfig(empresaId, { [chave]: valor })
       setErro(null)
     } catch (e) {
-      setUsaCaptacao(!valor)
+      setLocal(!valor)
       setErro(e instanceof Error ? e.message : 'Erro ao salvar preferência')
     } finally {
-      setSalvando(false)
+      setSalvandoChave(null)
     }
   }
 
@@ -170,8 +178,8 @@ function AbaPreferencias() {
           <input
             type="checkbox"
             checked={usaCaptacao}
-            disabled={salvando}
-            onChange={(e) => alternarUsaCaptacao(e.target.checked)}
+            disabled={salvandoChave === 'usa_captacao'}
+            onChange={(e) => alternar('usa_captacao', e.target.checked, setUsaCaptacao)}
             className="mt-0.5"
           />
           <span>
@@ -179,6 +187,27 @@ function AbaPreferencias() {
             <span className="block text-xs text-slate-400">
               Desative se esta empresa não trabalha com aquisição/consignação de itens usados. A
               aba some do menu para todos os usuários.
+            </span>
+          </span>
+        </label>
+      </div>
+      <div className="rounded-md border border-foam-200 bg-white p-4">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={usaMotores}
+            disabled={salvandoChave === 'usa_motores'}
+            onChange={(e) => alternar('usa_motores', e.target.checked, setUsaMotores)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-hull-900">
+              Usar catálogo de Motores
+            </span>
+            <span className="block text-xs text-slate-400">
+              Desative se esta empresa não vende nada motorizado. Some a aba "Motores" da
+              Parametrização (o campo Comprimento e os passos de Motorização/Opcionais no
+              orçamento continuam controlados por subcategoria, em Categorias).
             </span>
           </span>
         </label>
