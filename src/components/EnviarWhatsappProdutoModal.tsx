@@ -4,7 +4,7 @@ import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
 import { listLeads, listFotosProduto, listVideosProduto } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
-import { formatBRL } from '@/lib/format'
+import { formatPreco } from '@/lib/format'
 import type { ClienteLead, Produto, FotoProduto, VideoProduto } from '@/types'
 
 const MAX_FOTOS_WHATSAPP = 6
@@ -15,7 +15,7 @@ function montarMensagemPadrao(produto: Produto, fotos: FotoProduto[], videos: Vi
     '',
     produto.descricao,
     '',
-    `Valor: ${formatBRL(produto.preco_base)}`,
+    `Valor: ${formatPreco(produto.preco_base)}`,
   ]
 
   const fotosLimitadas = fotos.slice(0, MAX_FOTOS_WHATSAPP)

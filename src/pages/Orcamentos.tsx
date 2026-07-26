@@ -17,7 +17,7 @@ import {
   listVideosProduto,
   gerarMensagemWhatsapp,
 } from '@/lib/api'
-import { formatBRL } from '@/lib/format'
+import { formatBRL, formatPreco } from '@/lib/format'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import type {
   Produto,
@@ -494,7 +494,7 @@ export default function Orcamentos() {
                         <p className="font-display text-base text-hull-900">{p.nome}</p>
                         <p className="text-xs text-slate-500">{p.descricao}</p>
                         <p className="mt-1 font-mono text-xs text-slate-600">
-                          {formatBRL(p.preco_base)}
+                          {formatPreco(p.preco_base)}
                         </p>
                       </button>
                     ))}

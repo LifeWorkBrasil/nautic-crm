@@ -3,7 +3,7 @@ import { Plus, Images, Pencil, Trash2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import { CampoTexto, CampoNumero } from '@/components/campos'
-import { formatBRL } from '@/lib/format'
+import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import {
@@ -220,7 +220,7 @@ export default function ProdutosTerceiros() {
                 <p className="text-xs text-slate-500">{produto.descricao}</p>
                 <div className="mt-3 border-t border-foam-200 pt-3">
                   <span className="font-mono text-sm text-hull-900">
-                    {formatBRL(produto.preco_base)}
+                    {formatPreco(produto.preco_base)}
                   </span>
                 </div>
                 <div className="mt-3 space-y-1 border-t border-foam-200 pt-3 text-xs text-slate-500">

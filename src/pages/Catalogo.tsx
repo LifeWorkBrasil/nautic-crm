@@ -6,7 +6,7 @@ import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
 import EnviarWhatsappProdutoModal from '@/components/EnviarWhatsappProdutoModal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
-import { formatBRL } from '@/lib/format'
+import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import {
@@ -282,7 +282,7 @@ export default function Catalogo() {
               <p className="text-xs text-slate-500">{produto.descricao}</p>
               <div className="mt-3 flex items-center justify-between border-t border-foam-200 pt-3">
                 <span className="font-mono text-sm text-hull-900">
-                  {formatBRL(produto.preco_base)}
+                  {formatPreco(produto.preco_base)}
                 </span>
                 <span className="text-xs text-slate-400">
                   {produto.comprimento ? `${produto.comprimento} m` : '—'}
