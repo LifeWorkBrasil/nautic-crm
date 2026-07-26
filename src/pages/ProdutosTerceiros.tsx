@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Plus, Images, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, Tag } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
+import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
+import CampoDinamico from '@/components/CampoDinamico'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -13,10 +15,19 @@ import {
   deleteProduto,
   listCategorias,
   listSubcategorias,
+  listGrupos,
+  listCamposPersonalizados,
   listParceiros,
   createParceiro,
 } from '@/lib/api'
-import type { Produto, CategoriaProduto, SubcategoriaProduto, Parceiro } from '@/types'
+import type {
+  Produto,
+  CategoriaProduto,
+  SubcategoriaProduto,
+  GrupoProduto,
+  CampoPersonalizado,
+  Parceiro,
+} from '@/types'
 
 type ProdutoTerceiroForm = {
   nome: string
@@ -24,8 +35,10 @@ type ProdutoTerceiroForm = {
   preco_base: number
   comprimento: number | null
   subcategoria_id: string
+  grupo_id: string | null
   captador_nome: string
   parceiro_id: string
+  atributos: Record<string, string | number | boolean | null>
 }
 
 const FORM_VAZIO: ProdutoTerceiroForm = {
@@ -34,24 +47,41 @@ const FORM_VAZIO: ProdutoTerceiroForm = {
   preco_base: 0,
   comprimento: null,
   subcategoria_id: '',
+  grupo_id: null,
   captador_nome: '',
   parceiro_id: '',
+  atributos: {},
 }
 
 export default function ProdutosTerceiros() {
   const { perfil } = usePermissoes()
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
+  const [grupos, setGrupos] = useState<GrupoProduto[]>([])
+  const [campos, setCampos] = useState<CampoPersonalizado[]>([])
   const [parceiros, setParceiros] = useState<Parceiro[]>([])
   const [categoriaForm, setCategoriaForm] = useState('')
   const [produtoMidia, setProdutoMidia] = useState<Produto | null>(null)
   const [novoParceiroNome, setNovoParceiroNome] = useState('')
   const [criandoParceiro, setCriandoParceiro] = useState(false)
+  const [gerenciandoCampos, setGerenciandoCampos] = useState<'categoria' | 'grupo' | null>(null)
+
+  function carregarCampos() {
+    listCamposPersonalizados().then(setCampos)
+  }
 
   useEffect(() => {
-    Promise.all([listCategorias(), listSubcategorias(), listParceiros()]).then(([c, s, p]) => {
+    Promise.all([
+      listCategorias(),
+      listSubcategorias(),
+      listGrupos(),
+      listCamposPersonalizados(),
+      listParceiros(),
+    ]).then(([c, s, g, cp, p]) => {
       setCategorias(c)
       setSubcategorias(s)
+      setGrupos(g)
+      setCampos(cp)
       setParceiros(p)
     })
   }, [])
@@ -80,7 +110,7 @@ export default function ProdutosTerceiros() {
         preco_base: f.preco_base,
         comprimento: f.comprimento,
         subcategoria_id: f.subcategoria_id,
-        grupo_id: null,
+        grupo_id: f.grupo_id,
         origem_captacao: 'Terceiro',
         captador_nome: f.captador_nome || null,
         parceiro_id: f.parceiro_id || null,
@@ -91,6 +121,7 @@ export default function ProdutosTerceiros() {
         combustivel: null,
         horas_uso: null,
         ultima_revisao: null,
+        atributos: f.atributos,
       }),
     update: (id, f) =>
       updateProduto(id, {
@@ -99,8 +130,10 @@ export default function ProdutosTerceiros() {
         preco_base: f.preco_base,
         comprimento: f.comprimento,
         subcategoria_id: f.subcategoria_id,
+        grupo_id: f.grupo_id,
         captador_nome: f.captador_nome || null,
         parceiro_id: f.parceiro_id || null,
+        atributos: f.atributos,
       }),
     remove: deleteProduto,
     vazio: FORM_VAZIO,
@@ -128,8 +161,10 @@ export default function ProdutosTerceiros() {
       preco_base: produto.preco_base,
       comprimento: produto.comprimento,
       subcategoria_id: produto.subcategoria_id,
+      grupo_id: produto.grupo_id,
       captador_nome: produto.captador_nome ?? '',
       parceiro_id: produto.parceiro_id ?? '',
+      atributos: produto.atributos ?? {},
     })
   }
 
@@ -154,6 +189,12 @@ export default function ProdutosTerceiros() {
   }
 
   const subcategoriasFiltradas = subcategorias.filter((s) => s.categoria_id === categoriaForm)
+  const subcategoriaSelecionada = subcategorias.find((s) => s.id === form.subcategoria_id)
+  const subcategoriaRequerMotor = subcategoriaSelecionada?.requer_motor ?? true
+  const gruposDaSubcategoria = grupos.filter((g) => g.subcategoria_id === form.subcategoria_id)
+  const camposRelevantes = campos.filter(
+    (c) => c.categoria_id === categoriaForm || (form.grupo_id && c.grupo_id === form.grupo_id)
+  )
 
   return (
     <div className="p-8">
@@ -324,18 +365,86 @@ export default function ProdutosTerceiros() {
               value={form.descricao}
               onChange={(v) => setForm({ ...form, descricao: v })}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className={subcategoriaRequerMotor ? 'grid grid-cols-2 gap-4' : ''}>
               <CampoNumero
                 label="Preço base (R$)"
                 value={form.preco_base}
                 onChange={(v) => setForm({ ...form, preco_base: v })}
               />
-              <CampoNumero
-                label="Comprimento (m)"
-                value={form.comprimento ?? 0}
-                onChange={(v) => setForm({ ...form, comprimento: v || null })}
-              />
+              {subcategoriaRequerMotor && (
+                <CampoNumero
+                  label="Comprimento (m)"
+                  value={form.comprimento ?? 0}
+                  onChange={(v) => setForm({ ...form, comprimento: v || null })}
+                />
+              )}
             </div>
+
+            {gruposDaSubcategoria.length > 0 && (
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                  Grupo (opcional)
+                </span>
+                <select
+                  value={form.grupo_id ?? ''}
+                  onChange={(e) => setForm({ ...form, grupo_id: e.target.value || null })}
+                  className="input"
+                >
+                  <option value="">Nenhum</option>
+                  {gruposDaSubcategoria.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {categoriaForm && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Campos personalizados
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setGerenciandoCampos('categoria')}
+                      className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                    >
+                      <Tag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Gerenciar campos da categoria
+                    </button>
+                    {form.grupo_id && (
+                      <button
+                        type="button"
+                        onClick={() => setGerenciandoCampos('grupo')}
+                        className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                      >
+                        <Tag className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        Gerenciar campos do grupo
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {camposRelevantes.length === 0 ? (
+                  <p className="text-sm text-slate-400">
+                    Nenhum campo personalizado ainda. Use "Gerenciar campos" para criar.
+                  </p>
+                ) : (
+                  camposRelevantes.map((campo) => (
+                    <CampoDinamico
+                      key={campo.id}
+                      campo={campo}
+                      valor={form.atributos[campo.id] ?? null}
+                      onChange={(v) =>
+                        setForm({ ...form, atributos: { ...form.atributos, [campo.id]: v } })
+                      }
+                    />
+                  ))
+                )}
+              </div>
+            )}
 
             <div className="border-t border-foam-200 pt-4">
               <CampoTexto
@@ -387,6 +496,28 @@ export default function ProdutosTerceiros() {
           nomeProduto={produtoMidia.nome}
           onClose={() => setProdutoMidia(null)}
           onAlterar={carregar}
+        />
+      )}
+
+      {gerenciandoCampos === 'categoria' && categoriaForm && (
+        <CamposPersonalizadosModal
+          categoriaId={categoriaForm}
+          titulo={categorias.find((c) => c.id === categoriaForm)?.nome ?? 'Categoria'}
+          onClose={() => {
+            setGerenciandoCampos(null)
+            carregarCampos()
+          }}
+        />
+      )}
+
+      {gerenciandoCampos === 'grupo' && form.grupo_id && (
+        <CamposPersonalizadosModal
+          grupoId={form.grupo_id}
+          titulo={gruposDaSubcategoria.find((g) => g.id === form.grupo_id)?.nome ?? 'Grupo'}
+          onClose={() => {
+            setGerenciandoCampos(null)
+            carregarCampos()
+          }}
         />
       )}
     </div>
