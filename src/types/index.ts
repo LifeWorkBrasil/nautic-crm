@@ -117,6 +117,19 @@ export interface Produto {
   horas_uso: string | null
   ultima_revisao: string | null
   atributos: Record<string, string | number | boolean | null>
+  status_estoque: 'disponivel' | 'esgotado' | 'oculto'
+  data_reposicao: string | null
+}
+
+export interface AvisoReposicao {
+  id: string
+  produto_id: string
+  empresa_id: string
+  nome: string
+  telefone: string
+  criado_em: string
+  notificado: boolean
+  notificado_em: string | null
 }
 
 export interface ProdutoItemIncluso {

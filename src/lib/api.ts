@@ -5,6 +5,7 @@ import type {
   GrupoProduto,
   Produto,
   ProdutoItemIncluso,
+  AvisoReposicao,
   FotoProduto,
   VideoProduto,
   ManualProduto,
@@ -189,7 +190,7 @@ export async function deleteParceiro(id: string): Promise<void> {
 // ---------- Produtos ----------
 
 const PRODUTO_SELECT =
-  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, atributos, fotos_produto(url_imagem, principal), parceiros(nome)'
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, atributos, status_estoque, data_reposicao, fotos_produto(url_imagem, principal), parceiros(nome)'
 
 function mapProdutoRow({
   fotos_produto,
@@ -237,8 +238,20 @@ export async function createProduto(
     | 'captador_nome'
     | 'parceiro_id'
     | 'atributos'
+    | 'status_estoque'
+    | 'data_reposicao'
   > &
-    Partial<Pick<Produto, 'origem_captacao' | 'captador_nome' | 'parceiro_id' | 'atributos'>>
+    Partial<
+      Pick<
+        Produto,
+        | 'origem_captacao'
+        | 'captador_nome'
+        | 'parceiro_id'
+        | 'atributos'
+        | 'status_estoque'
+        | 'data_reposicao'
+      >
+    >
 ): Promise<Produto> {
   const { data, error } = await supabase
     .from('produtos')
@@ -347,6 +360,26 @@ export async function updateItemInclusoProduto(
 
 export async function deleteItemInclusoProduto(id: string): Promise<void> {
   const { error } = await supabase.from('produto_itens_inclusos').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ---------- Avisos de reposição de estoque ----------
+
+export async function listAvisosReposicao(produtoId: string): Promise<AvisoReposicao[]> {
+  const { data, error } = await supabase
+    .from('avisos_reposicao')
+    .select('*')
+    .eq('produto_id', produtoId)
+    .order('criado_em')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function marcarAvisoNotificado(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('avisos_reposicao')
+    .update({ notificado: true, notificado_em: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw error
 }
 

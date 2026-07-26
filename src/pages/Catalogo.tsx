@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
 import EnviarWhatsappProdutoModal from '@/components/EnviarWhatsappProdutoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
 import CampoDinamico from '@/components/CampoDinamico'
+import AvisosReposicaoModal from '@/components/AvisosReposicaoModal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -44,6 +45,8 @@ type ProdutoForm = {
   horas_uso: string | null
   ultima_revisao: string | null
   atributos: Record<string, string | number | boolean | null>
+  status_estoque: 'disponivel' | 'esgotado' | 'oculto'
+  data_reposicao: string | null
 }
 
 export default function Catalogo() {
@@ -58,6 +61,7 @@ export default function Catalogo() {
   const [produtoWhatsapp, setProdutoWhatsapp] = useState<Produto | null>(null)
   const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
   const [gerenciandoCampos, setGerenciandoCampos] = useState<'categoria' | 'grupo' | null>(null)
+  const [produtoAvisos, setProdutoAvisos] = useState<Produto | null>(null)
 
   function carregarCampos() {
     listCamposPersonalizados().then(setCampos)
@@ -97,6 +101,8 @@ export default function Catalogo() {
     horas_uso: null,
     ultima_revisao: null,
     atributos: {},
+    status_estoque: 'disponivel',
+    data_reposicao: null,
   }
 
   const {
@@ -227,6 +233,16 @@ export default function Catalogo() {
                     {grupos.find((g) => g.id === produto.grupo_id)?.nome ?? '—'}
                   </span>
                 )}
+                {produto.status_estoque === 'esgotado' && (
+                  <span className="rounded-full bg-signal-red/10 px-2 py-0.5 text-[10px] font-medium text-signal-red">
+                    Esgotado
+                  </span>
+                )}
+                {produto.status_estoque === 'oculto' && (
+                  <span className="rounded-full bg-hull-900/10 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    Oculto
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500">{produto.descricao}</p>
               <div className="mt-3 flex items-center justify-between border-t border-foam-200 pt-3">
@@ -262,6 +278,8 @@ export default function Catalogo() {
                       horas_uso: produto.horas_uso,
                       ultima_revisao: produto.ultima_revisao,
                       atributos: produto.atributos ?? {},
+                      status_estoque: produto.status_estoque,
+                      data_reposicao: produto.data_reposicao,
                     })
                   }
                   className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
@@ -285,6 +303,15 @@ export default function Catalogo() {
                   <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
                   WhatsApp
                 </button>
+                {produto.status_estoque === 'esgotado' && (
+                  <button
+                    onClick={() => setProdutoAvisos(produto)}
+                    className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                  >
+                    <BellRing className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Avise-me
+                  </button>
+                )}
                 <button
                   onClick={() => excluir(produto.id)}
                   className="ml-auto flex items-center gap-1 text-xs text-signal-red/80 hover:text-signal-red"
@@ -338,6 +365,46 @@ export default function Catalogo() {
                 />
               )}
             </div>
+
+            <div className={form.status_estoque === 'esgotado' ? 'grid grid-cols-2 gap-4' : ''}>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                  Status de estoque
+                </span>
+                <select
+                  value={form.status_estoque}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      status_estoque: e.target.value as ProdutoForm['status_estoque'],
+                    })
+                  }
+                  className="input"
+                >
+                  <option value="disponivel">Disponível</option>
+                  <option value="esgotado">Esgotado</option>
+                  <option value="oculto">Oculto</option>
+                </select>
+              </label>
+              {form.status_estoque === 'esgotado' && (
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                    Previsão de reposição (opcional)
+                  </span>
+                  <input
+                    type="date"
+                    value={form.data_reposicao ?? ''}
+                    onChange={(e) => setForm({ ...form, data_reposicao: e.target.value || null })}
+                    className="input"
+                  />
+                </label>
+              )}
+            </div>
+            {form.status_estoque === 'oculto' && (
+              <p className="text-xs text-slate-400">
+                Produtos ocultos somem do catálogo público e do interno de propostas.
+              </p>
+            )}
 
             {gruposDaSubcategoria.length > 0 && (
               <label className="block">
@@ -472,6 +539,14 @@ export default function Catalogo() {
 
       {produtoWhatsapp && (
         <EnviarWhatsappProdutoModal produto={produtoWhatsapp} onClose={() => setProdutoWhatsapp(null)} />
+      )}
+
+      {produtoAvisos && (
+        <AvisosReposicaoModal
+          produtoId={produtoAvisos.id}
+          nomeProduto={produtoAvisos.nome}
+          onClose={() => setProdutoAvisos(null)}
+        />
       )}
 
       {gerenciandoCampos === 'categoria' && categoria && (
