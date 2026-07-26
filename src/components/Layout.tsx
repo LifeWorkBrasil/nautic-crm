@@ -84,10 +84,9 @@ export default function Layout() {
 
         <nav className="mt-4 flex flex-1 flex-col gap-1 overflow-y-auto px-3">
           {categorias.map((categoria) => {
-            const filhas = subcategorias
-              .filter((s) => s.categoria_id === categoria.id)
-              .filter((s) => temPermissao(`catalogo:${s.id}`))
-            if (filhas.length === 0) return null
+            const todasFilhas = subcategorias.filter((s) => s.categoria_id === categoria.id)
+            const filhas = todasFilhas.filter((s) => temPermissao(`catalogo:${s.id}`))
+            if (todasFilhas.length > 0 && filhas.length === 0) return null
             const Icon = CATEGORIA_ICONES[categoria.nome] ?? LayoutGrid
             const aberto = grupoAberto === categoria.id
             const temFilhaAtiva = filhas.some((s) => location.pathname === `/catalogo/${s.id}`)
@@ -118,21 +117,30 @@ export default function Layout() {
                 </button>
                 {aberto && (
                   <div className="ml-4 mt-1 flex flex-col gap-0.5 border-l border-hull-800 pl-4">
-                    {filhas.map((sub) => (
+                    {filhas.length === 0 ? (
                       <NavLink
-                        key={sub.id}
-                        to={`/catalogo/${sub.id}`}
-                        className={({ isActive }) =>
-                          `rounded-md px-3 py-2 text-sm transition-colors ${
-                            isActive
-                              ? 'bg-hull-800 text-brass-400'
-                              : 'text-slate-400 hover:bg-hull-800/60 hover:text-foam-100'
-                          }`
-                        }
+                        to="/parametrizacao"
+                        className="px-3 py-2 text-xs italic text-slate-500 hover:text-foam-100"
                       >
-                        {sub.nome}
+                        Nenhuma subcategoria ainda — criar em Parametrização
                       </NavLink>
-                    ))}
+                    ) : (
+                      filhas.map((sub) => (
+                        <NavLink
+                          key={sub.id}
+                          to={`/catalogo/${sub.id}`}
+                          className={({ isActive }) =>
+                            `rounded-md px-3 py-2 text-sm transition-colors ${
+                              isActive
+                                ? 'bg-hull-800 text-brass-400'
+                                : 'text-slate-400 hover:bg-hull-800/60 hover:text-foam-100'
+                            }`
+                          }
+                        >
+                          {sub.nome}
+                        </NavLink>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
