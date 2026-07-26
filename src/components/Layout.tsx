@@ -50,10 +50,11 @@ export default function Layout() {
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null)
   const [alterandoSenha, setAlterandoSenha] = useState(false)
-  const { perfil, temPermissao, temAlgumaPermissao } = usePermissoes()
+  const { perfil, usaCaptacao, temPermissao, temAlgumaPermissao } = usePermissoes()
 
   function itemVisivel(permissao: string): boolean {
     if (permissao === 'parametrizacao') return temAlgumaPermissao('parametrizacao:')
+    if (permissao === 'captacao') return usaCaptacao && temPermissao(permissao)
     return temPermissao(permissao)
   }
 

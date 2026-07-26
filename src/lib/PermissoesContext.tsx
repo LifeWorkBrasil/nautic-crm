@@ -7,6 +7,7 @@ import type { UsuarioPerfil } from '@/types'
 interface PermissoesContextValue {
   perfil: UsuarioPerfil | null
   ramoNautico: boolean
+  usaCaptacao: boolean
   carregando: boolean
   temPermissao: (tabKey: string) => boolean
   temAlgumaPermissao: (prefixo: string) => boolean
@@ -15,6 +16,7 @@ interface PermissoesContextValue {
 const PermissoesContext = createContext<PermissoesContextValue>({
   perfil: null,
   ramoNautico: true,
+  usaCaptacao: true,
   carregando: true,
   temPermissao: () => false,
   temAlgumaPermissao: () => false,
@@ -30,6 +32,7 @@ export function PermissoesProvider({
   const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null)
   const [tabKeys, setTabKeys] = useState<Set<string>>(new Set())
   const [ramoNautico, setRamoNautico] = useState(true)
+  const [usaCaptacao, setUsaCaptacao] = useState(true)
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
@@ -37,6 +40,7 @@ export function PermissoesProvider({
       setPerfil(null)
       setTabKeys(new Set())
       setRamoNautico(true)
+      setUsaCaptacao(true)
       setCarregando(false)
       return
     }
@@ -48,7 +52,10 @@ export function PermissoesProvider({
       })
       .finally(() => setCarregando(false))
     getEmpresaConfig()
-      .then((config) => setRamoNautico(config?.ramo_nautico ?? true))
+      .then((config) => {
+        setRamoNautico(config?.ramo_nautico ?? true)
+        setUsaCaptacao(config?.usa_captacao ?? true)
+      })
       .catch(() => {})
   }, [session])
 
@@ -67,7 +74,7 @@ export function PermissoesProvider({
 
   return (
     <PermissoesContext.Provider
-      value={{ perfil, ramoNautico, carregando, temPermissao, temAlgumaPermissao }}
+      value={{ perfil, ramoNautico, usaCaptacao, carregando, temPermissao, temAlgumaPermissao }}
     >
       {children}
     </PermissoesContext.Provider>

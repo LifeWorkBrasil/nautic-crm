@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Zap, PackagePlus, FolderTree, Plus, Pencil, Trash2, Users, FileSignature, FileEdit, Tag } from 'lucide-react'
+import {
+  Zap,
+  PackagePlus,
+  FolderTree,
+  Plus,
+  Pencil,
+  Trash2,
+  Users,
+  FileSignature,
+  FileEdit,
+  Tag,
+  SlidersHorizontal,
+} from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
@@ -36,6 +48,8 @@ import {
   createMinuta,
   updateMinuta,
   deleteMinuta,
+  getEmpresaConfig,
+  updateEmpresaConfig,
 } from '@/lib/api'
 import { PLACEHOLDERS_DISPONIVEIS, PLACEHOLDERS_COLCHETES_DISPONIVEIS } from '@/lib/contratos'
 import { usePermissoes } from '@/lib/PermissoesContext'
@@ -50,7 +64,7 @@ import type {
   MinutaContrato,
 } from '@/types'
 
-type Aba = 'motores' | 'acessorios' | 'categorias' | 'parceiros' | 'minutas'
+type Aba = 'motores' | 'acessorios' | 'categorias' | 'parceiros' | 'minutas' | 'preferencias'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'motores', label: 'Motores', icon: Zap },
@@ -58,6 +72,7 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'categorias', label: 'Categorias', icon: FolderTree },
   { key: 'parceiros', label: 'Parceiros', icon: Users },
   { key: 'minutas', label: 'Minutas de Contrato', icon: FileSignature },
+  { key: 'preferencias', label: 'Preferências', icon: SlidersHorizontal },
 ]
 
 export default function Parametrizacao() {
@@ -106,6 +121,68 @@ export default function Parametrizacao() {
       {aba === 'categorias' && <AbaCategorias />}
       {aba === 'parceiros' && <AbaParceiros />}
       {aba === 'minutas' && <AbaMinutas />}
+      {aba === 'preferencias' && <AbaPreferencias />}
+    </div>
+  )
+}
+
+function AbaPreferencias() {
+  const [empresaId, setEmpresaId] = useState<string | null>(null)
+  const [usaCaptacao, setUsaCaptacao] = useState(true)
+  const [carregando, setCarregando] = useState(true)
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  useEffect(() => {
+    getEmpresaConfig()
+      .then((config) => {
+        setEmpresaId(config?.id ?? null)
+        setUsaCaptacao(config?.usa_captacao ?? true)
+      })
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar preferências'))
+      .finally(() => setCarregando(false))
+  }, [])
+
+  async function alternarUsaCaptacao(valor: boolean) {
+    if (!empresaId) return
+    setUsaCaptacao(valor)
+    setSalvando(true)
+    try {
+      await updateEmpresaConfig(empresaId, { usa_captacao: valor })
+      setErro(null)
+    } catch (e) {
+      setUsaCaptacao(!valor)
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar preferência')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  if (carregando) {
+    return <p className="text-sm text-slate-400">Carregando…</p>
+  }
+
+  return (
+    <div className="max-w-lg space-y-4">
+      <ErroBanner erro={erro} />
+      <div className="rounded-md border border-foam-200 bg-white p-4">
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={usaCaptacao}
+            disabled={salvando}
+            onChange={(e) => alternarUsaCaptacao(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-hull-900">Usar aba de Captação</span>
+            <span className="block text-xs text-slate-400">
+              Desative se esta empresa não trabalha com aquisição/consignação de itens usados. A
+              aba some do menu para todos os usuários.
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
   )
 }

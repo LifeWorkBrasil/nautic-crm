@@ -40,6 +40,7 @@ const STATUS_STYLES: Record<StatusCaptacao, string> = {
 const NOVA_CAPTACAO_VAZIA = { nome: '', categoria_id: '', subcategoria_id: '' }
 
 export default function CaptacaoPage() {
+  const { usaCaptacao } = usePermissoes()
   const [captacoes, setCaptacoes] = useState<Captacao[]>([])
   const [categorias, setCategorias] = useState<CategoriaProduto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
@@ -125,6 +126,17 @@ export default function CaptacaoPage() {
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao excluir captação')
     }
+  }
+
+  if (!usaCaptacao) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-slate-400">
+          A aba de Captação está desativada para esta empresa. Ative em Parametrização →
+          Preferências, se precisar dela.
+        </p>
+      </div>
+    )
   }
 
   return (
