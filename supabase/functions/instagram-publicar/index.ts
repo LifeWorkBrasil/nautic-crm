@@ -21,6 +21,56 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cria o container de mídia a publicar: imagem única, ou carrossel quando o post tem mais de
+// uma foto (cria um item container por foto e depois o container do carrossel que os agrupa).
+async function criarCreationId(
+  igUserId: string,
+  accessToken: string,
+  fotoUrls: string[],
+  caption: string
+): Promise<string> {
+  const fotos = fotoUrls.filter(Boolean).slice(0, 10);
+
+  if (fotos.length <= 1) {
+    const containerUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+    containerUrl.searchParams.set("image_url", fotos[0]);
+    containerUrl.searchParams.set("caption", caption);
+    containerUrl.searchParams.set("access_token", accessToken);
+    const resp = await fetch(containerUrl, { method: "POST" });
+    if (!resp.ok) {
+      throw new Error(`Falha ao criar container de mídia (${resp.status}): ${await resp.text()}`);
+    }
+    const data = await resp.json();
+    return data.id as string;
+  }
+
+  const itemIds: string[] = [];
+  for (const url of fotos) {
+    const itemUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+    itemUrl.searchParams.set("image_url", url);
+    itemUrl.searchParams.set("is_carousel_item", "true");
+    itemUrl.searchParams.set("access_token", accessToken);
+    const resp = await fetch(itemUrl, { method: "POST" });
+    if (!resp.ok) {
+      throw new Error(`Falha ao criar item do carrossel (${resp.status}): ${await resp.text()}`);
+    }
+    const data = await resp.json();
+    itemIds.push(data.id as string);
+  }
+
+  const carouselUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+  carouselUrl.searchParams.set("media_type", "CAROUSEL");
+  carouselUrl.searchParams.set("children", itemIds.join(","));
+  carouselUrl.searchParams.set("caption", caption);
+  carouselUrl.searchParams.set("access_token", accessToken);
+  const carouselResp = await fetch(carouselUrl, { method: "POST" });
+  if (!carouselResp.ok) {
+    throw new Error(`Falha ao criar carrossel (${carouselResp.status}): ${await carouselResp.text()}`);
+  }
+  const carouselData = await carouselResp.json();
+  return carouselData.id as string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -61,8 +111,8 @@ Deno.serve(async (req: Request) => {
     if (post.instagram_media_id) {
       return json({ error: "Este post já foi publicado no Instagram." }, 400);
     }
-    const fotoUrl = post.foto_urls?.[0];
-    if (!fotoUrl) return json({ error: "Este post não tem foto para publicar." }, 400);
+    const fotoUrls: string[] = post.foto_urls ?? [];
+    if (fotoUrls.length === 0) return json({ error: "Este post não tem foto para publicar." }, 400);
 
     const { data: config } = await admin
       .from("instagram_config")
@@ -80,21 +130,15 @@ Deno.serve(async (req: Request) => {
     const accessToken = config.access_token as string;
     const igUserId = config.instagram_user_id as string;
 
-    // 1. Cria o container de mídia
-    const containerUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
-    containerUrl.searchParams.set("image_url", fotoUrl);
-    containerUrl.searchParams.set("caption", post.legenda_gerada ?? "");
-    containerUrl.searchParams.set("access_token", accessToken);
-    const containerResp = await fetch(containerUrl, { method: "POST" });
-    if (!containerResp.ok) {
-      const errBody = await containerResp.text();
-      console.error("Erro ao criar container de mídia", containerResp.status, errBody);
+    let creationId: string;
+    try {
+      creationId = await criarCreationId(igUserId, accessToken, fotoUrls, post.legenda_gerada ?? "");
+    } catch (err) {
+      console.error("Erro ao criar container de mídia", err);
       return json({ error: "Falha ao preparar a publicação no Instagram." }, 502);
     }
-    const containerData = await containerResp.json();
-    const creationId = containerData.id as string;
 
-    // 2. Aguarda o processamento e publica, com algumas tentativas
+    // Aguarda o processamento e publica, com algumas tentativas
     let publishData: { id?: string } | null = null;
     let lastError = "";
     for (let tentativa = 0; tentativa < 4; tentativa++) {

@@ -16,6 +16,56 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cria o container de mídia a publicar: imagem única, ou carrossel quando o post tem mais de
+// uma foto (cria um item container por foto e depois o container do carrossel que os agrupa).
+async function criarCreationId(
+  igUserId: string,
+  accessToken: string,
+  fotoUrls: string[],
+  caption: string
+): Promise<string> {
+  const fotos = fotoUrls.filter(Boolean).slice(0, 10);
+
+  if (fotos.length <= 1) {
+    const containerUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+    containerUrl.searchParams.set("image_url", fotos[0]);
+    containerUrl.searchParams.set("caption", caption);
+    containerUrl.searchParams.set("access_token", accessToken);
+    const resp = await fetch(containerUrl, { method: "POST" });
+    if (!resp.ok) {
+      throw new Error(`Falha ao criar container de mídia (${resp.status})`);
+    }
+    const data = await resp.json();
+    return data.id as string;
+  }
+
+  const itemIds: string[] = [];
+  for (const url of fotos) {
+    const itemUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+    itemUrl.searchParams.set("image_url", url);
+    itemUrl.searchParams.set("is_carousel_item", "true");
+    itemUrl.searchParams.set("access_token", accessToken);
+    const resp = await fetch(itemUrl, { method: "POST" });
+    if (!resp.ok) {
+      throw new Error(`Falha ao criar item do carrossel (${resp.status})`);
+    }
+    const data = await resp.json();
+    itemIds.push(data.id as string);
+  }
+
+  const carouselUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+  carouselUrl.searchParams.set("media_type", "CAROUSEL");
+  carouselUrl.searchParams.set("children", itemIds.join(","));
+  carouselUrl.searchParams.set("caption", caption);
+  carouselUrl.searchParams.set("access_token", accessToken);
+  const carouselResp = await fetch(carouselUrl, { method: "POST" });
+  if (!carouselResp.ok) {
+    throw new Error(`Falha ao criar carrossel (${carouselResp.status})`);
+  }
+  const carouselData = await carouselResp.json();
+  return carouselData.id as string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.headers.get("x-cron-secret") !== CRON_SECRET) {
     return json({ error: "Não autorizado" }, 401);
@@ -50,8 +100,8 @@ Deno.serve(async (req: Request) => {
       .limit(5);
 
     for (const post of pendentes ?? []) {
-      const fotoUrl = post.foto_urls?.[0];
-      if (!fotoUrl) {
+      const fotoUrls: string[] = post.foto_urls ?? [];
+      if (fotoUrls.length === 0) {
         await admin
           .from("posts_marketing")
           .update({ status_agendamento: "erro", erro_agendamento: "Post sem foto para publicar." })
@@ -61,16 +111,7 @@ Deno.serve(async (req: Request) => {
       }
 
       try {
-        const containerUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
-        containerUrl.searchParams.set("image_url", fotoUrl);
-        containerUrl.searchParams.set("caption", post.legenda_gerada ?? "");
-        containerUrl.searchParams.set("access_token", accessToken);
-        const containerResp = await fetch(containerUrl, { method: "POST" });
-        if (!containerResp.ok) {
-          throw new Error(`Falha ao criar container de mídia (${containerResp.status})`);
-        }
-        const containerData = await containerResp.json();
-        const creationId = containerData.id as string;
+        const creationId = await criarCreationId(igUserId, accessToken, fotoUrls, post.legenda_gerada ?? "");
 
         let publishData: { id?: string } | null = null;
         for (let tentativa = 0; tentativa < 4; tentativa++) {
