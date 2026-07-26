@@ -190,6 +190,7 @@ export interface EmpresaConfig {
   site: string | null
   validade_orcamento_dias: number
   termos_condicoes: string | null
+  ramo_nautico: boolean
   atualizado_em: string
 }
 

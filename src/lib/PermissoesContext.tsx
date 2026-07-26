@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
-import { listMinhasPermissoes } from '@/lib/api'
+import { listMinhasPermissoes, getEmpresaConfig } from '@/lib/api'
 import type { UsuarioPerfil } from '@/types'
 
 interface PermissoesContextValue {
   perfil: UsuarioPerfil | null
+  ramoNautico: boolean
   carregando: boolean
   temPermissao: (tabKey: string) => boolean
   temAlgumaPermissao: (prefixo: string) => boolean
@@ -13,6 +14,7 @@ interface PermissoesContextValue {
 
 const PermissoesContext = createContext<PermissoesContextValue>({
   perfil: null,
+  ramoNautico: true,
   carregando: true,
   temPermissao: () => false,
   temAlgumaPermissao: () => false,
@@ -27,12 +29,14 @@ export function PermissoesProvider({
 }) {
   const [perfil, setPerfil] = useState<UsuarioPerfil | null>(null)
   const [tabKeys, setTabKeys] = useState<Set<string>>(new Set())
+  const [ramoNautico, setRamoNautico] = useState(true)
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     if (!session) {
       setPerfil(null)
       setTabKeys(new Set())
+      setRamoNautico(true)
       setCarregando(false)
       return
     }
@@ -43,6 +47,9 @@ export function PermissoesProvider({
         setTabKeys(new Set(tabKeys))
       })
       .finally(() => setCarregando(false))
+    getEmpresaConfig()
+      .then((config) => setRamoNautico(config?.ramo_nautico ?? true))
+      .catch(() => {})
   }, [session])
 
   function temPermissao(tabKey: string): boolean {
@@ -59,7 +66,9 @@ export function PermissoesProvider({
   }
 
   return (
-    <PermissoesContext.Provider value={{ perfil, carregando, temPermissao, temAlgumaPermissao }}>
+    <PermissoesContext.Provider
+      value={{ perfil, ramoNautico, carregando, temPermissao, temAlgumaPermissao }}
+    >
       {children}
     </PermissoesContext.Provider>
   )

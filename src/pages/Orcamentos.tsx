@@ -19,6 +19,7 @@ import {
 } from '@/lib/api'
 import { formatBRL, formatPreco } from '@/lib/format'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import type {
   Produto,
   Motor,
@@ -36,6 +37,11 @@ import type {
 
 const PASSOS_BASE = ['Cliente & Barco', 'Motorização', 'Opcionais', 'Pagamento', 'Visualização & Envio']
 const MAX_FOTOS_WHATSAPP = 6
+
+function labelPasso(passo: string, ramoNautico: boolean): string {
+  if (passo === 'Cliente & Barco') return ramoNautico ? 'Cliente & Barco' : 'Cliente'
+  return passo
+}
 
 function normalizar(texto: string): string {
   return texto
@@ -66,6 +72,7 @@ const CHECKLIST_VAZIO: ChecklistEditavel = {
 }
 
 export default function Orcamentos() {
+  const { ramoNautico } = usePermissoes()
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -423,7 +430,9 @@ export default function Orcamentos() {
             >
               {i < passo ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : i + 1}
             </button>
-            <span className={i === passo ? 'text-hull-900' : 'text-slate-400'}>{p}</span>
+            <span className={i === passo ? 'text-hull-900' : 'text-slate-400'}>
+              {labelPasso(p, ramoNautico)}
+            </span>
             {i < passosAtivos.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-foam-200" />}
           </li>
         ))}

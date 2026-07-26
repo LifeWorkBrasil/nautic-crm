@@ -106,7 +106,7 @@ type ContrapropostaComItens = Contraproposta & {
 }
 
 export default function CRM() {
-  const { perfil } = usePermissoes()
+  const { perfil, ramoNautico } = usePermissoes()
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -347,7 +347,7 @@ export default function CRM() {
             Funil de vendas
           </p>
           <h1 className="wake-underline mt-1 inline-block font-display text-3xl text-hull-900">
-            CRM náutico
+            {ramoNautico ? 'CRM náutico' : 'CRM'}
           </h1>
         </div>
         <button
