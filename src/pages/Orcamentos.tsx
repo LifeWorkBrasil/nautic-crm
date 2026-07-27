@@ -111,6 +111,7 @@ export default function Orcamentos() {
   const [videosProduto, setVideosProduto] = useState<VideoProduto[]>([])
   const [checklist, setChecklist] = useState<ChecklistEditavel>(CHECKLIST_VAZIO)
   const [precoCasco, setPrecoCasco] = useState<number | null>(null)
+  const [quantidade, setQuantidade] = useState(1)
 
   useEffect(() => {
     if (!produtoId) {
@@ -237,7 +238,8 @@ export default function Orcamentos() {
     [acessoriosDisponiveis, acessoriosSelecionados]
   )
 
-  const total = (precoCasco ?? produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
+  const subtotalUnitario = (precoCasco ?? produto?.preco_base ?? 0) + (motor?.preco ?? 0) + totalAcessorios
+  const total = subtotalUnitario * quantidade
 
   const somaParcelas = parcelas.reduce((soma, p) => soma + p.percentual, 0)
   const somaPagamento = entradaPercentual + somaParcelas
@@ -366,6 +368,7 @@ export default function Orcamentos() {
         produto_id: produtoId,
         motor_id: motorId,
         acessorio_ids: Array.from(acessoriosSelecionados),
+        quantidade,
         valor_total: total,
         validade_dias: empresa?.validade_orcamento_dias ?? 15,
         data_prevista_entrega: dataPrevistaEntrega || null,
@@ -827,8 +830,27 @@ export default function Orcamentos() {
                           <dd className="font-mono text-hull-900">{formatBRL(a.preco)}</dd>
                         </div>
                       ))}
+                  <div className="flex justify-between px-4 py-2.5 text-sm">
+                    <dt className="text-slate-500">Quantidade</dt>
+                    <dd className="flex items-center gap-1 font-mono text-hull-900">
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={quantidade}
+                        onChange={(e) => setQuantidade(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-16 rounded border-0 bg-transparent text-right font-mono text-hull-900 focus:outline-none focus:ring-1 focus:ring-wake-400"
+                      />
+                    </dd>
+                  </div>
+                  {quantidade > 1 && (
+                    <div className="flex justify-between px-4 py-2.5 text-xs">
+                      <dt className="text-slate-400">Subtotal por unidade</dt>
+                      <dd className="font-mono text-slate-500">{formatBRL(subtotalUnitario)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between px-4 py-3 text-sm font-medium">
-                    <dt className="text-hull-900">Total</dt>
+                    <dt className="text-hull-900">Total{quantidade > 1 ? ` (${quantidade}x)` : ''}</dt>
                     <dd className="font-mono text-hull-900">{formatBRL(total)}</dd>
                   </div>
                   {entradaPercentual > 0 && (
@@ -1022,6 +1044,12 @@ export default function Orcamentos() {
                   <dd className="font-mono">{formatBRL(totalAcessorios)}</dd>
                 </div>
               </>
+            )}
+            {quantidade > 1 && (
+              <div className="flex justify-between">
+                <dt className="text-slate-400">Quantidade</dt>
+                <dd className="font-mono">×{quantidade}</dd>
+              </div>
             )}
           </dl>
         </aside>

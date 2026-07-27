@@ -214,6 +214,7 @@ export interface Orcamento {
   cliente_id: string
   produto_id: string
   motor_id: string
+  quantidade: number
   valor_total: number
   status: 'Rascunho' | 'Enviado' | 'Aprovado'
   criado_em: string

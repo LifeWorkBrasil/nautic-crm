@@ -605,6 +605,7 @@ export async function criarOrcamento(input: {
   produto_id: string
   motor_id: string | null
   acessorio_ids: string[]
+  quantidade: number
   valor_total: number
   validade_dias: number
   data_prevista_entrega: string | null
@@ -629,6 +630,7 @@ export async function criarOrcamento(input: {
       cliente_id: input.cliente_id,
       produto_id: input.produto_id,
       motor_id: input.motor_id,
+      quantidade: input.quantidade,
       valor_total: input.valor_total,
       status: 'Rascunho',
       validade: validade.toISOString(),
