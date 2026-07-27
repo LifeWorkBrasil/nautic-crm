@@ -14,6 +14,7 @@ import Orcamentos from './pages/Orcamentos'
 import Empresa from './pages/Empresa'
 import Marketing from './pages/Marketing'
 import Admin from './pages/Admin'
+import Relatorios from './pages/Relatorios'
 import ProdutoPublico from './pages/ProdutoPublico'
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/empresa" element={<Empresa />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/relatorios" element={<Relatorios />} />
           </Route>
         </Route>
       )}

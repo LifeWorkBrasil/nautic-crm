@@ -16,6 +16,7 @@ import {
   Megaphone,
   Handshake,
   ShieldCheck,
+  BarChart3,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
@@ -195,6 +196,29 @@ export default function Layout() {
                     strokeWidth={1.75}
                   />
                   <span className={isActive ? 'wake-underline' : ''}>Admin</span>
+                </>
+              )}
+            </NavLink>
+          )}
+
+          {perfil?.is_admin && (
+            <NavLink
+              to="/relatorios"
+              className={({ isActive }) =>
+                `group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
+                  isActive
+                    ? 'bg-hull-800 text-foam-50'
+                    : 'text-slate-400 hover:bg-hull-800/60 hover:text-foam-100'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <BarChart3
+                    className={`h-4 w-4 shrink-0 ${isActive ? 'text-brass-400' : 'text-slate-400 group-hover:text-brass-400'}`}
+                    strokeWidth={1.75}
+                  />
+                  <span className={isActive ? 'wake-underline' : ''}>Relatórios</span>
                 </>
               )}
             </NavLink>
