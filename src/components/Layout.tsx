@@ -50,7 +50,7 @@ export default function Layout() {
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
   const [grupoAberto, setGrupoAberto] = useState<string | null>(null)
   const [alterandoSenha, setAlterandoSenha] = useState(false)
-  const { perfil, usaCaptacao, temPermissao, temAlgumaPermissao } = usePermissoes()
+  const { perfil, usaCaptacao, usaMotores, temPermissao, temAlgumaPermissao } = usePermissoes()
 
   function itemVisivel(permissao: string): boolean {
     if (permissao === 'parametrizacao') return temAlgumaPermissao('parametrizacao:')
@@ -203,8 +203,10 @@ export default function Layout() {
 
         <div className="mt-auto px-6 py-6">
           <p className="text-[11px] leading-relaxed text-slate-400">
-            <span className="text-brass-400/90 font-medium">Casco parametrizado.</span> Preços e
-            produtos vêm do Supabase — nada fica hardcoded na proposta.
+            <span className="text-brass-400/90 font-medium">
+              {usaMotores ? 'Casco parametrizado.' : 'Catálogo parametrizado.'}
+            </span>{' '}
+            Preços e produtos vêm do Supabase — nada fica hardcoded na proposta.
           </p>
           <button
             onClick={() => setAlterandoSenha(true)}

@@ -794,7 +794,9 @@ export default function Orcamentos() {
 
                 <dl className="divide-y divide-foam-200 rounded-md border border-foam-200">
                   <div className="flex justify-between px-4 py-2.5 text-sm">
-                    <dt className="text-slate-500">Casco {produto?.nome}</dt>
+                    <dt className="text-slate-500">
+                      {usaMotores ? 'Casco' : 'Produto'} {produto?.nome}
+                    </dt>
                     <dd className="flex items-center gap-1 font-mono text-hull-900">
                       R$
                       <input
@@ -1023,7 +1025,7 @@ export default function Orcamentos() {
           <p className="mt-1 font-display text-3xl text-foam-50">{formatBRL(total)}</p>
           <dl className="mt-4 space-y-1.5 border-t border-hull-800 pt-4 text-xs">
             <div className="flex justify-between">
-              <dt className="text-slate-400">Casco</dt>
+              <dt className="text-slate-400">{usaMotores ? 'Casco' : 'Produto'}</dt>
               <dd className="font-mono">{formatBRL(produto?.preco_base ?? 0)}</dd>
             </div>
             {!pularConfiguracao && (
