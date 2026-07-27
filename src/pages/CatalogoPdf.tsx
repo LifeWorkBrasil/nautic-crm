@@ -22,7 +22,7 @@ import type {
   EmpresaConfig,
 } from '@/types'
 
-const MAX_FOTOS_POR_PRODUTO = 6
+const MAX_FOTOS_POR_PRODUTO = 10
 
 function formatarValorCampo(campo: CampoPersonalizado, valor: string | number | boolean | null): string | null {
   if (valor === null || valor === undefined || valor === '') return null
