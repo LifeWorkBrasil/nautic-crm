@@ -10,6 +10,8 @@ import {
   FileSignature,
   Minimize2,
   Maximize2,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
@@ -29,6 +31,9 @@ import {
   listOrcamentosCliente,
   listContrapropostasCliente,
   criarContraproposta,
+  listLeadsLixeira,
+  excluirLead,
+  restaurarLead,
 } from '@/lib/api'
 import type {
   ClienteLead,
@@ -148,6 +153,11 @@ export default function CRM() {
   const [mostrandoGerarContratoPara, setMostrandoGerarContratoPara] = useState<ClienteLead | null>(
     null
   )
+  const [excluindoId, setExcluindoId] = useState<string | null>(null)
+  const [mostrandoLixeira, setMostrandoLixeira] = useState(false)
+  const [lixeira, setLixeira] = useState<ClienteLead[]>([])
+  const [carregandoLixeira, setCarregandoLixeira] = useState(false)
+  const [restaurandoId, setRestaurandoId] = useState<string | null>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -214,6 +224,42 @@ export default function CRM() {
       setErro(e instanceof Error ? e.message : 'Erro ao assumir lead')
     } finally {
       setAssumindo(false)
+    }
+  }
+
+  async function handleExcluirLead(lead: ClienteLead) {
+    if (!confirm(`Excluir "${lead.nome}"? Fica na lixeira por 24h, depois some de vez.`)) return
+    setExcluindoId(lead.id)
+    try {
+      await excluirLead(lead.id)
+      setLeads((prev) => prev.filter((l) => l.id !== lead.id))
+      if (editando?.id === lead.id) setEditando(null)
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao excluir cliente')
+    } finally {
+      setExcluindoId(null)
+    }
+  }
+
+  function abrirLixeira() {
+    setMostrandoLixeira(true)
+    setCarregandoLixeira(true)
+    listLeadsLixeira()
+      .then(setLixeira)
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar lixeira'))
+      .finally(() => setCarregandoLixeira(false))
+  }
+
+  async function handleRestaurar(lead: ClienteLead) {
+    setRestaurandoId(lead.id)
+    try {
+      await restaurarLead(lead.id)
+      setLixeira((prev) => prev.filter((l) => l.id !== lead.id))
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao restaurar cliente')
+    } finally {
+      setRestaurandoId(null)
     }
   }
 
@@ -383,6 +429,13 @@ export default function CRM() {
             {modoCompacto ? 'Cards completos' : 'Cards compactos'}
           </button>
           <button
+            onClick={abrirLixeira}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+            Lixeira
+          </button>
+          <button
             onClick={() => setCriando(true)}
             className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
           >
@@ -500,6 +553,14 @@ export default function CRM() {
                           <FileSignature className="h-3 w-3" strokeWidth={1.75} />
                         </button>
                       )}
+                      <button
+                        onClick={() => handleExcluirLead(lead)}
+                        disabled={excluindoId === lead.id}
+                        title="Excluir"
+                        className="flex items-center gap-1 text-[11px] hover:text-signal-red disabled:opacity-40"
+                      >
+                        <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+                      </button>
                       <span className="ml-auto font-mono text-[11px]">
                         {new Date(lead.criado_em).toLocaleDateString('pt-BR')}
                       </span>
@@ -1077,6 +1138,56 @@ export default function CRM() {
           clienteIdInicial={mostrandoGerarContratoPara.id}
           onClose={() => setMostrandoGerarContratoPara(null)}
         />
+      )}
+
+      {mostrandoLixeira && (
+        <Modal title="Lixeira" onClose={() => setMostrandoLixeira(false)} size="md">
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">
+              Clientes excluídos ficam aqui por 24h antes de serem apagados de vez.
+            </p>
+            {carregandoLixeira ? (
+              <p className="text-sm text-slate-400">Carregando…</p>
+            ) : lixeira.length === 0 ? (
+              <p className="text-sm text-slate-400">Lixeira vazia.</p>
+            ) : (
+              <ul className="space-y-2">
+                {lixeira.map((lead) => {
+                  const horasRestantes = Math.max(
+                    0,
+                    (new Date(lead.deletado_em!).getTime() +
+                      24 * 60 * 60 * 1000 -
+                      Date.now()) /
+                      (1000 * 60 * 60)
+                  )
+                  return (
+                    <li
+                      key={lead.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-foam-200 p-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-hull-900">{lead.nome}</p>
+                        <p className="text-[11px] text-slate-400">
+                          {horasRestantes < 1
+                            ? 'Some em menos de 1h'
+                            : `Some em ${Math.round(horasRestantes)}h`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRestaurar(lead)}
+                        disabled={restaurandoId === lead.id}
+                        className="flex shrink-0 items-center gap-1.5 rounded-md border border-foam-200 px-3 py-1.5 text-xs text-hull-900 hover:border-wake-400 disabled:opacity-50"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        {restaurandoId === lead.id ? 'Restaurando…' : 'Restaurar'}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   )

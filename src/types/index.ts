@@ -28,6 +28,7 @@ export interface ClienteLead {
   pessoa_juridica_id?: string | null
   proximo_contato?: string | null
   vendedor_id?: string | null
+  deletado_em?: string | null
 }
 
 export interface UsuarioPerfil {

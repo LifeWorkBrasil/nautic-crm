@@ -540,9 +540,33 @@ export async function listLeads(): Promise<ClienteLead[]> {
   const { data, error } = await supabase
     .from('clientes_leads')
     .select('*')
+    .is('deletado_em', null)
     .order('criado_em', { ascending: false })
   if (error) throw error
   return data ?? []
+}
+
+export async function listLeadsLixeira(): Promise<ClienteLead[]> {
+  const { data, error } = await supabase
+    .from('clientes_leads')
+    .select('*')
+    .not('deletado_em', 'is', null)
+    .order('deletado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function excluirLead(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('clientes_leads')
+    .update({ deletado_em: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function restaurarLead(id: string): Promise<void> {
+  const { error } = await supabase.from('clientes_leads').update({ deletado_em: null }).eq('id', id)
+  if (error) throw error
 }
 
 export async function createLead(
