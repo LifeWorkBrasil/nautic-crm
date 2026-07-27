@@ -17,6 +17,7 @@ import {
   Handshake,
   ShieldCheck,
   BarChart3,
+  FileDown,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { listCategorias, listSubcategorias } from '@/lib/api'
@@ -42,6 +43,7 @@ const NAV_ITEMS_FIXOS = [
   { to: '/parametrizacao', label: 'Parametrização', icon: Settings2, permissao: 'parametrizacao' },
   { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText, permissao: 'orcamentos' },
   { to: '/marketing', label: 'Marketing', icon: Megaphone, permissao: 'marketing' },
+  { to: '/catalogo-pdf', label: 'Catálogo PDF', icon: FileDown, permissao: 'catalogo_pdf' },
   { to: '/empresa', label: 'Empresa & Marca', icon: Building2, permissao: 'empresa' },
 ]
 

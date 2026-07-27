@@ -807,6 +807,23 @@ export async function updateOrcamento(
   }
 }
 
+// ---------- Catálogo em PDF ----------
+
+export async function listTodasFotosProdutos(): Promise<FotoProduto[]> {
+  const { data, error } = await supabase
+    .from('fotos_produto')
+    .select('*')
+    .order('principal', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listTodosItensInclusos(): Promise<ProdutoItemIncluso[]> {
+  const { data, error } = await supabase.from('produto_itens_inclusos').select('*')
+  if (error) throw error
+  return data ?? []
+}
+
 // ---------- Relatórios ----------
 
 export async function listHistoricoPorPeriodo(

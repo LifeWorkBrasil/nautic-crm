@@ -15,6 +15,7 @@ import Empresa from './pages/Empresa'
 import Marketing from './pages/Marketing'
 import Admin from './pages/Admin'
 import Relatorios from './pages/Relatorios'
+import CatalogoPdf from './pages/CatalogoPdf'
 import ProdutoPublico from './pages/ProdutoPublico'
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/parametrizacao" element={<Parametrizacao />} />
             <Route path="/orcamentos" element={<Orcamentos />} />
             <Route path="/marketing" element={<Marketing />} />
+            <Route path="/catalogo-pdf" element={<CatalogoPdf />} />
             <Route path="/empresa" element={<Empresa />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/relatorios" element={<Relatorios />} />
