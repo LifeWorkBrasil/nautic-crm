@@ -4,6 +4,14 @@ Documento de transição para continuar o desenvolvimento no Claude Code. Este p
 iniciado numa conversa no claude.ai (chat), incluindo criação real de infraestrutura no
 Supabase. Tudo abaixo reflete o estado real do sistema, não um plano hipotético.
 
+> ⚠️ **Este documento está desatualizado em relação ao schema atual.** As seções 2–4 abaixo
+> descrevem o estado de `supabase/migrations/0001` e `0002`, mas o projeto já tem 40
+> migrações (`supabase/migrations/`) — incluindo multi-tenancy completo (tabela `empresas`,
+> `empresa_id` em todas as tabelas, RLS reescrita), módulo de Marketing/Instagram (posts,
+> agendamento, geração de Reels) e mais. Antes de assumir que a seção 2–4 é o estado atual,
+> confira `supabase/migrations/` e `src/pages/`. A seção 5 (backlog) segue recebendo itens
+> novos conforme surgem.
+
 ---
 
 ## 1. O que é o projeto
@@ -158,6 +166,42 @@ Em ordem de valor prático, mas ajustável:
    responsivo básico (`sm:`, `md:`, `lg:`), mas não houve validação dedicada em telas
    pequenas.
 7. **Testes automatizados** — não existem ainda (nem unitários nem e2e).
+8. **Gerar Flyer (imagem) para Instagram a partir do Banco de Mídia** — pedido pelo usuário
+   em conversa fora deste repo (2026-07-27), depois de eu ter prototipado localmente (Node,
+   fora do sistema) remoção de fundo + montagem de flyer pra um tenant (CuraLabs3D). Spec
+   levantada nessa conversa, pronta pra implementar:
+   - **Onde entra na UI**: botão "Gerar Flyer" ao lado de "Gerar Reels" em `Marketing.tsx`
+     (o botão "Gerar Reels" está por volta da linha 576, abre `GerarReelsModal.tsx`). Um
+     `GerarFlyerModal.tsx` novo seguindo o mesmo padrão (recebe `fotoUrls`/`legenda`, mostra
+     preview, publica).
+   - **Remoção de fundo**: usar `@imgly/background-removal` (pacote **browser**, WASM/ONNX
+     Runtime Web — não confundir com `@imgly/background-removal-node`, que é binding nativo
+     e não roda em navegador). Mesma filosofia do `gerarReels.ts`: tudo no cliente, sem
+     serviço externo. Primeira execução baixa o modelo (~40–80MB); vale cachear
+     (Cache API/IndexedDB) pra não repetir o download a cada uso.
+   - **Composição do flyer**: usar `<canvas>` 2D, no mesmo padrão de `desenharImagemCover()`
+     em `src/lib/gerarReels.ts` (que já faz cover-fit de imagem em canvas). Não dá pra reusar
+     a abordagem SVG+`sharp` do protótipo Node — texto customizado no canvas via `FontFace`
+     API carregando `.ttf` como asset estático do projeto.
+   - **Branding dinâmico por tenant**: puxar `nome_empresa` e `logo_url` de
+     `empresa_config`/`empresas` (já existem, migração 0002/0021). **Faltam campos**: cor
+     primária/destaque de marca e URL do site não têm coluna hoje — ou cria
+     `cor_primaria`/`site_url` em migração nova, ou usa paleta neutra fixa configurável por
+     enquanto. O @ do Instagram **não precisa de campo novo**: já dá pra pegar de
+     `getInstagramStatus().instagram_username` (conta conectada via OAuth).
+   - **Upload e publicação**: reaproveita o fluxo existente, sem edge function nova. Criar
+     `uploadFlyerMarketing(empresaId, postId, blob)` em `src/lib/api.ts` análogo a
+     `uploadVideoReels()` (linha ~1190), fazer upload pro Storage, atualizar `foto_urls` do
+     post com a URL do flyer, e seguir com `publicarNoInstagram(postId)` normalmente (essa
+     função já publica posts de imagem a partir de `foto_urls` — só o Reels precisa de rota
+     própria porque vídeo no Graph API tem upload resumível).
+   - **Variante extra pedida**: template "antes/depois" (peça danificada vs. peça
+     fabricada), pro caso de uso de reposição/reparo sob encomenda. Provavelmente um segundo
+     template opcional, não o padrão — usuário escolhe qual template ao gerar.
+   - **Protótipo de referência** (fora deste repo, ambiente local do usuário, não é código
+     pra copiar — roda em Node, não no navegador): scripts em
+     `%TEMP%\claude\...\scratchpad\bgremoval\` (`flyer.mjs`, `studio.mjs`,
+     `comparison.mjs`) — úteis como referência de layout/proporções/paleta.
 
 ---
 
