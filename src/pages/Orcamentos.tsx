@@ -72,7 +72,7 @@ const CHECKLIST_VAZIO: ChecklistEditavel = {
 }
 
 export default function Orcamentos() {
-  const { ramoNautico } = usePermissoes()
+  const { ramoNautico, usaMotores } = usePermissoes()
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -211,7 +211,11 @@ export default function Orcamentos() {
   }, [produtos, subcategorias, categorias, grupos, buscaProduto])
   const subcategoriaSelecionada = subcategorias.find((s) => s.id === produto?.subcategoria_id)
   const vendidoComoEsta = subcategoriaSelecionada?.vendido_como_esta ?? false
-  const pularConfiguracao = !(subcategoriaSelecionada?.requer_motor ?? true)
+  const requerMotorProduto = subcategoriaSelecionada?.requer_motor ?? true
+  // Passos do assistente (Motorização/Opcionais) seguem a preferência do tenant como um todo, não
+  // do produto selecionado — evita a barra de passos "pular" quando o produto muda. requer_motor
+  // por subcategoria continua controlando só o campo Comprimento e o checklist náutico.
+  const pularConfiguracao = !usaMotores
   const passosAtivos = pularConfiguracao
     ? PASSOS_BASE.filter((p) => p !== 'Motorização' && p !== 'Opcionais')
     : PASSOS_BASE
@@ -702,7 +706,7 @@ export default function Orcamentos() {
                   )}
                 </div>
 
-                {vendidoComoEsta && !pularConfiguracao && (
+                {vendidoComoEsta && requerMotorProduto && (
                   <div className="rounded-md border border-foam-200 p-4">
                     <p className="mb-2 text-sm font-medium text-hull-900">
                       Barco vendido como está — dados do checklist
