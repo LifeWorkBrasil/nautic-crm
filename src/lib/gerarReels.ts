@@ -1,7 +1,8 @@
 // Gera um vídeo curto no formato Reels (9:16) a partir das fotos de um post — um slideshow
 // simples, gravado direto no navegador via Canvas + MediaRecorder, sem depender de nenhum
-// serviço externo. A trilha de fundo é sintetizada por código (Web Audio API), nunca uma
-// amostra de música de terceiros — evita qualquer questão de direito autoral.
+// serviço externo. A trilha de fundo é sintetizada por código (Web Audio API) ou, se o usuário
+// escolher, um arquivo de áudio próprio enviado do computador (a responsabilidade sobre os
+// direitos autorais desse arquivo é de quem publica).
 
 export type EstiloTrilha = 'sem_musica' | 'calma' | 'energica' | 'corporativa'
 
@@ -71,7 +72,8 @@ function escolherMimeType(): string {
 export async function gerarVideoReels(
   fotoUrls: string[],
   estiloMusica: EstiloTrilha,
-  onProgresso?: (fracao: number) => void
+  onProgresso?: (fracao: number) => void,
+  arquivoAudio?: File | null
 ): Promise<Blob> {
   if (fotoUrls.length === 0) throw new Error('Este post não tem fotos para gerar o vídeo.')
 
@@ -88,7 +90,25 @@ export async function gerarVideoReels(
   const tracks: MediaStreamTrack[] = [...videoStream.getVideoTracks()]
 
   let audioCtx: AudioContext | null = null
-  if (estiloMusica !== 'sem_musica') {
+  if (arquivoAudio) {
+    audioCtx = new AudioContext()
+    let buffer: AudioBuffer
+    try {
+      buffer = await audioCtx.decodeAudioData(await arquivoAudio.arrayBuffer())
+    } catch {
+      throw new Error('Não foi possível ler esse arquivo de áudio. Tente um MP3, WAV ou M4A.')
+    }
+    const destino = audioCtx.createMediaStreamDestination()
+    const fonte = audioCtx.createBufferSource()
+    fonte.buffer = buffer
+    fonte.loop = true
+    const ganho = audioCtx.createGain()
+    ganho.gain.value = 0.8
+    fonte.connect(ganho)
+    ganho.connect(destino)
+    fonte.start()
+    tracks.push(...destino.stream.getAudioTracks())
+  } else if (estiloMusica !== 'sem_musica') {
     const buffer = await gerarTrilha(estiloMusica, duracaoTotal)
     audioCtx = new AudioContext()
     const destino = audioCtx.createMediaStreamDestination()
