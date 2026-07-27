@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck, FileSignature } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
@@ -107,6 +108,7 @@ type ContrapropostaComItens = Contraproposta & {
 
 export default function CRM() {
   const { perfil, ramoNautico } = usePermissoes()
+  const navigate = useNavigate()
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -815,8 +817,17 @@ export default function CRM() {
               ) : (
                 <ul className="mb-3 space-y-1 text-sm text-slate-600">
                   {orcamentosCliente.map((o) => (
-                    <li key={o.id}>
-                      {o.produto?.nome ?? 'Produto'} — {formatBRL(o.valor_total)} ({o.status})
+                    <li key={o.id} className="flex items-center justify-between gap-2">
+                      <span>
+                        {o.produto?.nome ?? 'Produto'} — {formatBRL(o.valor_total)} ({o.status})
+                      </span>
+                      <button
+                        onClick={() => navigate(`/orcamentos?editar=${o.id}`)}
+                        className="flex shrink-0 items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                      >
+                        <Pencil className="h-3 w-3" strokeWidth={1.75} />
+                        Editar
+                      </button>
                     </li>
                   ))}
                 </ul>

@@ -665,21 +665,121 @@ export async function criarOrcamento(input: {
   return orcamento
 }
 
-export async function listOrcamentosCliente(clienteId: string): Promise<OrcamentoDetalhado[]> {
-  const { data, error } = await supabase
-    .from('orcamentos')
-    .select('*, produtos(*), motores(*), orcamentos_parcelas(*)')
-    .eq('cliente_id', clienteId)
-    .order('criado_em', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(({ produtos, motores, orcamentos_parcelas, ...orcamento }) => ({
+const ORCAMENTO_DETALHADO_SELECT =
+  '*, produtos(*), motores(*), orcamentos_parcelas(*), orcamentos_acessorios(acessorio_id)'
+
+function mapOrcamentoDetalhado({
+  produtos,
+  motores,
+  orcamentos_parcelas,
+  orcamentos_acessorios,
+  ...orcamento
+}: any): OrcamentoDetalhado {
+  return {
     ...orcamento,
     produto: produtos ?? null,
     motor: motores ?? null,
     parcelas: (orcamentos_parcelas ?? []).sort(
       (a: ParcelaOrcamento, b: ParcelaOrcamento) => a.numero - b.numero
     ),
-  }))
+    acessorio_ids: (orcamentos_acessorios ?? []).map((a: { acessorio_id: string }) => a.acessorio_id),
+  }
+}
+
+export async function listOrcamentosCliente(clienteId: string): Promise<OrcamentoDetalhado[]> {
+  const { data, error } = await supabase
+    .from('orcamentos')
+    .select(ORCAMENTO_DETALHADO_SELECT)
+    .eq('cliente_id', clienteId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(mapOrcamentoDetalhado)
+}
+
+export async function getOrcamento(id: string): Promise<OrcamentoDetalhado | null> {
+  const { data, error } = await supabase
+    .from('orcamentos')
+    .select(ORCAMENTO_DETALHADO_SELECT)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data ? mapOrcamentoDetalhado(data) : null
+}
+
+export async function updateOrcamento(
+  id: string,
+  input: {
+    cliente_id: string
+    produto_id: string
+    motor_id: string | null
+    acessorio_ids: string[]
+    quantidade: number
+    valor_total: number
+    validade_dias: number
+    data_prevista_entrega: string | null
+    entrada_percentual: number
+    parcelas: { percentual: number }[]
+  }
+) {
+  const somaPercentuais =
+    input.entrada_percentual + input.parcelas.reduce((soma, p) => soma + p.percentual, 0)
+  if (Math.abs(somaPercentuais - 100) > 0.01) {
+    throw new Error('A soma da entrada e das parcelas deve totalizar 100%.')
+  }
+
+  const validade = new Date()
+  validade.setDate(validade.getDate() + input.validade_dias)
+
+  const valorPorPercentual = (percentual: number) =>
+    Math.round(input.valor_total * (percentual / 100) * 100) / 100
+
+  const { error } = await supabase
+    .from('orcamentos')
+    .update({
+      cliente_id: input.cliente_id,
+      produto_id: input.produto_id,
+      motor_id: input.motor_id,
+      quantidade: input.quantidade,
+      valor_total: input.valor_total,
+      validade: validade.toISOString(),
+      data_prevista_entrega: input.data_prevista_entrega,
+      entrada_percentual: input.entrada_percentual,
+      entrada_valor: valorPorPercentual(input.entrada_percentual),
+    })
+    .eq('id', id)
+  if (error) throw error
+
+  const { error: delAcessoriosError } = await supabase
+    .from('orcamentos_acessorios')
+    .delete()
+    .eq('orcamento_id', id)
+  if (delAcessoriosError) throw delAcessoriosError
+
+  if (input.acessorio_ids.length > 0) {
+    const linhas = input.acessorio_ids.map((acessorio_id) => ({
+      orcamento_id: id,
+      acessorio_id,
+    }))
+    const { error: relError } = await supabase.from('orcamentos_acessorios').insert(linhas)
+    if (relError) throw relError
+  }
+
+  const { error: delParcelasError } = await supabase
+    .from('orcamentos_parcelas')
+    .delete()
+    .eq('orcamento_id', id)
+  if (delParcelasError) throw delParcelasError
+
+  if (input.parcelas.length > 0) {
+    const linhasParcelas = input.parcelas.map((p, i) => ({
+      orcamento_id: id,
+      numero: i + 1,
+      percentual: p.percentual,
+      valor: valorPorPercentual(p.percentual),
+    }))
+    const { error: parcelasError } = await supabase.from('orcamentos_parcelas').insert(linhasParcelas)
+    if (parcelasError) throw parcelasError
+  }
 }
 
 // ---------- Configuração da empresa ----------

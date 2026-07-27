@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2, MessageCircle, Sparkles, Search } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Check, FileDown, Link2, ChevronRight, Building2, FileText, Plus, Trash2, MessageCircle, Sparkles, Search, Pencil } from 'lucide-react'
 import {
   listProdutos,
   listMotores,
   listAcessorios,
   listLeads,
   criarOrcamento,
+  updateOrcamento,
+  getOrcamento,
   getEmpresaConfig,
   listManuaisProduto,
   listCategorias,
@@ -73,6 +76,10 @@ const CHECKLIST_VAZIO: ChecklistEditavel = {
 
 export default function Orcamentos() {
   const { ramoNautico, usaMotores } = usePermissoes()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const editandoId = searchParams.get('editar')
+  const [carregandoEdicao, setCarregandoEdicao] = useState(!!editandoId)
+  const precoCascoOverride = useRef<number | null | undefined>(undefined)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -185,7 +192,12 @@ export default function Orcamentos() {
       horas_uso: produto.horas_uso ?? '',
       ultima_revisao: produto.ultima_revisao ?? '',
     })
-    setPrecoCasco(produto.preco_base)
+    if (precoCascoOverride.current !== undefined) {
+      setPrecoCasco(precoCascoOverride.current)
+      precoCascoOverride.current = undefined
+    } else {
+      setPrecoCasco(produto.preco_base)
+    }
   }, [produtoId])
 
   const produtosFiltrados = useMemo(() => {
@@ -224,6 +236,45 @@ export default function Orcamentos() {
     setPasso((p) => Math.min(p, passosAtivos.length - 1))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passosAtivos.length])
+
+  useEffect(() => {
+    if (!editandoId || carregando) return
+    let cancelado = false
+    getOrcamento(editandoId)
+      .then((data) => {
+        if (!data || cancelado) return
+        const motorPreco = data.motor?.preco ?? 0
+        const acessoriosPreco = data.acessorio_ids.reduce(
+          (soma, id) => soma + (acessorios.find((a) => a.id === id)?.preco ?? 0),
+          0
+        )
+        const qtd = data.quantidade > 0 ? data.quantidade : 1
+        precoCascoOverride.current = data.valor_total / qtd - motorPreco - acessoriosPreco
+        setClienteId(data.cliente_id)
+        setMotorId(data.motor_id)
+        setAcessoriosSelecionados(new Set(data.acessorio_ids))
+        setQuantidade(qtd)
+        setDataPrevistaEntrega(data.data_prevista_entrega ?? '')
+        setEntradaPercentual(data.entrada_percentual)
+        setParcelas(data.parcelas.map((p) => ({ percentual: p.percentual })))
+        setProdutoId(data.produto_id)
+      })
+      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar orçamento para edição'))
+      .finally(() => {
+        if (!cancelado) setCarregandoEdicao(false)
+      })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editandoId, carregando])
+
+  useEffect(() => {
+    if (editandoId && !carregandoEdicao) {
+      setPasso(passosAtivos.length - 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregandoEdicao])
 
   const acessoriosDisponiveis = useMemo(
     () =>
@@ -356,7 +407,7 @@ export default function Orcamentos() {
     if (!clienteId || !produtoId) return
     setSalvando(true)
     try {
-      await criarOrcamento({
+      const payload = {
         cliente_id: clienteId,
         produto_id: produtoId,
         motor_id: motorId,
@@ -367,7 +418,12 @@ export default function Orcamentos() {
         data_prevista_entrega: dataPrevistaEntrega || null,
         entrada_percentual: entradaPercentual,
         parcelas,
-      })
+      }
+      if (editandoId) {
+        await updateOrcamento(editandoId, payload)
+      } else {
+        await criarOrcamento(payload)
+      }
       setSalvo(true)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao salvar orçamento')
@@ -383,7 +439,7 @@ export default function Orcamentos() {
     (passosAtivos[passo] === 'Pagamento' && pagamentoValido) ||
     passosAtivos[passo] === 'Visualização & Envio'
 
-  if (carregando) {
+  if (carregando || carregandoEdicao) {
     return <div className="p-8 text-sm text-slate-400">Carregando dados…</div>
   }
 
@@ -396,6 +452,21 @@ export default function Orcamentos() {
         <h1 className="wake-underline mt-1 inline-block font-display text-3xl text-hull-900">
           Gerador de orçamentos
         </h1>
+        {editandoId && (
+          <p className="mt-2 flex items-center gap-1.5 text-sm text-brass-500">
+            <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Editando proposta já salva no CRM —{' '}
+            <button
+              onClick={() => {
+                setSearchParams({})
+                window.location.reload()
+              }}
+              className="underline hover:text-hull-900"
+            >
+              começar um orçamento novo
+            </button>
+          </p>
+        )}
       </header>
 
       {erro && (
@@ -907,7 +978,15 @@ export default function Orcamentos() {
                   className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2.5 text-sm font-medium text-hull-900 hover:border-wake-400 disabled:opacity-60"
                 >
                   {salvo ? <Check className="h-4 w-4" strokeWidth={2} /> : null}
-                  {salvo ? 'Orçamento salvo' : salvando ? 'Salvando…' : 'Salvar no CRM'}
+                  {salvo
+                    ? editandoId
+                      ? 'Orçamento atualizado'
+                      : 'Orçamento salvo'
+                    : salvando
+                      ? 'Salvando…'
+                      : editandoId
+                        ? 'Salvar alterações'
+                        : 'Salvar no CRM'}
                 </button>
                 <button
                   onClick={abrirEnvioWhatsapp}
@@ -994,7 +1073,9 @@ export default function Orcamentos() {
               )}
               {salvo && (
                 <p className="text-xs text-signal-green">
-                  Orçamento gravado em "Rascunho" — o PDF ainda não está implementado nesta versão.
+                  {editandoId
+                    ? 'Alterações gravadas no orçamento existente.'
+                    : 'Orçamento gravado em "Rascunho" — o PDF ainda não está implementado nesta versão.'}
                 </p>
               )}
             </div>

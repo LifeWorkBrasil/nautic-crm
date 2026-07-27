@@ -354,4 +354,5 @@ export interface OrcamentoDetalhado extends Orcamento {
   produto: Produto | null
   motor: Motor | null
   parcelas: ParcelaOrcamento[]
+  acessorio_ids: string[]
 }
