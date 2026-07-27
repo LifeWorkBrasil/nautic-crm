@@ -30,6 +30,7 @@ import {
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import GerarReelsModal from '@/components/GerarReelsModal'
+import PreviewPublicacaoModal from '@/components/PreviewPublicacaoModal'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
 const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
@@ -75,6 +76,8 @@ export default function Marketing() {
   const [publicandoId, setPublicandoId] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState(false)
   const [gerandoReelsPost, setGerandoReelsPost] = useState<PostMarketing | null>(null)
+  const [previewPost, setPreviewPost] = useState<PostMarketing | null>(null)
+  const [erroPreview, setErroPreview] = useState<string | null>(null)
 
   const [itensAbertos, setItensAbertos] = useState<Set<string>>(new Set())
   const [agendandoItemId, setAgendandoItemId] = useState<string | null>(null)
@@ -217,9 +220,10 @@ export default function Marketing() {
     }
   }
 
-  async function handlePublicarInstagram(postId: string) {
+  async function handlePublicarInstagram(postId: string): Promise<boolean> {
     setPublicandoId(postId)
     setErro(null)
+    setErroPreview(null)
     try {
       const { media_id } = await publicarNoInstagram(postId)
       const atualiza = (p: PostMarketing) =>
@@ -228,11 +232,21 @@ export default function Marketing() {
           : p
       setPosts((prev) => prev.map(atualiza))
       setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+      return true
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao publicar no Instagram')
+      const mensagem = e instanceof Error ? e.message : 'Erro ao publicar no Instagram'
+      setErro(mensagem)
+      setErroPreview(mensagem)
+      return false
     } finally {
       setPublicandoId(null)
     }
+  }
+
+  async function handleConfirmarPreview() {
+    if (!previewPost) return
+    const ok = await handlePublicarInstagram(previewPost.id)
+    if (ok) setPreviewPost(null)
   }
 
   function handleReelsPublicado(postId: string, mediaId: string) {
@@ -544,12 +558,14 @@ export default function Marketing() {
                     )}
                     {ultimoPostSalvo && instagram?.conectado && !ultimoPostSalvo.instagram_media_id && (
                       <button
-                        onClick={() => handlePublicarInstagram(ultimoPostSalvo.id)}
-                        disabled={publicandoId === ultimoPostSalvo.id}
+                        onClick={() => {
+                          setErroPreview(null)
+                          setPreviewPost(ultimoPostSalvo)
+                        }}
                         className="flex items-center gap-2 rounded-md bg-brass-400 px-3 py-2 text-sm font-medium text-hull-900 hover:bg-brass-500 disabled:opacity-50"
                       >
                         <Instagram className="h-4 w-4" strokeWidth={1.75} />
-                        {publicandoId === ultimoPostSalvo.id ? 'Publicando…' : 'Publicar no Instagram'}
+                        Pré-visualizar e publicar
                       </button>
                     )}
                     {ultimoPostSalvo &&
@@ -709,12 +725,14 @@ export default function Marketing() {
                         )}
                         {podePublicar && !publicado && (
                           <button
-                            onClick={() => handlePublicarInstagram(post.id)}
-                            disabled={publicandoId === post.id}
+                            onClick={() => {
+                              setErroPreview(null)
+                              setPreviewPost(post)
+                            }}
                             className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-50"
                           >
                             <Instagram className="h-4 w-4" strokeWidth={1.75} />
-                            {publicandoId === post.id ? 'Publicando…' : 'Publicar agora'}
+                            Pré-visualizar e publicar
                           </button>
                         )}
                         {podePublicar && !agendado && (
@@ -778,8 +796,20 @@ export default function Marketing() {
         <GerarReelsModal
           postId={gerandoReelsPost.id}
           fotoUrls={gerandoReelsPost.foto_urls ?? []}
+          legenda={gerandoReelsPost.legenda_gerada}
           onClose={() => setGerandoReelsPost(null)}
           onPublicado={(mediaId) => handleReelsPublicado(gerandoReelsPost.id, mediaId)}
+        />
+      )}
+
+      {previewPost && (
+        <PreviewPublicacaoModal
+          fotoUrls={previewPost.foto_urls ?? []}
+          legenda={previewPost.legenda_gerada}
+          confirmando={publicandoId === previewPost.id}
+          erro={erroPreview}
+          onClose={() => setPreviewPost(null)}
+          onConfirmar={handleConfirmarPreview}
         />
       )}
     </div>

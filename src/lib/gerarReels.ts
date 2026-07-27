@@ -56,7 +56,9 @@ function carregarImagem(url: string): Promise<HTMLImageElement> {
 function desenharImagemCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement) {
   ctx.fillStyle = '#0a0f16'
   ctx.fillRect(0, 0, LARGURA, ALTURA)
-  const escala = Math.max(LARGURA / img.width, ALTURA / img.height)
+  // Math.min (contain) em vez de Math.max (cover): a foto inteira precisa caber na tela do Reels,
+  // sem cortar as bordas — sobra é preenchida com a cor de fundo (barras), nunca corta o produto.
+  const escala = Math.min(LARGURA / img.width, ALTURA / img.height)
   const larguraDesenho = img.width * escala
   const alturaDesenho = img.height * escala
   const x = (LARGURA - larguraDesenho) / 2
