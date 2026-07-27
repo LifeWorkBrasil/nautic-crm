@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { MessageCircle, Link2, Check, Copy } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
-import { listLeads, criarLinkPublicoProduto } from '@/lib/api'
+import { listLeads, criarLinkPublicoProduto, createLead, adicionarHistorico } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { formatPreco } from '@/lib/format'
 import type { ClienteLead, Produto, LinkPublicoProduto } from '@/types'
 
 const DIAS_VALIDADE_PADRAO = 14
+
+function normalizarTelefone(telefone: string): string {
+  const digitos = telefone.replace(/\D/g, '')
+  return digitos.startsWith('55') && digitos.length > 11 ? digitos.slice(2) : digitos
+}
 
 function montarMensagemPadrao(produto: Produto): string {
   const linhas = [
@@ -41,9 +46,11 @@ export default function EnviarWhatsappProdutoModal({
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState<string | null>(null)
   const [modoManual, setModoManual] = useState(false)
   const [telefoneManual, setTelefoneManual] = useState('')
+  const [nomeManual, setNomeManual] = useState('')
   const [mensagem, setMensagem] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [statusCrm, setStatusCrm] = useState<'idle' | 'salvando' | 'salvo' | 'erro'>('idle')
 
   const [expiraEm, setExpiraEm] = useState(() =>
     formatarDataInput(new Date(Date.now() + DIAS_VALIDADE_PADRAO * 24 * 60 * 60 * 1000))
@@ -102,6 +109,42 @@ export default function EnviarWhatsappProdutoModal({
     setTimeout(() => setCopiado(false), 1500)
   }
 
+  async function registrarEnvioNoCrm() {
+    setStatusCrm('salvando')
+    try {
+      let cliente = clienteSelecionado
+
+      if (!cliente && modoManual && telefoneManual.trim()) {
+        const alvo = normalizarTelefone(telefoneManual)
+        cliente = clientes.find((c) => c.telefone && normalizarTelefone(c.telefone) === alvo) ?? null
+
+        if (!cliente) {
+          cliente = await createLead({
+            nome: nomeManual.trim() || `Contato ${telefoneManual.trim()}`,
+            email: '',
+            telefone: telefoneManual.trim(),
+            status_crm: 'Lead',
+            origem: 'Envio de produto por WhatsApp',
+          })
+          setClientes((prev) => [cliente!, ...prev])
+        }
+      }
+
+      if (!cliente) {
+        setStatusCrm('idle')
+        return
+      }
+
+      const textoHistorico = linkGerado
+        ? `Enviado catálogo por WhatsApp: ${produto.nome} — ${montarUrlLink(linkGerado)}`
+        : `Enviado catálogo por WhatsApp: ${produto.nome}`
+      await adicionarHistorico(cliente.id, textoHistorico)
+      setStatusCrm('salvo')
+    } catch {
+      setStatusCrm('erro')
+    }
+  }
+
   return (
     <Modal title={`Enviar "${produto.nome}" por WhatsApp`} onClose={onClose} size="lg">
       {carregando ? (
@@ -134,7 +177,10 @@ export default function EnviarWhatsappProdutoModal({
           </div>
 
           {modoManual ? (
-            <CampoTexto label="Número de WhatsApp" value={telefoneManual} onChange={setTelefoneManual} />
+            <div className="grid grid-cols-2 gap-3">
+              <CampoTexto label="Número de WhatsApp" value={telefoneManual} onChange={setTelefoneManual} />
+              <CampoTexto label="Nome do cliente" value={nomeManual} onChange={setNomeManual} />
+            </div>
           ) : (
             <div className="space-y-2">
               <CampoTexto label="Buscar cliente" value={buscaCliente} onChange={setBuscaCliente} />
@@ -220,23 +266,39 @@ export default function EnviarWhatsappProdutoModal({
             />
           </label>
 
-          <a
-            href={podeEnviar ? linkWhatsappComTexto(telefone, mensagem) : undefined}
-            target="_blank"
-            rel="noreferrer"
-            aria-disabled={!podeEnviar}
-            onClick={(e) => {
-              if (!podeEnviar) e.preventDefault()
-            }}
-            className={`flex w-fit items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium ${
-              podeEnviar
-                ? 'bg-signal-green text-foam-50 hover:opacity-90'
-                : 'cursor-not-allowed bg-foam-200 text-slate-400'
-            }`}
-          >
-            <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
-            Abrir WhatsApp
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href={podeEnviar ? linkWhatsappComTexto(telefone, mensagem) : undefined}
+              target="_blank"
+              rel="noreferrer"
+              aria-disabled={!podeEnviar}
+              onClick={(e) => {
+                if (!podeEnviar) {
+                  e.preventDefault()
+                  return
+                }
+                registrarEnvioNoCrm()
+              }}
+              className={`flex w-fit items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium ${
+                podeEnviar
+                  ? 'bg-signal-green text-foam-50 hover:opacity-90'
+                  : 'cursor-not-allowed bg-foam-200 text-slate-400'
+              }`}
+            >
+              <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+              Abrir WhatsApp
+            </a>
+            {statusCrm === 'salvando' && <span className="text-xs text-slate-400">Salvando no CRM…</span>}
+            {statusCrm === 'salvo' && (
+              <span className="flex items-center gap-1 text-xs text-signal-green">
+                <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                Registrado no CRM
+              </span>
+            )}
+            {statusCrm === 'erro' && (
+              <span className="text-xs text-signal-red">Não deu pra registrar no CRM.</span>
+            )}
+          </div>
         </div>
       )}
     </Modal>
