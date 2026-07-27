@@ -276,6 +276,24 @@ export default function Orcamentos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carregandoEdicao])
 
+  // Reabre o botão "Salvar" sempre que algo relevante da proposta muda depois de já ter salvo —
+  // sem isso, gerar um segundo orçamento (mesmo cliente ou não) na mesma sessão ficava com o
+  // botão travado em "Orçamento salvo" e o segundo salvamento nunca acontecia de verdade.
+  useEffect(() => {
+    setSalvo(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    produtoId,
+    clienteId,
+    motorId,
+    quantidade,
+    precoCasco,
+    entradaPercentual,
+    parcelas,
+    acessoriosSelecionados,
+    dataPrevistaEntrega,
+  ])
+
   const acessoriosDisponiveis = useMemo(
     () =>
       acessorios.filter((a) => {

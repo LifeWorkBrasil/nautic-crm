@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Phone, Mail, Pencil, AlertTriangle, UserCheck, FileSignature } from 'lucide-react'
+import {
+  Plus,
+  Phone,
+  Mail,
+  Pencil,
+  AlertTriangle,
+  UserCheck,
+  FileSignature,
+  Minimize2,
+  Maximize2,
+} from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import { CampoTexto } from '@/components/campos'
@@ -109,6 +119,13 @@ type ContrapropostaComItens = Contraproposta & {
 export default function CRM() {
   const { perfil, ramoNautico } = usePermissoes()
   const navigate = useNavigate()
+  const [modoCompacto, setModoCompacto] = useState(
+    () => localStorage.getItem('crm_modo_compacto') === '1'
+  )
+
+  useEffect(() => {
+    localStorage.setItem('crm_modo_compacto', modoCompacto ? '1' : '0')
+  }, [modoCompacto])
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -352,13 +369,27 @@ export default function CRM() {
             {ramoNautico ? 'CRM náutico' : 'CRM'}
           </h1>
         </div>
-        <button
-          onClick={() => setCriando(true)}
-          className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          Novo lead
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setModoCompacto((v) => !v)}
+            title={modoCompacto ? 'Ver cards completos' : 'Ver cards compactos — mais cards na tela'}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            {modoCompacto ? (
+              <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
+            ) : (
+              <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
+            )}
+            {modoCompacto ? 'Cards completos' : 'Cards compactos'}
+          </button>
+          <button
+            onClick={() => setCriando(true)}
+            className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Novo lead
+          </button>
+        </div>
       </header>
 
       {erro && (
@@ -390,7 +421,9 @@ export default function CRM() {
                 {porColuna[status].map((lead) => (
                   <article
                     key={lead.id}
-                    className={`rounded-md border p-3.5 shadow-sm ${STATUS_STYLES[status]}`}
+                    className={`rounded-md border shadow-sm ${STATUS_STYLES[status]} ${
+                      modoCompacto ? 'p-2' : 'p-3.5'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium text-hull-900">{lead.nome}</p>
@@ -401,34 +434,43 @@ export default function CRM() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">{lead.origem}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
-                      {nomeVendedor(lead.vendedor_id) ? (
-                        <>Vendedor: {nomeVendedor(lead.vendedor_id)}</>
-                      ) : (
-                        'Sem vendedor'
-                      )}
-                    </p>
 
-                    {lead.observacoes && (
-                      <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                        {lead.observacoes}
-                      </p>
+                    {!modoCompacto && (
+                      <>
+                        <p className="mt-0.5 text-xs text-slate-500">{lead.origem}</p>
+                        <p className="mt-0.5 text-[10px] text-slate-400">
+                          {nomeVendedor(lead.vendedor_id) ? (
+                            <>Vendedor: {nomeVendedor(lead.vendedor_id)}</>
+                          ) : (
+                            'Sem vendedor'
+                          )}
+                        </p>
+
+                        {lead.observacoes && (
+                          <p className="mt-2 text-xs leading-relaxed text-slate-600">
+                            {lead.observacoes}
+                          </p>
+                        )}
+
+                        <select
+                          value={lead.status_crm}
+                          onChange={(e) => moverStatus(lead, e.target.value as StatusCRM)}
+                          className="mt-2.5 w-full rounded-md border border-foam-200 bg-white px-2 py-1 text-[11px] text-slate-600"
+                        >
+                          {COLUNAS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </>
                     )}
 
-                    <select
-                      value={lead.status_crm}
-                      onChange={(e) => moverStatus(lead, e.target.value as StatusCRM)}
-                      className="mt-2.5 w-full rounded-md border border-foam-200 bg-white px-2 py-1 text-[11px] text-slate-600"
+                    <div
+                      className={`flex items-center gap-3 border-t border-foam-200 text-slate-400 ${
+                        modoCompacto ? 'mt-1.5 pt-1.5' : 'mt-2.5 pt-2.5'
+                      }`}
                     >
-                      {COLUNAS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="mt-2.5 flex items-center gap-3 border-t border-foam-200 pt-2.5 text-slate-400">
                       <a
                         href={`mailto:${lead.email}`}
                         className="flex items-center gap-1 text-[11px] hover:text-wake-500"
