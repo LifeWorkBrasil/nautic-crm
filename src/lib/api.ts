@@ -1100,27 +1100,27 @@ export async function listMidiaBanco(): Promise<MidiaBancoItem[]> {
     .neq('status', 'Descartado')
   if (captacoesError) throw captacoesError
 
-  const itensProdutos: MidiaBancoItem[] = (produtos ?? [])
-    .filter((p) => (p.fotos_produto ?? []).length > 0)
-    .map((p) => ({
-      origem: 'produto' as const,
-      origemId: p.id,
-      nome: p.nome,
-      descricao: p.descricao,
-      precoBase: p.preco_base,
-      fotos: p.fotos_produto ?? [],
-    }))
+  // Antes só entrava aqui quem já tinha foto — produtos sem foto ainda cadastrada sumiam da
+  // aba de Marketing sem explicação nenhuma. Agora todos aparecem (dá pra gerar/salvar legenda
+  // mesmo sem foto); só publicar no Instagram continua exigindo pelo menos uma foto, já
+  // controlado em outro ponto (podePublicar).
+  const itensProdutos: MidiaBancoItem[] = (produtos ?? []).map((p) => ({
+    origem: 'produto' as const,
+    origemId: p.id,
+    nome: p.nome,
+    descricao: p.descricao,
+    precoBase: p.preco_base,
+    fotos: p.fotos_produto ?? [],
+  }))
 
-  const itensCaptacoes: MidiaBancoItem[] = (captacoes ?? [])
-    .filter((c) => (c.captacao_fotos ?? []).length > 0)
-    .map((c) => ({
-      origem: 'captacao' as const,
-      origemId: c.id,
-      nome: `${c.nome} (captação)`,
-      descricao: c.observacoes,
-      precoBase: null,
-      fotos: c.captacao_fotos ?? [],
-    }))
+  const itensCaptacoes: MidiaBancoItem[] = (captacoes ?? []).map((c) => ({
+    origem: 'captacao' as const,
+    origemId: c.id,
+    nome: `${c.nome} (captação)`,
+    descricao: c.observacoes,
+    precoBase: null,
+    fotos: c.captacao_fotos ?? [],
+  }))
 
   return [...itensProdutos, ...itensCaptacoes]
 }
