@@ -13,6 +13,7 @@ import {
   X,
   ChevronDown,
   Trash2,
+  Clapperboard,
 } from 'lucide-react'
 import {
   listMidiaBanco,
@@ -28,6 +29,7 @@ import {
   publicarNoInstagram,
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import GerarReelsModal from '@/components/GerarReelsModal'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
 const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
@@ -72,6 +74,7 @@ export default function Marketing() {
   const [avisoInstagram, setAvisoInstagram] = useState<string | null>(null)
   const [publicandoId, setPublicandoId] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState(false)
+  const [gerandoReelsPost, setGerandoReelsPost] = useState<PostMarketing | null>(null)
 
   const [itensAbertos, setItensAbertos] = useState<Set<string>>(new Set())
   const [agendandoItemId, setAgendandoItemId] = useState<string | null>(null)
@@ -230,6 +233,16 @@ export default function Marketing() {
     } finally {
       setPublicandoId(null)
     }
+  }
+
+  function handleReelsPublicado(postId: string, mediaId: string) {
+    const atualiza = (p: PostMarketing) =>
+      p.id === postId
+        ? { ...p, instagram_media_id: mediaId, publicado_instagram_em: new Date().toISOString() }
+        : p
+    setPosts((prev) => prev.map(atualiza))
+    setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+    setGerandoReelsPost(null)
   }
 
   async function handleDesconectarInstagram() {
@@ -539,6 +552,19 @@ export default function Marketing() {
                         {publicandoId === ultimoPostSalvo.id ? 'Publicando…' : 'Publicar no Instagram'}
                       </button>
                     )}
+                    {ultimoPostSalvo &&
+                      instagram?.conectado &&
+                      !ultimoPostSalvo.instagram_media_id &&
+                      ultimoPostSalvo.foto_urls &&
+                      ultimoPostSalvo.foto_urls.length > 0 && (
+                        <button
+                          onClick={() => setGerandoReelsPost(ultimoPostSalvo)}
+                          className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                        >
+                          <Clapperboard className="h-4 w-4" strokeWidth={1.75} />
+                          Gerar Reels
+                        </button>
+                      )}
                     {ultimoPostSalvo?.instagram_media_id && (
                       <span className="flex items-center gap-1.5 text-sm text-signal-green">
                         <Check className="h-4 w-4" strokeWidth={2} />
@@ -747,6 +773,15 @@ export default function Marketing() {
           </div>
         )}
       </div>
+
+      {gerandoReelsPost && (
+        <GerarReelsModal
+          postId={gerandoReelsPost.id}
+          fotoUrls={gerandoReelsPost.foto_urls ?? []}
+          onClose={() => setGerandoReelsPost(null)}
+          onPublicado={(mediaId) => handleReelsPublicado(gerandoReelsPost.id, mediaId)}
+        />
+      )}
     </div>
   )
 }

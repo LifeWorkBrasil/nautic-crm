@@ -1087,6 +1087,36 @@ export async function publicarNoInstagram(postId: string): Promise<{ media_id: s
   return data
 }
 
+export async function uploadVideoReels(empresaId: string, postId: string, blob: Blob): Promise<string> {
+  const extensao = blob.type.includes('mp4') ? 'mp4' : 'webm'
+  const caminho = `${empresaId}/reels/${postId}.${extensao}`
+  const { error } = await supabase.storage
+    .from('produtos')
+    .upload(caminho, blob, { upsert: true, contentType: blob.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('produtos').getPublicUrl(caminho)
+  return data.publicUrl
+}
+
+export async function publicarReelsInstagram(
+  postId: string,
+  videoUrl: string
+): Promise<{ media_id: string }> {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/instagram-publicar-reels`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${sessionData.session?.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ post_id: postId, video_url: videoUrl }),
+  })
+  const data = await resp.json()
+  if (!resp.ok) throw new Error(data?.error ?? 'Erro ao publicar Reels no Instagram.')
+  return data
+}
+
 // ---------- Minutas de Contrato ----------
 
 export async function listMinutas(): Promise<MinutaContrato[]> {
