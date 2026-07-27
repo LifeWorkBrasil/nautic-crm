@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { PermissoesProvider } from '@/lib/PermissoesContext'
@@ -14,6 +14,7 @@ import Orcamentos from './pages/Orcamentos'
 import Empresa from './pages/Empresa'
 import Marketing from './pages/Marketing'
 import Admin from './pages/Admin'
+import ProdutoPublico from './pages/ProdutoPublico'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -36,25 +37,26 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center bg-hull-900" />
   }
 
-  if (!session) {
-    return <Login />
-  }
-
   return (
-    <PermissoesProvider session={session}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<CRM />} />
-          <Route path="/captacao" element={<Captacao />} />
-          <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
-          <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
-          <Route path="/parametrizacao" element={<Parametrizacao />} />
-          <Route path="/orcamentos" element={<Orcamentos />} />
-          <Route path="/marketing" element={<Marketing />} />
-          <Route path="/empresa" element={<Empresa />} />
-          <Route path="/admin" element={<Admin />} />
+    <Routes>
+      <Route path="/p/:linkId" element={<ProdutoPublico />} />
+      {!session ? (
+        <Route path="*" element={<Login />} />
+      ) : (
+        <Route element={<PermissoesProvider session={session}><Outlet /></PermissoesProvider>}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<CRM />} />
+            <Route path="/captacao" element={<Captacao />} />
+            <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
+            <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
+            <Route path="/parametrizacao" element={<Parametrizacao />} />
+            <Route path="/orcamentos" element={<Orcamentos />} />
+            <Route path="/marketing" element={<Marketing />} />
+            <Route path="/empresa" element={<Empresa />} />
+            <Route path="/admin" element={<Admin />} />
+          </Route>
         </Route>
-      </Routes>
-    </PermissoesProvider>
+      )}
+    </Routes>
   )
 }

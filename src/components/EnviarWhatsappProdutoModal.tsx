@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Link2, Check, Copy } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
-import { listLeads, listFotosProduto, listVideosProduto } from '@/lib/api'
+import { listLeads, criarLinkPublicoProduto } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { formatPreco } from '@/lib/format'
-import type { ClienteLead, Produto, FotoProduto, VideoProduto } from '@/types'
+import type { ClienteLead, Produto, LinkPublicoProduto } from '@/types'
 
-const MAX_FOTOS_WHATSAPP = 6
+const DIAS_VALIDADE_PADRAO = 14
 
-function montarMensagemPadrao(produto: Produto, fotos: FotoProduto[], videos: VideoProduto[]): string {
+function montarMensagemPadrao(produto: Produto): string {
   const linhas = [
     `Olá! Segue mais informações sobre o *${produto.nome}*${produto.comprimento ? ` (${produto.comprimento}m)` : ''}:`,
     '',
@@ -17,16 +17,16 @@ function montarMensagemPadrao(produto: Produto, fotos: FotoProduto[], videos: Vi
     '',
     `Valor: ${formatPreco(produto.preco_base)}`,
   ]
-
-  const fotosLimitadas = fotos.slice(0, MAX_FOTOS_WHATSAPP)
-  if (fotosLimitadas.length > 0) {
-    linhas.push('', 'Fotos:', ...fotosLimitadas.map((f) => f.url_imagem))
-  }
-  if (videos.length > 0) {
-    linhas.push('', 'Vídeo:', ...videos.map((v) => v.url_youtube))
-  }
-
   return linhas.join('\n')
+}
+
+function formatarDataInput(data: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}`
+}
+
+function montarUrlLink(link: LinkPublicoProduto): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}p/${link.id}`
 }
 
 export default function EnviarWhatsappProdutoModal({
@@ -45,11 +45,18 @@ export default function EnviarWhatsappProdutoModal({
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
 
+  const [expiraEm, setExpiraEm] = useState(() =>
+    formatarDataInput(new Date(Date.now() + DIAS_VALIDADE_PADRAO * 24 * 60 * 60 * 1000))
+  )
+  const [gerandoLink, setGerandoLink] = useState(false)
+  const [linkGerado, setLinkGerado] = useState<LinkPublicoProduto | null>(null)
+  const [copiado, setCopiado] = useState(false)
+
   useEffect(() => {
-    Promise.all([listLeads(), listFotosProduto(produto.id), listVideosProduto(produto.id)])
-      .then(([leads, fotos, videos]) => {
+    listLeads()
+      .then((leads) => {
         setClientes(leads)
-        setMensagem(montarMensagemPadrao(produto, fotos, videos))
+        setMensagem(montarMensagemPadrao(produto))
       })
       .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar dados'))
       .finally(() => setCarregando(false))
@@ -65,6 +72,35 @@ export default function EnviarWhatsappProdutoModal({
   const clienteSelecionado = clientes.find((c) => c.id === clienteSelecionadoId) ?? null
   const telefone = modoManual ? telefoneManual : clienteSelecionado?.telefone ?? ''
   const podeEnviar = Boolean(telefone.trim() && mensagem.trim())
+
+  async function gerarLink() {
+    setGerandoLink(true)
+    setErro(null)
+    try {
+      const link = await criarLinkPublicoProduto({
+        produto_id: produto.id,
+        expira_em: new Date(`${expiraEm}T23:59:59`).toISOString(),
+        cliente_nome: clienteSelecionado?.nome ?? null,
+      })
+      setLinkGerado(link)
+      const url = montarUrlLink(link)
+      const dataFormatada = new Date(link.expira_em).toLocaleDateString('pt-BR')
+      setMensagem((atual) =>
+        `${atual.trimEnd()}\n\nVeja fotos e detalhes completos aqui:\n${url}\n(link válido até ${dataFormatada})`
+      )
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao gerar link')
+    } finally {
+      setGerandoLink(false)
+    }
+  }
+
+  async function copiarLink() {
+    if (!linkGerado) return
+    await navigator.clipboard.writeText(montarUrlLink(linkGerado))
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 1500)
+  }
 
   return (
     <Modal title={`Enviar "${produto.nome}" por WhatsApp`} onClose={onClose} size="lg">
@@ -129,6 +165,50 @@ export default function EnviarWhatsappProdutoModal({
               )}
             </div>
           )}
+
+          <div className="rounded-md border border-foam-200 bg-foam-100 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-hull-900">
+              <Link2 className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
+              Link de apresentação
+            </p>
+            <p className="mb-2 text-[11px] text-slate-400">
+              Gera uma página com fotos, preço e detalhes do produto — mais profissional do que
+              mandar tudo em texto solto. O link para de funcionar depois da data de validade.
+            </p>
+            {!linkGerado ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-hull-900">Válido até</span>
+                  <input
+                    type="date"
+                    value={expiraEm}
+                    min={formatarDataInput(new Date())}
+                    onChange={(e) => setExpiraEm(e.target.value)}
+                    className="input text-sm"
+                  />
+                </label>
+                <button
+                  onClick={gerarLink}
+                  disabled={gerandoLink || !expiraEm}
+                  className="flex items-center gap-2 rounded-md bg-hull-900 px-3 py-2 text-sm font-medium text-foam-50 hover:bg-hull-800 disabled:opacity-50"
+                >
+                  <Link2 className="h-4 w-4" strokeWidth={1.75} />
+                  {gerandoLink ? 'Gerando…' : 'Gerar link e adicionar à mensagem'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-foam-200 bg-white px-3 py-2">
+                <span className="truncate text-sm text-hull-900">{montarUrlLink(linkGerado)}</span>
+                <button
+                  onClick={copiarLink}
+                  className="flex shrink-0 items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  {copiado ? <Check className="h-3.5 w-3.5" strokeWidth={2} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  {copiado ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+            )}
+          </div>
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-hull-900">Mensagem</span>

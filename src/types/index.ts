@@ -356,3 +356,13 @@ export interface OrcamentoDetalhado extends Orcamento {
   parcelas: ParcelaOrcamento[]
   acessorio_ids: string[]
 }
+
+export interface LinkPublicoProduto {
+  id: string
+  produto_id: string
+  empresa_id: string
+  criado_por: string | null
+  cliente_nome: string | null
+  criado_em: string
+  expira_em: string
+}

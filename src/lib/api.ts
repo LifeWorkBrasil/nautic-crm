@@ -32,6 +32,7 @@ import type {
   TabSistema,
   PerfilAcesso,
   CampoPersonalizado,
+  LinkPublicoProduto,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -780,6 +781,79 @@ export async function updateOrcamento(
     const { error: parcelasError } = await supabase.from('orcamentos_parcelas').insert(linhasParcelas)
     if (parcelasError) throw parcelasError
   }
+}
+
+// ---------- Link público de produto (página pública temporária) ----------
+
+export async function criarLinkPublicoProduto(input: {
+  produto_id: string
+  expira_em: string
+  cliente_nome?: string | null
+}): Promise<LinkPublicoProduto> {
+  const { data, error } = await supabase
+    .from('links_publicos_produto')
+    .insert({
+      produto_id: input.produto_id,
+      expira_em: input.expira_em,
+      cliente_nome: input.cliente_nome ?? null,
+      criado_por: (await supabase.auth.getUser()).data.user?.id ?? null,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function getLinkPublicoProduto(id: string): Promise<LinkPublicoProduto | null> {
+  const { data, error } = await supabase
+    .from('links_publicos_produto')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function getProdutoPublico(id: string): Promise<Produto | null> {
+  const { data, error } = await supabase
+    .from('produtos')
+    .select(PRODUTO_SELECT)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data ? mapProdutoRow(data) : null
+}
+
+export async function getSubcategoriaPublica(id: string): Promise<SubcategoriaProduto | null> {
+  const { data, error } = await supabase
+    .from('subcategorias_produto')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function getEmpresaPublica(
+  id: string
+): Promise<Pick<EmpresaConfig, 'id' | 'nome_empresa' | 'logo_url' | 'telefone'> | null> {
+  const { data, error } = await supabase
+    .from('empresas')
+    .select('id, nome_empresa, logo_url, telefone')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function listCamposPersonalizadosPublico(empresaId: string): Promise<CampoPersonalizado[]> {
+  const { data, error } = await supabase
+    .from('campos_personalizados')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .order('ordem')
+  if (error) throw error
+  return data ?? []
 }
 
 // ---------- Configuração da empresa ----------
