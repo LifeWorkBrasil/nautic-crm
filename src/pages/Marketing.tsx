@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Trash2,
   Clapperboard,
+  Image as ImageIcon,
   Search,
 } from 'lucide-react'
 import {
@@ -31,6 +32,7 @@ import {
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import GerarReelsModal from '@/components/GerarReelsModal'
+import GerarFlyerModal from '@/components/GerarFlyerModal'
 import PreviewPublicacaoModal from '@/components/PreviewPublicacaoModal'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
 
@@ -79,6 +81,7 @@ export default function Marketing() {
   const [publicandoId, setPublicandoId] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState(false)
   const [gerandoReelsPost, setGerandoReelsPost] = useState<PostMarketing | null>(null)
+  const [gerandoFlyerPost, setGerandoFlyerPost] = useState<PostMarketing | null>(null)
   const [previewPost, setPreviewPost] = useState<PostMarketing | null>(null)
   const [erroPreview, setErroPreview] = useState<string | null>(null)
 
@@ -260,6 +263,16 @@ export default function Marketing() {
     setPosts((prev) => prev.map(atualiza))
     setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
     setGerandoReelsPost(null)
+  }
+
+  function handleFlyerPublicado(postId: string, mediaId: string) {
+    const atualiza = (p: PostMarketing) =>
+      p.id === postId
+        ? { ...p, instagram_media_id: mediaId, publicado_instagram_em: new Date().toISOString() }
+        : p
+    setPosts((prev) => prev.map(atualiza))
+    setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+    setGerandoFlyerPost(null)
   }
 
   async function handleDesconectarInstagram() {
@@ -617,6 +630,19 @@ export default function Marketing() {
                           Gerar Reels
                         </button>
                       )}
+                    {ultimoPostSalvo &&
+                      instagram?.conectado &&
+                      !ultimoPostSalvo.instagram_media_id &&
+                      ultimoPostSalvo.foto_urls &&
+                      ultimoPostSalvo.foto_urls.length > 0 && (
+                        <button
+                          onClick={() => setGerandoFlyerPost(ultimoPostSalvo)}
+                          className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                        >
+                          <ImageIcon className="h-4 w-4" strokeWidth={1.75} />
+                          Gerar Flyer
+                        </button>
+                      )}
                     {ultimoPostSalvo?.instagram_media_id && (
                       <span className="flex items-center gap-1.5 text-sm text-signal-green">
                         <Check className="h-4 w-4" strokeWidth={2} />
@@ -853,6 +879,16 @@ export default function Marketing() {
           legenda={gerandoReelsPost.legenda_gerada}
           onClose={() => setGerandoReelsPost(null)}
           onPublicado={(mediaId) => handleReelsPublicado(gerandoReelsPost.id, mediaId)}
+        />
+      )}
+
+      {gerandoFlyerPost && (
+        <GerarFlyerModal
+          postId={gerandoFlyerPost.id}
+          fotoUrls={gerandoFlyerPost.foto_urls ?? []}
+          nomeProduto={gerandoFlyerPost.produto_nome ?? 'Produto'}
+          onClose={() => setGerandoFlyerPost(null)}
+          onPublicado={(mediaId) => handleFlyerPublicado(gerandoFlyerPost.id, mediaId)}
         />
       )}
 

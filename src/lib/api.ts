@@ -807,6 +807,52 @@ export async function updateOrcamento(
   }
 }
 
+// ---------- Relatórios ----------
+
+export async function listHistoricoPorPeriodo(
+  dataInicio: string,
+  dataFim: string
+): Promise<{ cliente_id: string; criado_em: string; vendedor_id: string | null }[]> {
+  const { data, error } = await supabase
+    .from('clientes_historico')
+    .select('cliente_id, criado_em, clientes_leads(vendedor_id)')
+    .gte('criado_em', dataInicio)
+    .lte('criado_em', dataFim)
+  if (error) throw error
+  return (data ?? []).map((h) => {
+    const lead = Array.isArray(h.clientes_leads) ? h.clientes_leads[0] : h.clientes_leads
+    return {
+      cliente_id: h.cliente_id,
+      criado_em: h.criado_em,
+      vendedor_id: lead?.vendedor_id ?? null,
+    }
+  })
+}
+
+export async function listOrcamentosPorPeriodo(
+  dataInicio: string,
+  dataFim: string
+): Promise<
+  { cliente_id: string; criado_em: string; produto_nome: string | null; vendedor_id: string | null }[]
+> {
+  const { data, error } = await supabase
+    .from('orcamentos')
+    .select('cliente_id, criado_em, produtos(nome), clientes_leads(vendedor_id)')
+    .gte('criado_em', dataInicio)
+    .lte('criado_em', dataFim)
+  if (error) throw error
+  return (data ?? []).map((o) => {
+    const produto = Array.isArray(o.produtos) ? o.produtos[0] : o.produtos
+    const lead = Array.isArray(o.clientes_leads) ? o.clientes_leads[0] : o.clientes_leads
+    return {
+      cliente_id: o.cliente_id,
+      criado_em: o.criado_em,
+      produto_nome: produto?.nome ?? null,
+      vendedor_id: lead?.vendedor_id ?? null,
+    }
+  })
+}
+
 // ---------- Link público de produto (página pública temporária) ----------
 
 export async function criarLinkPublicoProduto(input: {
@@ -1283,6 +1329,23 @@ export async function publicarNoInstagram(postId: string): Promise<{ media_id: s
   const data = await resp.json()
   if (!resp.ok) throw new Error(data?.error ?? 'Erro ao publicar no Instagram.')
   return data
+}
+
+export async function uploadFlyerMarketing(empresaId: string, postId: string, blob: Blob): Promise<string> {
+  const caminho = `${empresaId}/flyers/${postId}-${Date.now()}.jpg`
+  const { error } = await supabase.storage
+    .from('produtos')
+    .upload(caminho, blob, { upsert: true, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = supabase.storage.from('produtos').getPublicUrl(caminho)
+  return data.publicUrl
+}
+
+// Substitui as fotos do post pelo flyer gerado — o post passa a ser publicado só com essa
+// imagem (não em carrossel com as fotos originais do produto).
+export async function atualizarFotosPostMarketing(postId: string, fotoUrls: string[]): Promise<void> {
+  const { error } = await supabase.from('posts_marketing').update({ foto_urls: fotoUrls }).eq('id', postId)
+  if (error) throw error
 }
 
 export async function uploadVideoReels(empresaId: string, postId: string, blob: Blob): Promise<string> {

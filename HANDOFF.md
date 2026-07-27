@@ -101,6 +101,7 @@ IBM Plex Sans/Mono).
 | Parametrização → Modelos — CRUD completo + upload de foto | ✅ |
 | Parametrização → Motores — CRUD completo | ✅ |
 | Parametrização → Acessórios — CRUD completo, vínculo a modelo ou universal | ✅ |
+| Marketing → Gerar Flyer (remoção de fundo + imagem pra Instagram, `GerarFlyerModal.tsx`) | ✅ (2026-07-27) |
 | Empresa & Marca — edição de logo, nome, CNPJ, contato, validade padrão, termos | ✅ |
 | Gerador de Orçamentos — wizard de 4 passos, soma dinâmica | ✅ |
 | Orçamento grava no banco (`orcamentos` + `orcamentos_acessorios`) | ✅ |
@@ -166,10 +167,26 @@ Em ordem de valor prático, mas ajustável:
    responsivo básico (`sm:`, `md:`, `lg:`), mas não houve validação dedicada em telas
    pequenas.
 7. **Testes automatizados** — não existem ainda (nem unitários nem e2e).
-8. **Gerar Flyer (imagem) para Instagram a partir do Banco de Mídia** — pedido pelo usuário
-   em conversa fora deste repo (2026-07-27), depois de eu ter prototipado localmente (Node,
-   fora do sistema) remoção de fundo + montagem de flyer pra um tenant (CuraLabs3D). Spec
-   levantada nessa conversa, pronta pra implementar:
+8. ~~**Gerar Flyer (imagem) para Instagram a partir do Banco de Mídia**~~ — **implementado em
+   2026-07-27** (ver linha da tabela na seção 3). Ficam registrados abaixo os detalhes da
+   spec original e as decisões tomadas, caso precise revisitar:
+   - Testado manualmente via preview local (tenant real "barcosebarcos", produto "340T"):
+     fundo removido corretamente, canvas 1080x1350 renderizado com as cores/fontes certas,
+     posts de teste apagados do histórico depois. **Não testei o clique em "Publicar no
+     Instagram"** — isso publicaria de verdade na conta real do tenant conectado, então quem
+     for testar de novo precisa ter isso em mente.
+   - `@imgly/background-removal` (versão browser) importado dinamicamente dentro de
+     `removerFundoRecortado()` em `gerarFlyer.ts`, não no topo do arquivo — evita que o glue
+     JS do onnxruntime-web (~1.5MB) entre no bundle principal, mesmo padrão já usado para
+     `html2pdf.js` em `GerarContratoModal.tsx`/`Orcamentos.tsx`.
+   - Fontes (`SpaceGrotesk-Bold.ttf`, `Inter-Regular.ttf`) ficam em `public/fonts/` e são
+     carregadas via `FontFace` API com `import.meta.env.BASE_URL` (não um caminho absoluto
+     `/fonts/...`) — o app roda sob o base path `/nautic-crm/` (`vite.config.ts`), então um
+     caminho absoluto fixo quebra em produção.
+   - Cor de marca por tenant **não foi adicionada** (`cor_primaria`/`site_url` continuam sem
+     existir em `empresas`) — o template ficou monocromático (preto/branco/cinza) por
+     enquanto, conforme a spec original previa como opção mais simples.
+   - Segue abaixo a spec original (contexto histórico):
    - **Onde entra na UI**: botão "Gerar Flyer" ao lado de "Gerar Reels" em `Marketing.tsx`
      (o botão "Gerar Reels" está por volta da linha 576, abre `GerarReelsModal.tsx`). Um
      `GerarFlyerModal.tsx` novo seguindo o mesmo padrão (recebe `fotoUrls`/`legenda`, mostra
