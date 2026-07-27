@@ -5,7 +5,6 @@ import {
   listMotores,
   listAcessorios,
   listLeads,
-  createLead,
   criarOrcamento,
   getEmpresaConfig,
   listManuaisProduto,
@@ -20,6 +19,7 @@ import {
 import { formatBRL, formatPreco } from '@/lib/format'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import NovoClienteModal from '@/components/NovoClienteModal'
 import type {
   Produto,
   Motor,
@@ -90,6 +90,7 @@ export default function Orcamentos() {
   const [buscaProduto, setBuscaProduto] = useState('')
   const [clienteId, setClienteId] = useState<string | null>(null)
   const [novoClienteNome, setNovoClienteNome] = useState('')
+  const [cadastrandoCliente, setCadastrandoCliente] = useState(false)
   const [produtoId, setProdutoId] = useState<string | null>(null)
   const [motorId, setMotorId] = useState<string | null>(null)
   const [acessoriosSelecionados, setAcessoriosSelecionados] = useState<Set<string>>(new Set())
@@ -265,23 +266,11 @@ export default function Orcamentos() {
     })
   }
 
-  async function usarNovoCliente() {
-    if (!novoClienteNome.trim()) return
-    try {
-      const lead = await createLead({
-        nome: novoClienteNome.trim(),
-        email: '',
-        telefone: '',
-        status_crm: 'Lead',
-        origem: 'Gerador de orçamentos',
-        observacoes: '',
-      })
-      setLeads((prev) => [lead, ...prev])
-      setClienteId(lead.id)
-      setNovoClienteNome('')
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao criar cliente')
-    }
+  function handleClienteCriado(lead: ClienteLead) {
+    setLeads((prev) => [lead, ...prev])
+    setClienteId(lead.id)
+    setNovoClienteNome('')
+    setCadastrandoCliente(false)
   }
 
   async function gerarPdf() {
@@ -467,11 +456,11 @@ export default function Orcamentos() {
                     className="input"
                   />
                   <button
-                    onClick={usarNovoCliente}
+                    onClick={() => setCadastrandoCliente(true)}
                     disabled={!novoClienteNome.trim()}
                     className="shrink-0 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-40"
                   >
-                    Adicionar
+                    Cadastrar
                   </button>
                 </div>
               </div>
@@ -1054,6 +1043,15 @@ export default function Orcamentos() {
           </dl>
         </aside>
       </div>
+
+      {cadastrandoCliente && (
+        <NovoClienteModal
+          nomeInicial={novoClienteNome}
+          origem="Gerador de orçamentos"
+          onClose={() => setCadastrandoCliente(false)}
+          onCriado={handleClienteCriado}
+        />
+      )}
     </div>
   )
 }
