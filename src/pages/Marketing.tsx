@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Megaphone,
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Trash2,
   Clapperboard,
+  Search,
 } from 'lucide-react'
 import {
   listMidiaBanco,
@@ -54,6 +55,8 @@ export default function Marketing() {
   const [midia, setMidia] = useState<MidiaBancoItem[]>([])
   const [carregandoMidia, setCarregandoMidia] = useState(true)
   const [selecionado, setSelecionado] = useState<MidiaBancoItem | null>(null)
+  const [buscaMidia, setBuscaMidia] = useState('')
+  const [buscaHistorico, setBuscaHistorico] = useState('')
 
   const [tom, setTom] = useState(TONS[0])
   const [provedor, setProvedor] = useState<'claude' | 'gemini'>('claude')
@@ -338,6 +341,22 @@ export default function Marketing() {
     }
   }
 
+  const midiaFiltrada = useMemo(() => {
+    const termo = buscaMidia.trim().toLowerCase()
+    if (!termo) return midia
+    return midia.filter((item) => item.nome.toLowerCase().includes(termo))
+  }, [midia, buscaMidia])
+
+  const postsFiltrados = useMemo(() => {
+    const termo = buscaHistorico.trim().toLowerCase()
+    if (!termo) return posts
+    return posts.filter(
+      (post) =>
+        (post.produto_nome ?? '').toLowerCase().includes(termo) ||
+        post.legenda_gerada.toLowerCase().includes(termo)
+    )
+  }, [posts, buscaHistorico])
+
   return (
     <div className="p-8">
       <header className="mb-8">
@@ -407,15 +426,32 @@ export default function Marketing() {
             Selecione um produto ou captação para gerar uma legenda a partir das fotos.
           </p>
 
+          {!carregandoMidia && midia.length > 0 && (
+            <label className="relative mb-4 block">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                strokeWidth={1.75}
+              />
+              <input
+                value={buscaMidia}
+                onChange={(e) => setBuscaMidia(e.target.value)}
+                placeholder="Buscar por nome…"
+                className="input pl-9"
+              />
+            </label>
+          )}
+
           {carregandoMidia ? (
             <p className="text-sm text-slate-400">Carregando mídia…</p>
           ) : midia.length === 0 ? (
             <p className="text-sm text-slate-400">
               Nenhum produto ou captação com fotos cadastradas ainda.
             </p>
+          ) : midiaFiltrada.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhum resultado para essa busca.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {midia.map((item) => {
+              {midiaFiltrada.map((item) => {
                 const capa = item.fotos.find((f) => f.principal) ?? item.fotos[0]
                 const ativo =
                   selecionado?.origem === item.origem && selecionado?.origemId === item.origemId
@@ -630,13 +666,31 @@ export default function Marketing() {
           <Megaphone className="h-4 w-4 text-brass-400" strokeWidth={1.75} />
           Histórico de legendas
         </p>
+
+        {!carregandoPosts && posts.length > 0 && (
+          <label className="relative mb-4 block">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              strokeWidth={1.75}
+            />
+            <input
+              value={buscaHistorico}
+              onChange={(e) => setBuscaHistorico(e.target.value)}
+              placeholder="Buscar por produto ou texto da legenda…"
+              className="input pl-9"
+            />
+          </label>
+        )}
+
         {carregandoPosts ? (
           <p className="text-sm text-slate-400">Carregando…</p>
         ) : posts.length === 0 ? (
           <p className="text-sm text-slate-400">Nenhuma legenda salva ainda.</p>
+        ) : postsFiltrados.length === 0 ? (
+          <p className="text-sm text-slate-400">Nenhum resultado para essa busca.</p>
         ) : (
           <div className="space-y-2">
-            {posts.map((post) => {
+            {postsFiltrados.map((post) => {
               const aberto = itensAbertos.has(post.id)
               const publicado = !!post.instagram_media_id
               const agendado = post.status_agendamento === 'agendado'
