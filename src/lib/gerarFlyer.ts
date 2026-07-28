@@ -100,6 +100,21 @@ async function removerFundoRecortado(url: string): Promise<HTMLCanvasElement> {
   return recortarTransparencia(bruto)
 }
 
+// Sem remoção de fundo: só carrega a foto original como veio, sem recorte nenhum — usada quando
+// o usuário desmarca a opção (foto já tem fundo limpo, ou prefere manter o fundo original).
+async function carregarFotoOriginal(url: string): Promise<HTMLCanvasElement> {
+  const img = await carregarImagem(url)
+  const canvas = document.createElement('canvas')
+  canvas.width = img.width
+  canvas.height = img.height
+  canvas.getContext('2d')!.drawImage(img, 0, 0)
+  return canvas
+}
+
+async function prepararFoto(url: string, removerFundo: boolean): Promise<HTMLCanvasElement> {
+  return removerFundo ? removerFundoRecortado(url) : carregarFotoOriginal(url)
+}
+
 function caminhoArredondado(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath()
   ctx.moveTo(x + r, y)
@@ -257,11 +272,12 @@ export interface OpcoesFlyerPadrao {
   categoria?: string | null
   tagline?: string | null
   marca: DadosMarcaFlyer
+  removerFundo?: boolean
 }
 
 export async function montarFlyerPadrao(opcoes: OpcoesFlyerPadrao): Promise<Blob> {
   await carregarFontes()
-  const produto = await removerFundoRecortado(opcoes.fotoUrl)
+  const produto = await prepararFoto(opcoes.fotoUrl, opcoes.removerFundo ?? true)
 
   const canvas = document.createElement('canvas')
   canvas.width = LARGURA
@@ -310,13 +326,15 @@ export interface OpcoesFlyerAntesDepois {
   subtitulo?: string | null
   tagCanto?: string | null
   marca: DadosMarcaFlyer
+  removerFundo?: boolean
 }
 
 export async function montarFlyerAntesDepois(opcoes: OpcoesFlyerAntesDepois): Promise<Blob> {
   await carregarFontes()
+  const removerFundo = opcoes.removerFundo ?? true
   const [antes, depois] = await Promise.all([
-    removerFundoRecortado(opcoes.fotoUrlAntes),
-    removerFundoRecortado(opcoes.fotoUrlDepois),
+    prepararFoto(opcoes.fotoUrlAntes, removerFundo),
+    prepararFoto(opcoes.fotoUrlDepois, removerFundo),
   ])
 
   const canvas = document.createElement('canvas')

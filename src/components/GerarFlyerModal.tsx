@@ -37,6 +37,7 @@ export default function GerarFlyerModal({
   const [tagline, setTagline] = useState('')
   const [titulo, setTitulo] = useState('Antes e depois')
   const [subtitulo, setSubtitulo] = useState('')
+  const [removerFundo, setRemoverFundo] = useState(true)
 
   const [etapa, setEtapa] = useState<Etapa>('escolher')
   const [erro, setErro] = useState<string | null>(null)
@@ -73,6 +74,7 @@ export default function GerarFlyerModal({
               categoria: categoria || null,
               tagline: tagline || null,
               marca,
+              removerFundo,
             })
           : await montarFlyerAntesDepois({
               fotoUrlAntes: fotoAntes,
@@ -80,6 +82,7 @@ export default function GerarFlyerModal({
               titulo,
               subtitulo: subtitulo || null,
               marca,
+              removerFundo,
             })
       setFlyerBlob(blob)
       setFlyerUrl(URL.createObjectURL(blob))
@@ -125,9 +128,9 @@ export default function GerarFlyerModal({
       <div className="space-y-4">
         {etapa === 'escolher' && (
           <p className="text-sm text-slate-500">
-            Remove o fundo da foto e monta uma imagem pronta pra postar no feed do Instagram
-            (1080x1350), direto no seu navegador — com a logo e os dados de contato da empresa.
-            A primeira geração pode demorar um pouco mais (baixa o modelo de remoção de fundo).
+            Monta uma imagem pronta pra postar no feed do Instagram (1080x1350), direto no seu
+            navegador — com a logo e os dados de contato da empresa. Removendo o fundo, a
+            primeira geração pode demorar um pouco mais (baixa o modelo de remoção de fundo).
           </p>
         )}
 
@@ -145,6 +148,16 @@ export default function GerarFlyerModal({
                 <option value="padrao">Produto em destaque</option>
                 <option value="antes_depois">Antes e depois</option>
               </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-hull-900">
+              <input
+                type="checkbox"
+                checked={removerFundo}
+                onChange={(e) => setRemoverFundo(e.target.checked)}
+                className="h-4 w-4 accent-brass-500"
+              />
+              Remover fundo da foto
             </label>
 
             {template === 'padrao' ? (
