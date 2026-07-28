@@ -192,6 +192,7 @@ export default function CatalogoPdf() {
               campos={camposDoProduto}
               incluirPreco={incluirPrecos}
               pageBreakAfter={i < produtosDisponiveis.length - 1}
+              empresa={empresa}
             />
           )
         })}

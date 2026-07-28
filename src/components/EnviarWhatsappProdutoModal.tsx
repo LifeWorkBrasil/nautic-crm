@@ -12,6 +12,7 @@ import {
   listItensInclusosProduto,
   listCamposPersonalizados,
   getSubcategoriaPublica,
+  getEmpresaConfig,
 } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { formatPreco } from '@/lib/format'
@@ -23,6 +24,7 @@ import type {
   FotoProduto,
   ProdutoItemIncluso,
   CampoPersonalizado,
+  EmpresaConfig,
 } from '@/types'
 
 const DIAS_VALIDADE_PADRAO = 14
@@ -85,11 +87,13 @@ export default function EnviarWhatsappProdutoModal({
     campos: CampoPersonalizado[]
   } | null>(null)
   const fichaRef = useRef<HTMLDivElement>(null)
+  const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null)
 
   useEffect(() => {
-    listLeads()
-      .then((leads) => {
+    Promise.all([listLeads(), getEmpresaConfig()])
+      .then(([leads, emp]) => {
         setClientes(leads)
+        setEmpresa(emp)
         setMensagem(montarMensagemPadrao(produto))
       })
       .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar dados'))
@@ -405,6 +409,7 @@ export default function EnviarWhatsappProdutoModal({
               itensInclusos={dadosFicha.itensInclusos}
               campos={dadosFicha.campos}
               incluirPreco
+              empresa={empresa}
             />
           </div>
         </div>
