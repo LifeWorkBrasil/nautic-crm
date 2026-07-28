@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Clapperboard, Music, X, Instagram, RotateCcw } from 'lucide-react'
+import { Clapperboard, Music, X, Instagram, RotateCcw, CalendarClock } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { gerarVideoReels } from '@/lib/gerarReels'
-import { uploadVideoReels, publicarReelsInstagram } from '@/lib/api'
+import { uploadVideoReels, publicarReelsInstagram, agendarReels } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import type { EstiloTrilha } from '@/lib/gerarReels'
 
@@ -13,30 +13,43 @@ const OPCOES_TRILHA: { valor: EstiloTrilha; label: string }[] = [
   { valor: 'corporativa', label: 'Corporativa' },
 ]
 
+const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
+
+function formatarDatetimeLocal(data: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}T${pad(data.getHours())}:${pad(
+    data.getMinutes()
+  )}`
+}
+
 export default function GerarReelsModal({
   postId,
   fotoUrls,
   legenda,
   onClose,
   onPublicado,
+  onAgendado,
 }: {
   postId: string
   fotoUrls: string[]
   legenda: string
   onClose: () => void
   onPublicado: (mediaId: string) => void
+  onAgendado: (agendadoPara: string) => void
 }) {
   const { perfil } = usePermissoes()
   const [trilha, setTrilha] = useState<EstiloTrilha>('calma')
   const [arquivoAudio, setArquivoAudio] = useState<File | null>(null)
   const inputAudioRef = useRef<HTMLInputElement>(null)
-  const [etapa, setEtapa] = useState<'escolher' | 'gerando' | 'pre_visualizar' | 'enviando' | 'publicando'>(
-    'escolher'
-  )
+  const [etapa, setEtapa] = useState<
+    'escolher' | 'gerando' | 'pre_visualizar' | 'enviando' | 'publicando' | 'programando'
+  >('escolher')
   const [progresso, setProgresso] = useState(0)
   const [erro, setErro] = useState<string | null>(null)
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
+  const [mostrarAgendamento, setMostrarAgendamento] = useState(false)
+  const [dataAgendamento, setDataAgendamento] = useState('')
 
   useEffect(() => {
     return () => {
@@ -84,7 +97,30 @@ export default function GerarReelsModal({
     }
   }
 
-  const emAndamento = etapa === 'gerando' || etapa === 'enviando' || etapa === 'publicando'
+  async function confirmarAgendamento() {
+    if (!perfil?.empresa_id || !videoBlob || !dataAgendamento) return
+    const dataEscolhida = new Date(dataAgendamento)
+    if (dataEscolhida.getTime() < Date.now() + ANTECEDENCIA_MINIMA_MS) {
+      setErro('Escolha um horário com pelo menos 5 minutos de antecedência.')
+      return
+    }
+    setErro(null)
+    try {
+      setEtapa('enviando')
+      const videoUrlPublica = await uploadVideoReels(perfil.empresa_id, postId, videoBlob)
+
+      setEtapa('programando')
+      await agendarReels(postId, videoUrlPublica, dataEscolhida.toISOString())
+
+      onAgendado(dataEscolhida.toISOString())
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao programar o Reels')
+      setEtapa('pre_visualizar')
+    }
+  }
+
+  const emAndamento =
+    etapa === 'gerando' || etapa === 'enviando' || etapa === 'publicando' || etapa === 'programando'
 
   return (
     <Modal title="Gerar Reels" onClose={onClose} size="md">
@@ -200,6 +236,13 @@ export default function GerarReelsModal({
                 Gerar novamente
               </button>
               <button
+                onClick={() => setMostrarAgendamento((v) => !v)}
+                className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm font-medium text-hull-900 hover:border-wake-400"
+              >
+                <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                Programar
+              </button>
+              <button
                 onClick={publicar}
                 className="flex items-center gap-2 rounded-md bg-brass-400 px-4 py-2 text-sm font-medium text-hull-900 hover:bg-brass-500"
               >
@@ -207,6 +250,36 @@ export default function GerarReelsModal({
                 Publicar no Instagram
               </button>
             </div>
+
+            {mostrarAgendamento && (
+              <div className="flex flex-wrap items-end gap-3 rounded-md border border-foam-200 bg-foam-100 p-3">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-medium text-hull-900">Publicar em</span>
+                  <input
+                    type="datetime-local"
+                    value={dataAgendamento}
+                    min={formatarDatetimeLocal(new Date(Date.now() + ANTECEDENCIA_MINIMA_MS))}
+                    onChange={(e) => setDataAgendamento(e.target.value)}
+                    className="input text-sm"
+                  />
+                </label>
+                <button
+                  onClick={confirmarAgendamento}
+                  disabled={!dataAgendamento}
+                  className="flex items-center gap-2 rounded-md bg-hull-900 px-3 py-2 text-sm font-medium text-foam-50 hover:bg-hull-800 disabled:opacity-50"
+                >
+                  <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+                  Confirmar agendamento
+                </button>
+                <button
+                  onClick={() => setMostrarAgendamento(false)}
+                  className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400"
+                >
+                  <X className="h-4 w-4" strokeWidth={1.75} />
+                  Cancelar
+                </button>
+              </div>
+            )}
           </>
         )}
 
@@ -216,6 +289,7 @@ export default function GerarReelsModal({
               {etapa === 'gerando' && `Gerando vídeo… ${Math.round(progresso * 100)}%`}
               {etapa === 'enviando' && 'Enviando vídeo…'}
               {etapa === 'publicando' && 'Publicando no Instagram… isso pode levar até um minuto.'}
+              {etapa === 'programando' && 'Programando publicação…'}
             </p>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-foam-200">
               <div

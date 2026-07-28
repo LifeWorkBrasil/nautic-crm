@@ -1395,6 +1395,24 @@ export async function publicarReelsInstagram(
   return data
 }
 
+// Só grava o vídeo e a data — quem publica de verdade é o cron instagram-publicar-agendados.
+export async function agendarReels(
+  postId: string,
+  videoUrl: string,
+  agendadoPara: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('posts_marketing')
+    .update({
+      video_url: videoUrl,
+      agendado_para: agendadoPara,
+      status_agendamento: 'agendado',
+      erro_agendamento: null,
+    })
+    .eq('id', postId)
+  if (error) throw error
+}
+
 // ---------- Minutas de Contrato ----------
 
 export async function listMinutas(): Promise<MinutaContrato[]> {

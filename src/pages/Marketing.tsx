@@ -265,6 +265,14 @@ export default function Marketing() {
     setGerandoReelsPost(null)
   }
 
+  function handleReelsAgendado(postId: string, agendadoPara: string) {
+    const atualiza = (p: PostMarketing) =>
+      p.id === postId ? { ...p, agendado_para: agendadoPara, status_agendamento: 'agendado' as const } : p
+    setPosts((prev) => prev.map(atualiza))
+    setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+    setGerandoReelsPost(null)
+  }
+
   function handleFlyerPublicado(postId: string, mediaId: string) {
     const atualiza = (p: PostMarketing) =>
       p.id === postId
@@ -879,6 +887,7 @@ export default function Marketing() {
           legenda={gerandoReelsPost.legenda_gerada}
           onClose={() => setGerandoReelsPost(null)}
           onPublicado={(mediaId) => handleReelsPublicado(gerandoReelsPost.id, mediaId)}
+          onAgendado={(agendadoPara) => handleReelsAgendado(gerandoReelsPost.id, agendadoPara)}
         />
       )}
 

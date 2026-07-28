@@ -66,6 +66,86 @@ async function criarCreationId(
   return carouselData.id as string;
 }
 
+// Reels: processamento de vídeo no Instagram é bem mais lento que o de imagem, então o
+// creation_id fica salvo no post (reels_creation_id) pra retomar o polling de status no próximo
+// ciclo do cron (5 em 5 min) em vez de criar um container novo toda vez que ainda não terminou.
+async function processarReelsAgendado(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  igUserId: string,
+  accessToken: string,
+  post: { id: string; legenda_gerada: string | null; video_url: string | null; reels_creation_id: string | null }
+): Promise<{ id: string; ok: boolean }> {
+  try {
+    let creationId = post.reels_creation_id;
+
+    if (!creationId) {
+      const containerUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
+      containerUrl.searchParams.set("media_type", "REELS");
+      containerUrl.searchParams.set("video_url", post.video_url ?? "");
+      containerUrl.searchParams.set("caption", post.legenda_gerada ?? "");
+      containerUrl.searchParams.set("access_token", accessToken);
+      const containerResp = await fetch(containerUrl, { method: "POST" });
+      if (!containerResp.ok) {
+        throw new Error(`Falha ao criar container de Reels (${containerResp.status})`);
+      }
+      const containerData = await containerResp.json();
+      creationId = containerData.id as string;
+      await admin.from("posts_marketing").update({ reels_creation_id: creationId }).eq("id", post.id);
+    }
+
+    let statusFinal = "";
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      await sleep(3000);
+      const statusUrl = new URL(`https://graph.instagram.com/${creationId}`);
+      statusUrl.searchParams.set("fields", "status_code");
+      statusUrl.searchParams.set("access_token", accessToken);
+      const statusResp = await fetch(statusUrl);
+      if (!statusResp.ok) continue;
+      const statusData = await statusResp.json();
+      statusFinal = statusData.status_code;
+      if (statusFinal === "FINISHED" || statusFinal === "ERROR") break;
+    }
+
+    if (statusFinal === "ERROR") {
+      throw new Error("O Instagram não conseguiu processar o vídeo do Reels.");
+    }
+    if (statusFinal !== "FINISHED") {
+      // Ainda processando — mantém "agendado" pra tentar de novo no próximo ciclo do cron.
+      return { id: post.id, ok: false };
+    }
+
+    const publishUrl = new URL(`https://graph.instagram.com/${igUserId}/media_publish`);
+    publishUrl.searchParams.set("creation_id", creationId);
+    publishUrl.searchParams.set("access_token", accessToken);
+    const publishResp = await fetch(publishUrl, { method: "POST" });
+    if (!publishResp.ok) {
+      throw new Error(`Falha ao publicar Reels (${publishResp.status})`);
+    }
+    const publishData = await publishResp.json();
+
+    await admin
+      .from("posts_marketing")
+      .update({
+        instagram_media_id: publishData.id,
+        publicado_instagram_em: new Date().toISOString(),
+        status_agendamento: "publicado",
+      })
+      .eq("id", post.id);
+    return { id: post.id, ok: true };
+  } catch (err) {
+    console.error("Falha ao publicar Reels agendado", post.id, err);
+    await admin
+      .from("posts_marketing")
+      .update({
+        status_agendamento: "erro",
+        erro_agendamento: err instanceof Error ? err.message : "Erro ao publicar Reels no Instagram.",
+      })
+      .eq("id", post.id);
+    return { id: post.id, ok: false };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.headers.get("x-cron-secret") !== CRON_SECRET) {
     return json({ error: "Não autorizado" }, 401);
@@ -91,7 +171,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: pendentes } = await admin
       .from("posts_marketing")
-      .select("id, legenda_gerada, foto_urls")
+      .select("id, legenda_gerada, foto_urls, video_url, reels_creation_id")
       .eq("empresa_id", config.empresa_id)
       .eq("status_agendamento", "agendado")
       .lte("agendado_para", new Date().toISOString())
@@ -100,6 +180,11 @@ Deno.serve(async (req: Request) => {
       .limit(5);
 
     for (const post of pendentes ?? []) {
+      if (post.video_url) {
+        resultados.push(await processarReelsAgendado(admin, igUserId, accessToken, post));
+        continue;
+      }
+
       const fotoUrls: string[] = post.foto_urls ?? [];
       if (fotoUrls.length === 0) {
         await admin
