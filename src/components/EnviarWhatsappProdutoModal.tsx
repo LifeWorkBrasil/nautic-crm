@@ -1,11 +1,29 @@
-import { useEffect, useMemo, useState } from 'react'
-import { MessageCircle, Link2, Check, Copy } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { MessageCircle, Link2, Check, Copy, FileDown } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
-import { listLeads, criarLinkPublicoProduto, createLead, adicionarHistorico } from '@/lib/api'
+import FichaProdutoPdf from '@/components/FichaProdutoPdf'
+import {
+  listLeads,
+  criarLinkPublicoProduto,
+  createLead,
+  adicionarHistorico,
+  listFotosProduto,
+  listItensInclusosProduto,
+  listCamposPersonalizados,
+  getSubcategoriaPublica,
+} from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { formatPreco } from '@/lib/format'
-import type { ClienteLead, Produto, LinkPublicoProduto } from '@/types'
+import type {
+  ClienteLead,
+  Produto,
+  LinkPublicoProduto,
+  SubcategoriaProduto,
+  FotoProduto,
+  ProdutoItemIncluso,
+  CampoPersonalizado,
+} from '@/types'
 
 const DIAS_VALIDADE_PADRAO = 14
 
@@ -59,6 +77,15 @@ export default function EnviarWhatsappProdutoModal({
   const [linkGerado, setLinkGerado] = useState<LinkPublicoProduto | null>(null)
   const [copiado, setCopiado] = useState(false)
 
+  const [gerandoFicha, setGerandoFicha] = useState(false)
+  const [dadosFicha, setDadosFicha] = useState<{
+    subcategoria: SubcategoriaProduto | undefined
+    fotos: FotoProduto[]
+    itensInclusos: ProdutoItemIncluso[]
+    campos: CampoPersonalizado[]
+  } | null>(null)
+  const fichaRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     listLeads()
       .then((leads) => {
@@ -107,6 +134,52 @@ export default function EnviarWhatsappProdutoModal({
     await navigator.clipboard.writeText(montarUrlLink(linkGerado))
     setCopiado(true)
     setTimeout(() => setCopiado(false), 1500)
+  }
+
+  async function gerarFichaPdf() {
+    setGerandoFicha(true)
+    setErro(null)
+    try {
+      const [fotos, subcategoria, todosCampos] = await Promise.all([
+        listFotosProduto(produto.id),
+        produto.subcategoria_id ? getSubcategoriaPublica(produto.subcategoria_id) : Promise.resolve(null),
+        listCamposPersonalizados(),
+      ])
+      const itensInclusos = subcategoria?.vendido_como_esta
+        ? await listItensInclusosProduto(produto.id)
+        : []
+      const campos = todosCampos.filter(
+        (c) =>
+          c.categoria_id === (subcategoria?.categoria_id ?? null) ||
+          (produto.grupo_id && c.grupo_id === produto.grupo_id)
+      )
+      setDadosFicha({ subcategoria: subcategoria ?? undefined, fotos, itensInclusos, campos })
+
+      // dá um tick pro React montar a ficha no DOM antes do html2canvas capturar
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      if (!fichaRef.current) throw new Error('Erro ao preparar a ficha')
+
+      const { default: html2pdf } = await import('html2pdf.js')
+      const nomeArquivo = `ficha-${produto.nome
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')}.pdf`
+
+      await html2pdf()
+        .set({
+          margin: 10,
+          filename: nomeArquivo,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        })
+        .from(fichaRef.current)
+        .save()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao gerar a ficha em PDF')
+    } finally {
+      setGerandoFicha(false)
+    }
   }
 
   async function registrarEnvioNoCrm() {
@@ -256,6 +329,26 @@ export default function EnviarWhatsappProdutoModal({
             )}
           </div>
 
+          <div className="rounded-md border border-foam-200 bg-foam-100 p-3">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-hull-900">
+              <FileDown className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
+              Ficha em PDF
+            </p>
+            <p className="mb-2 text-[11px] text-slate-400">
+              Baixa uma ficha de 1 página (fotos, descrição, detalhes) desse produto. O WhatsApp
+              não deixa anexar arquivo por link — depois de baixar, anexe o PDF manualmente na
+              conversa.
+            </p>
+            <button
+              onClick={gerarFichaPdf}
+              disabled={gerandoFicha}
+              className="flex items-center gap-2 rounded-md border border-foam-200 bg-white px-3 py-2 text-sm text-hull-900 hover:border-wake-400 disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" strokeWidth={1.75} />
+              {gerandoFicha ? 'Gerando…' : 'Baixar ficha em PDF'}
+            </button>
+          </div>
+
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-hull-900">Mensagem</span>
             <textarea
@@ -298,6 +391,21 @@ export default function EnviarWhatsappProdutoModal({
             {statusCrm === 'erro' && (
               <span className="text-xs text-signal-red">Não deu pra registrar no CRM.</span>
             )}
+          </div>
+        </div>
+      )}
+
+      {dadosFicha && (
+        <div className="fixed left-[-9999px] top-0" aria-hidden="true">
+          <div ref={fichaRef} className="w-[210mm] bg-white">
+            <FichaProdutoPdf
+              produto={produto}
+              subcategoria={dadosFicha.subcategoria}
+              fotos={dadosFicha.fotos}
+              itensInclusos={dadosFicha.itensInclusos}
+              campos={dadosFicha.campos}
+              incluirPreco
+            />
           </div>
         </div>
       )}
