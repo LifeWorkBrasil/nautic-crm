@@ -76,7 +76,7 @@ export default function FichaProdutoPdf({
           <p className="mt-1 font-mono text-lg text-hull-900">{formatPreco(produto.preco_base)}</p>
         )}
         {produto.descricao && (
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+          <p className="mt-2 whitespace-pre-wrap text-justify text-sm leading-relaxed text-slate-600">
             {produto.descricao}
           </p>
         )}
