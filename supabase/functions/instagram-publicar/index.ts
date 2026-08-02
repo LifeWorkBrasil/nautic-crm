@@ -157,7 +157,8 @@ Deno.serve(async (req: Request) => {
       creationId = await criarCreationId(igUserId, accessToken, fotoUrls, post.legenda_gerada ?? "");
     } catch (err) {
       console.error("Erro ao criar container de mídia", err);
-      return json({ error: "Falha ao preparar a publicação no Instagram." }, 502);
+      const detalhe = err instanceof Error ? err.message : "Falha ao preparar a publicação no Instagram.";
+      return json({ error: detalhe }, 502);
     }
 
     // Aguarda o processamento e publica, com algumas tentativas
