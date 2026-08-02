@@ -21,6 +21,27 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Cada item do carrossel precisa terminar de processar (status_code FINISHED) antes de poder
+// ser referenciado como "children" do container do carrossel — sem essa espera, o Instagram
+// rejeita a criação do carrossel de forma intermitente (falha mais quanto mais fotos tem o post).
+async function aguardarContainerPronto(containerId: string, accessToken: string): Promise<void> {
+  for (let tentativa = 0; tentativa < 10; tentativa++) {
+    const statusUrl = new URL(`https://graph.instagram.com/${containerId}`);
+    statusUrl.searchParams.set("fields", "status_code");
+    statusUrl.searchParams.set("access_token", accessToken);
+    const resp = await fetch(statusUrl);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.status_code === "FINISHED") return;
+      if (data.status_code === "ERROR") {
+        throw new Error("O Instagram não conseguiu processar uma das fotos do carrossel.");
+      }
+    }
+    await sleep(2000);
+  }
+  throw new Error("O Instagram demorou demais para processar uma das fotos do carrossel.");
+}
+
 // Cria o container de mídia a publicar: imagem única, ou carrossel quando o post tem mais de
 // uma foto (cria um item container por foto e depois o container do carrossel que os agrupa).
 async function criarCreationId(
@@ -55,6 +76,7 @@ async function criarCreationId(
       throw new Error(`Falha ao criar item do carrossel (${resp.status}): ${await resp.text()}`);
     }
     const data = await resp.json();
+    await aguardarContainerPronto(data.id as string, accessToken);
     itemIds.push(data.id as string);
   }
 
