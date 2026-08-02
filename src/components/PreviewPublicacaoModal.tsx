@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Instagram } from 'lucide-react'
+import { Instagram, X } from 'lucide-react'
 import Modal from '@/components/Modal'
 
 export default function PreviewPublicacaoModal({
@@ -9,6 +9,7 @@ export default function PreviewPublicacaoModal({
   erro,
   onClose,
   onConfirmar,
+  onRemoverFoto,
 }: {
   fotoUrls: string[]
   legenda: string
@@ -16,8 +17,10 @@ export default function PreviewPublicacaoModal({
   erro: string | null
   onClose: () => void
   onConfirmar: () => void
+  onRemoverFoto: (url: string) => void
 }) {
   const [indice, setIndice] = useState(0)
+  const indiceAtual = Math.min(indice, Math.max(fotoUrls.length - 1, 0))
 
   return (
     <Modal
@@ -53,26 +56,48 @@ export default function PreviewPublicacaoModal({
 
         {fotoUrls.length > 0 ? (
           <div>
-            <div className="aspect-square overflow-hidden rounded-md bg-hull-900/[0.04]">
-              <img src={fotoUrls[indice]} alt="" className="h-full w-full object-cover" />
+            <div className="group relative aspect-square overflow-hidden rounded-md bg-hull-900/[0.04]">
+              <img src={fotoUrls[indiceAtual]} alt="" className="h-full w-full object-cover" />
+              {fotoUrls.length > 1 && (
+                <button
+                  onClick={() => onRemoverFoto(fotoUrls[indiceAtual])}
+                  disabled={confirmando}
+                  title="Remover esta foto do post"
+                  className="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-hull-900/70 px-2 py-1 text-xs text-foam-50 opacity-0 transition-opacity hover:bg-signal-red group-hover:opacity-100 disabled:opacity-50"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                  Remover foto
+                </button>
+              )}
             </div>
             {fotoUrls.length > 1 && (
               <>
                 <div className="mt-2 flex gap-1.5 overflow-x-auto">
                   {fotoUrls.map((url, i) => (
-                    <button
-                      key={`${url}-${i}`}
-                      onClick={() => setIndice(i)}
-                      className={`h-14 w-14 shrink-0 overflow-hidden rounded-md border-2 ${
-                        i === indice ? 'border-wake-400' : 'border-transparent'
-                      }`}
-                    >
-                      <img src={url} alt="" className="h-full w-full object-cover" />
-                    </button>
+                    <div key={`${url}-${i}`} className="group/thumb relative shrink-0">
+                      <button
+                        onClick={() => setIndice(i)}
+                        className={`h-14 w-14 overflow-hidden rounded-md border-2 ${
+                          i === indiceAtual ? 'border-wake-400' : 'border-transparent'
+                        }`}
+                      >
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      </button>
+                      <button
+                        onClick={() => onRemoverFoto(url)}
+                        disabled={confirmando}
+                        title="Remover esta foto do post"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-signal-red text-foam-50 opacity-0 shadow transition-opacity group-hover/thumb:opacity-100 disabled:opacity-50"
+                      >
+                        <X className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                    </div>
                   ))}
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-400">
-                  Carrossel com {fotoUrls.length} fotos — todas serão publicadas juntas.
+                  Carrossel com {fotoUrls.length} fotos — todas serão publicadas juntas. Passe o
+                  mouse numa foto e clique no × pra removê-la do post (útil se o Instagram recusar
+                  a proporção de alguma).
                 </p>
               </>
             )}

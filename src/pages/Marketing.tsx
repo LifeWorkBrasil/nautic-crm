@@ -29,6 +29,7 @@ import {
   getInstagramConectarUrl,
   desconectarInstagram,
   publicarNoInstagram,
+  atualizarFotosPostMarketing,
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import GerarReelsModal from '@/components/GerarReelsModal'
@@ -253,6 +254,22 @@ export default function Marketing() {
     if (!previewPost) return
     const ok = await handlePublicarInstagram(previewPost.id)
     if (ok) setPreviewPost(null)
+  }
+
+  async function handleRemoverFotoPreview(url: string) {
+    if (!previewPost) return
+    const novaLista = (previewPost.foto_urls ?? []).filter((u) => u !== url)
+    if (novaLista.length === 0) return
+    try {
+      await atualizarFotosPostMarketing(previewPost.id, novaLista)
+      const atualiza = (p: PostMarketing) => (p.id === previewPost.id ? { ...p, foto_urls: novaLista } : p)
+      setPosts((prev) => prev.map(atualiza))
+      setPreviewPost((prev) => (prev ? { ...prev, foto_urls: novaLista } : prev))
+      setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
+      setErroPreview(null)
+    } catch (e) {
+      setErroPreview(e instanceof Error ? e.message : 'Erro ao remover foto do post')
+    }
   }
 
   function handleReelsPublicado(postId: string, mediaId: string) {
@@ -909,6 +926,7 @@ export default function Marketing() {
           erro={erroPreview}
           onClose={() => setPreviewPost(null)}
           onConfirmar={handleConfirmarPreview}
+          onRemoverFoto={handleRemoverFotoPreview}
         />
       )}
     </div>
