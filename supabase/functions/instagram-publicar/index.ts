@@ -59,21 +59,34 @@ async function criarCreationId(
     containerUrl.searchParams.set("access_token", accessToken);
     const resp = await fetch(containerUrl, { method: "POST" });
     if (!resp.ok) {
-      throw new Error(`Falha ao criar container de mídia (${resp.status}): ${await resp.text()}`);
+      const corpo = await resp.text();
+      if (corpo.includes("aspect ratio")) {
+        throw new Error(
+          "Essa foto tem uma proporção incompatível com o Instagram (precisa ficar entre 4:5 e 1.91:1). Ajuste o enquadramento e tente de novo."
+        );
+      }
+      throw new Error(`Falha ao criar container de mídia (${resp.status}): ${corpo}`);
     }
     const data = await resp.json();
     return data.id as string;
   }
 
   const itemIds: string[] = [];
-  for (const url of fotos) {
+  for (let i = 0; i < fotos.length; i++) {
+    const url = fotos[i];
     const itemUrl = new URL(`https://graph.instagram.com/${igUserId}/media`);
     itemUrl.searchParams.set("image_url", url);
     itemUrl.searchParams.set("is_carousel_item", "true");
     itemUrl.searchParams.set("access_token", accessToken);
     const resp = await fetch(itemUrl, { method: "POST" });
     if (!resp.ok) {
-      throw new Error(`Falha ao criar item do carrossel (${resp.status}): ${await resp.text()}`);
+      const corpo = await resp.text();
+      if (corpo.includes("aspect ratio")) {
+        throw new Error(
+          `A foto ${i + 1} deste post tem uma proporção incompatível com o Instagram (precisa ficar entre 4:5 e 1.91:1). Ajuste o enquadramento dessa foto (ou remova-a do post) e tente publicar de novo.`
+        );
+      }
+      throw new Error(`Falha ao criar item do carrossel (${resp.status}): ${corpo}`);
     }
     const data = await resp.json();
     await aguardarContainerPronto(data.id as string, accessToken);
