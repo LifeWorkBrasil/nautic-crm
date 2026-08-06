@@ -121,7 +121,9 @@ type ContrapropostaComItens = Contraproposta & {
 }
 
 export default function CRM() {
-  const { perfil, ramoNautico } = usePermissoes()
+  const { perfil, ramoNautico, temPermissao } = usePermissoes()
+  const podeInserirContato = temPermissao('dados:contatos:inserir')
+  const podeExcluirContato = temPermissao('dados:contatos:excluir')
   const navigate = useNavigate()
   const [modoCompacto, setModoCompacto] = useState(
     () => localStorage.getItem('crm_modo_compacto') === '1'
@@ -434,13 +436,15 @@ export default function CRM() {
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
             Lixeira
           </button>
-          <button
-            onClick={() => setCriando(true)}
-            className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            Novo cliente
-          </button>
+          {podeInserirContato && (
+            <button
+              onClick={() => setCriando(true)}
+              className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Novo cliente
+            </button>
+          )}
         </div>
       </header>
 
@@ -552,14 +556,16 @@ export default function CRM() {
                           <FileSignature className="h-3 w-3" strokeWidth={1.75} />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleExcluirLead(lead)}
-                        disabled={excluindoId === lead.id}
-                        title="Excluir"
-                        className="flex items-center gap-1 text-[11px] hover:text-signal-red disabled:opacity-40"
-                      >
-                        <Trash2 className="h-3 w-3" strokeWidth={1.75} />
-                      </button>
+                      {podeExcluirContato && (
+                        <button
+                          onClick={() => handleExcluirLead(lead)}
+                          disabled={excluindoId === lead.id}
+                          title="Excluir"
+                          className="flex items-center gap-1 text-[11px] hover:text-signal-red disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3 w-3" strokeWidth={1.75} />
+                        </button>
+                      )}
                       <span className="ml-auto font-mono text-[11px]">
                         {new Date(lead.criado_em).toLocaleDateString('pt-BR')}
                       </span>

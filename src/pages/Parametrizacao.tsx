@@ -15,12 +15,14 @@ import {
   Image as ImageIcon,
   X,
   Upload,
+  Download,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
 import ImportarMotoresModal from '@/components/ImportarMotoresModal'
 import ImportarAcessoriosModal from '@/components/ImportarAcessoriosModal'
+import { exportarTabelaExcel } from '@/lib/exportarExcel'
 import { CampoTexto, CampoNumero, CampoTextArea } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -272,6 +274,11 @@ const MOTOR_VAZIO = {
 }
 
 function AbaMotores() {
+  const { temPermissao } = usePermissoes()
+  const podeInserir = temPermissao('dados:motores:inserir')
+  const podeExcluir = temPermissao('dados:motores:excluir')
+  const podeExportar = temPermissao('dados:motores:exportar')
+
   const [itens, setItens] = useState<Motor[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -351,20 +358,41 @@ function AbaMotores() {
     }
   }
 
+  function exportar() {
+    exportarTabelaExcel(
+      'motores',
+      ['Marca', 'Modelo', 'Potência (HP)', 'Preço (R$)', 'Combustível', 'Ativo'],
+      itens.map((m) => [m.marca, m.modelo, m.potencia, m.preco, m.combustivel, m.ativo ? 'Sim' : 'Não'])
+    )
+  }
+
   const modalAberto = criando || editando !== null
 
   return (
     <div>
       <ErroBanner erro={erro} />
       <div className="mb-4 flex justify-end gap-2">
-        <button
-          onClick={() => setImportando(true)}
-          className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
-        >
-          <Upload className="h-4 w-4" strokeWidth={1.75} />
-          Importar planilha
-        </button>
-        <AddButton label="Novo motor" onClick={abrirCriacao} />
+        {podeExportar && (
+          <button
+            onClick={exportar}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+          >
+            <Download className="h-4 w-4" strokeWidth={1.75} />
+            Exportar
+          </button>
+        )}
+        {podeInserir && (
+          <>
+            <button
+              onClick={() => setImportando(true)}
+              className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+            >
+              <Upload className="h-4 w-4" strokeWidth={1.75} />
+              Importar planilha
+            </button>
+            <AddButton label="Novo motor" onClick={abrirCriacao} />
+          </>
+        )}
       </div>
 
       {carregando ? (
@@ -408,12 +436,14 @@ function AbaMotores() {
                       <button onClick={() => abrirEdicao(motor)} className="text-wake-500 hover:text-wake-600">
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </button>
-                      <button
-                        onClick={() => excluir(motor.id)}
-                        className="text-signal-red/80 hover:text-signal-red"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      </button>
+                      {podeExcluir && (
+                        <button
+                          onClick={() => excluir(motor.id)}
+                          className="text-signal-red/80 hover:text-signal-red"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -505,6 +535,11 @@ const ACESSORIO_VAZIO = {
 }
 
 function AbaAcessorios() {
+  const { temPermissao } = usePermissoes()
+  const podeInserir = temPermissao('dados:acessorios:inserir')
+  const podeExcluir = temPermissao('dados:acessorios:excluir')
+  const podeExportar = temPermissao('dados:acessorios:exportar')
+
   const [itens, setItens] = useState<Acessorio[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [subcategorias, setSubcategorias] = useState<SubcategoriaProduto[]>([])
@@ -588,20 +623,51 @@ function AbaAcessorios() {
     }
   }
 
+  function exportar() {
+    exportarTabelaExcel(
+      'acessorios',
+      ['Nome', 'Preço (R$)', 'Categoria', 'Vínculo (produto)', 'Subcategorias'],
+      itens.map((item) => [
+        item.nome,
+        item.preco,
+        item.categoria,
+        item.produto_id ? produtos.find((p) => p.id === item.produto_id)?.nome ?? '' : '',
+        item.subcategoria_ids.length === 0
+          ? 'Todas'
+          : item.subcategoria_ids
+              .map((id) => subcategorias.find((s) => s.id === id)?.nome ?? '')
+              .join(', '),
+      ])
+    )
+  }
+
   const modalAberto = criando || editando !== null
 
   return (
     <div>
       <ErroBanner erro={erro} />
       <div className="mb-4 flex justify-end gap-2">
-        <button
-          onClick={() => setImportando(true)}
-          className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
-        >
-          <Upload className="h-4 w-4" strokeWidth={1.75} />
-          Importar planilha
-        </button>
-        <AddButton label="Novo acessório" onClick={abrirCriacao} />
+        {podeExportar && (
+          <button
+            onClick={exportar}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+          >
+            <Download className="h-4 w-4" strokeWidth={1.75} />
+            Exportar
+          </button>
+        )}
+        {podeInserir && (
+          <>
+            <button
+              onClick={() => setImportando(true)}
+              className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+            >
+              <Upload className="h-4 w-4" strokeWidth={1.75} />
+              Importar planilha
+            </button>
+            <AddButton label="Novo acessório" onClick={abrirCriacao} />
+          </>
+        )}
       </div>
 
       {carregando ? (
@@ -642,12 +708,14 @@ function AbaAcessorios() {
                       <button onClick={() => abrirEdicao(item)} className="text-wake-500 hover:text-wake-600">
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </button>
-                      <button
-                        onClick={() => excluir(item.id)}
-                        className="text-signal-red/80 hover:text-signal-red"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      </button>
+                      {podeExcluir && (
+                        <button
+                          onClick={() => excluir(item.id)}
+                          className="text-signal-red/80 hover:text-signal-red"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

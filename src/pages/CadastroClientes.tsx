@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Plus,
   Upload,
+  Download,
   Trash2,
   RotateCcw,
   Pencil,
@@ -16,6 +17,8 @@ import NovoClienteModal from '@/components/NovoClienteModal'
 import ImportarContatosModal from '@/components/ImportarContatosModal'
 import EnvioMassaModal from '@/components/EnvioMassaModal'
 import { linkWhatsapp } from '@/lib/whatsapp'
+import { exportarTabelaExcel } from '@/lib/exportarExcel'
+import { usePermissoes } from '@/lib/PermissoesContext'
 import {
   listLeads,
   listUsuarios,
@@ -37,6 +40,11 @@ const STATUS_STYLES: Record<StatusCRM, string> = {
 const LIMITE_INICIAL = 200
 
 export default function CadastroClientes() {
+  const { temPermissao } = usePermissoes()
+  const podeInserir = temPermissao('dados:contatos:inserir')
+  const podeExcluir = temPermissao('dados:contatos:excluir')
+  const podeExportar = temPermissao('dados:contatos:exportar')
+
   const [clientes, setClientes] = useState<ClienteLead[]>([])
   const [usuarios, setUsuarios] = useState<UsuarioPerfil[]>([])
   const [carregando, setCarregando] = useState(true)
@@ -145,6 +153,22 @@ export default function CadastroClientes() {
     }
   }
 
+  function handleExportar() {
+    exportarTabelaExcel(
+      'contatos',
+      ['Nome', 'Telefone', 'E-mail', 'Status', 'Vendedor', 'Origem', 'Cadastrado em'],
+      filtrados.map((c) => [
+        c.nome,
+        c.telefone,
+        c.email,
+        c.status_crm,
+        nomeVendedor(c.vendedor_id) ?? '',
+        c.origem,
+        new Date(c.criado_em).toLocaleDateString('pt-BR'),
+      ])
+    )
+  }
+
   function abrirLixeira() {
     setMostrandoLixeira(true)
     setCarregandoLixeira(true)
@@ -193,20 +217,33 @@ export default function CadastroClientes() {
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
             Lixeira
           </button>
-          <button
-            onClick={() => setImportandoContatos(true)}
-            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
-          >
-            <Upload className="h-4 w-4" strokeWidth={1.75} />
-            Importar contatos
-          </button>
-          <button
-            onClick={() => setCriando(true)}
-            className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            Novo cliente
-          </button>
+          {podeExportar && (
+            <button
+              onClick={handleExportar}
+              className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+            >
+              <Download className="h-4 w-4" strokeWidth={1.75} />
+              Exportar
+            </button>
+          )}
+          {podeInserir && (
+            <button
+              onClick={() => setImportandoContatos(true)}
+              className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+            >
+              <Upload className="h-4 w-4" strokeWidth={1.75} />
+              Importar contatos
+            </button>
+          )}
+          {podeInserir && (
+            <button
+              onClick={() => setCriando(true)}
+              className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Novo cliente
+            </button>
+          )}
         </div>
       </header>
 
@@ -331,14 +368,16 @@ export default function CadastroClientes() {
                       >
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </button>
-                      <button
-                        onClick={() => handleExcluir(cliente)}
-                        disabled={excluindoId === cliente.id}
-                        title="Excluir"
-                        className="hover:text-signal-red disabled:opacity-40"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      </button>
+                      {podeExcluir && (
+                        <button
+                          onClick={() => handleExcluir(cliente)}
+                          disabled={excluindoId === cliente.id}
+                          title="Excluir"
+                          className="hover:text-signal-red disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
