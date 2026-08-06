@@ -577,6 +577,21 @@ export async function createLead(
   return data
 }
 
+export async function createLeadsBulk(
+  leads: Omit<ClienteLead, 'id' | 'criado_em'>[]
+): Promise<ClienteLead[]> {
+  if (leads.length === 0) return []
+  const TAMANHO_LOTE = 300
+  const criados: ClienteLead[] = []
+  for (let i = 0; i < leads.length; i += TAMANHO_LOTE) {
+    const lote = leads.slice(i, i + TAMANHO_LOTE)
+    const { data, error } = await supabase.from('clientes_leads').insert(lote).select()
+    if (error) throw error
+    criados.push(...(data ?? []))
+  }
+  return criados
+}
+
 export async function updateLeadStatus(id: string, status: StatusCRM): Promise<void> {
   const { error } = await supabase
     .from('clientes_leads')
@@ -621,6 +636,18 @@ export async function adicionarHistorico(
     .single()
   if (error) throw error
   return data
+}
+
+export async function adicionarHistoricoBulk(
+  itens: { cliente_id: string; texto: string }[]
+): Promise<void> {
+  if (itens.length === 0) return
+  const TAMANHO_LOTE = 300
+  for (let i = 0; i < itens.length; i += TAMANHO_LOTE) {
+    const lote = itens.slice(i, i + TAMANHO_LOTE)
+    const { error } = await supabase.from('clientes_historico').insert(lote)
+    if (error) throw error
+  }
 }
 
 // ---------- Orçamentos ----------

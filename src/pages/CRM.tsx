@@ -12,9 +12,11 @@ import {
   Maximize2,
   Trash2,
   RotateCcw,
+  Upload,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
+import ImportarContatosModal from '@/components/ImportarContatosModal'
 import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import { formatBRL } from '@/lib/format'
@@ -158,6 +160,7 @@ export default function CRM() {
   const [lixeira, setLixeira] = useState<ClienteLead[]>([])
   const [carregandoLixeira, setCarregandoLixeira] = useState(false)
   const [restaurandoId, setRestaurandoId] = useState<string | null>(null)
+  const [importandoContatos, setImportandoContatos] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -434,6 +437,13 @@ export default function CRM() {
           >
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
             Lixeira
+          </button>
+          <button
+            onClick={() => setImportandoContatos(true)}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            <Upload className="h-4 w-4" strokeWidth={1.75} />
+            Importar contatos
           </button>
           <button
             onClick={() => setCriando(true)}
@@ -1137,6 +1147,14 @@ export default function CRM() {
         <GerarContratoModal
           clienteIdInicial={mostrandoGerarContratoPara.id}
           onClose={() => setMostrandoGerarContratoPara(null)}
+        />
+      )}
+
+      {importandoContatos && (
+        <ImportarContatosModal
+          leadsExistentes={leads}
+          onClose={() => setImportandoContatos(false)}
+          onImportado={carregar}
         />
       )}
 
