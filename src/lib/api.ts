@@ -537,13 +537,23 @@ export async function deleteAcessorio(id: string): Promise<void> {
 // ---------- CRM / Leads ----------
 
 export async function listLeads(): Promise<ClienteLead[]> {
-  const { data, error } = await supabase
-    .from('clientes_leads')
-    .select('*')
-    .is('deletado_em', null)
-    .order('criado_em', { ascending: false })
-  if (error) throw error
-  return data ?? []
+  // O PostgREST corta em 1000 linhas por padrão — sem paginar aqui, uma importação grande
+  // (que entra como as mais recentes, por criado_em desc) pode ocupar o limite todo e escconder
+  // leads mais antigos (ex.: os que já estão em Proposta Enviada/Negociação) da resposta.
+  const TAMANHO_PAGINA = 1000
+  const todos: ClienteLead[] = []
+  for (let pagina = 0; ; pagina++) {
+    const { data, error } = await supabase
+      .from('clientes_leads')
+      .select('*')
+      .is('deletado_em', null)
+      .order('criado_em', { ascending: false })
+      .range(pagina * TAMANHO_PAGINA, pagina * TAMANHO_PAGINA + TAMANHO_PAGINA - 1)
+    if (error) throw error
+    todos.push(...(data ?? []))
+    if (!data || data.length < TAMANHO_PAGINA) break
+  }
+  return todos
 }
 
 export async function listLeadsLixeira(): Promise<ClienteLead[]> {
@@ -552,6 +562,7 @@ export async function listLeadsLixeira(): Promise<ClienteLead[]> {
     .select('*')
     .not('deletado_em', 'is', null)
     .order('deletado_em', { ascending: false })
+    .range(0, 999)
   if (error) throw error
   return data ?? []
 }
