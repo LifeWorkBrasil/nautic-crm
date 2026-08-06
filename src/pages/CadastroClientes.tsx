@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Upload, Trash2, RotateCcw, Pencil, Mail, Phone, ArrowUpRight, Search } from 'lucide-react'
+import {
+  Plus,
+  Upload,
+  Trash2,
+  RotateCcw,
+  Pencil,
+  Mail,
+  Phone,
+  ArrowUpRight,
+  Search,
+  MessageSquareText,
+} from 'lucide-react'
 import Modal from '@/components/Modal'
 import NovoClienteModal from '@/components/NovoClienteModal'
 import ImportarContatosModal from '@/components/ImportarContatosModal'
+import EnvioMassaModal from '@/components/EnvioMassaModal'
 import { linkWhatsapp } from '@/lib/whatsapp'
 import {
   listLeads,
@@ -43,6 +55,9 @@ export default function CadastroClientes() {
   const [carregandoLixeira, setCarregandoLixeira] = useState(false)
   const [restaurandoId, setRestaurandoId] = useState<string | null>(null)
 
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set())
+  const [enviandoMassa, setEnviandoMassa] = useState(false)
+
   async function carregar() {
     setCarregando(true)
     try {
@@ -78,6 +93,30 @@ export default function CadastroClientes() {
   }, [clientes, busca])
 
   const visiveis = filtrados.slice(0, limiteExibicao)
+  const visiveisComTelefone = visiveis.filter((c) => c.telefone)
+  const todosVisiveisSelecionados =
+    visiveisComTelefone.length > 0 && visiveisComTelefone.every((c) => selecionados.has(c.id))
+  const clientesSelecionados = clientes.filter((c) => selecionados.has(c.id) && c.telefone)
+
+  function toggleSelecionado(id: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelecionarTodosVisiveis() {
+    setSelecionados((prev) => {
+      const next = new Set(prev)
+      if (todosVisiveisSelecionados) {
+        visiveisComTelefone.forEach((c) => next.delete(c.id))
+      } else {
+        visiveisComTelefone.forEach((c) => next.add(c.id))
+      }
+      return next
+    })
+  }
 
   async function handleMoverParaAtendimento(cliente: ClienteLead) {
     setMovendoId(cliente.id)
@@ -138,6 +177,15 @@ export default function CadastroClientes() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {selecionados.size > 0 && (
+            <button
+              onClick={() => setEnviandoMassa(true)}
+              className="flex items-center gap-2 rounded-md border border-wake-400 bg-wake-500/5 px-3 py-2.5 text-sm text-wake-600 transition-colors hover:bg-wake-500/10"
+            >
+              <MessageSquareText className="h-4 w-4" strokeWidth={1.75} />
+              Enviar mensagem ({clientesSelecionados.length})
+            </button>
+          )}
           <button
             onClick={abrirLixeira}
             className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
@@ -193,6 +241,15 @@ export default function CadastroClientes() {
           <table className="w-full text-sm">
             <thead className="bg-foam-100 text-left text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={todosVisiveisSelecionados}
+                    onChange={toggleSelecionarTodosVisiveis}
+                    className="h-4 w-4 accent-brass-500"
+                    title="Selecionar todos os visíveis com telefone"
+                  />
+                </th>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">Telefone</th>
                 <th className="px-4 py-3">E-mail</th>
@@ -206,13 +263,22 @@ export default function CadastroClientes() {
             <tbody className="divide-y divide-foam-200">
               {visiveis.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-400">
+                  <td colSpan={9} className="px-4 py-6 text-center text-sm text-slate-400">
                     {busca ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado ainda.'}
                   </td>
                 </tr>
               )}
               {visiveis.map((cliente) => (
                 <tr key={cliente.id} className="hover:bg-foam-100/60">
+                  <td className="px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      disabled={!cliente.telefone}
+                      checked={selecionados.has(cliente.id)}
+                      onChange={() => toggleSelecionado(cliente.id)}
+                      className="h-4 w-4 accent-brass-500 disabled:opacity-30"
+                    />
+                  </td>
                   <td className="px-4 py-2.5 font-medium text-hull-900">{cliente.nome}</td>
                   <td className="px-4 py-2.5 text-slate-500">{cliente.telefone || '—'}</td>
                   <td className="px-4 py-2.5 text-slate-500">{cliente.email || '—'}</td>
@@ -320,6 +386,14 @@ export default function CadastroClientes() {
           leadsExistentes={clientes}
           onClose={() => setImportandoContatos(false)}
           onImportado={carregar}
+        />
+      )}
+
+      {enviandoMassa && (
+        <EnvioMassaModal
+          contatos={clientesSelecionados}
+          onClose={() => setEnviandoMassa(false)}
+          onConcluido={() => setSelecionados(new Set())}
         />
       )}
 
