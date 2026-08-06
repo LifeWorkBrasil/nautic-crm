@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
-import { createLead } from '@/lib/api'
+import { createLead, updateLead } from '@/lib/api'
 import type { ClienteLead } from '@/types'
 
 const FORM_VAZIO = {
@@ -25,15 +25,39 @@ const FORM_VAZIO = {
 export default function NovoClienteModal({
   nomeInicial,
   origem,
+  clienteExistente,
+  textoBotaoSalvar,
   onClose,
   onCriado,
 }: {
   nomeInicial?: string
   origem: string
+  clienteExistente?: ClienteLead
+  textoBotaoSalvar?: string
   onClose: () => void
   onCriado: (lead: ClienteLead) => void
 }) {
-  const [form, setForm] = useState({ ...FORM_VAZIO, nome: nomeInicial ?? '' })
+  const [form, setForm] = useState(() =>
+    clienteExistente
+      ? {
+          nome: clienteExistente.nome,
+          email: clienteExistente.email,
+          telefone: clienteExistente.telefone,
+          tipo_pessoa: clienteExistente.tipo_pessoa ?? ('PF' as 'PF' | 'PJ'),
+          cpf: clienteExistente.cpf ?? '',
+          rg: clienteExistente.rg ?? '',
+          cnpj: clienteExistente.cnpj ?? '',
+          razao_social: clienteExistente.razao_social ?? '',
+          nome_fantasia: clienteExistente.nome_fantasia ?? '',
+          inscricao_estadual: clienteExistente.inscricao_estadual ?? '',
+          endereco: clienteExistente.endereco ?? '',
+          cidade: clienteExistente.cidade ?? '',
+          estado: clienteExistente.estado ?? '',
+          cep: clienteExistente.cep ?? '',
+          observacoes: clienteExistente.observacoes ?? '',
+        }
+      : { ...FORM_VAZIO, nome: nomeInicial ?? '' }
+  )
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -42,12 +66,10 @@ export default function NovoClienteModal({
     setSalvando(true)
     setErro(null)
     try {
-      const lead = await createLead({
+      const dados = {
         nome: form.nome.trim(),
         email: form.email,
         telefone: form.telefone,
-        status_crm: 'Lead',
-        origem,
         observacoes: form.observacoes,
         tipo_pessoa: form.tipo_pessoa,
         cpf: form.tipo_pessoa === 'PF' ? form.cpf || null : null,
@@ -60,8 +82,14 @@ export default function NovoClienteModal({
         cidade: form.cidade || null,
         estado: form.estado || null,
         cep: form.cep || null,
-      })
-      onCriado(lead)
+      }
+      if (clienteExistente) {
+        await updateLead(clienteExistente.id, dados)
+        onCriado({ ...clienteExistente, ...dados })
+      } else {
+        const lead = await createLead({ ...dados, status_crm: 'Lead', origem })
+        onCriado(lead)
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Erro ao cadastrar cliente')
     } finally {
@@ -71,7 +99,7 @@ export default function NovoClienteModal({
 
   return (
     <Modal
-      title="Cadastrar cliente"
+      title={clienteExistente ? `Editar ${clienteExistente.nome}` : 'Cadastrar cliente'}
       onClose={onClose}
       size="lg"
       footer={
@@ -84,7 +112,9 @@ export default function NovoClienteModal({
             disabled={salvando || !form.nome.trim()}
             className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
           >
-            {salvando ? 'Salvando…' : 'Salvar e usar neste orçamento'}
+            {salvando
+              ? 'Salvando…'
+              : textoBotaoSalvar ?? (clienteExistente ? 'Salvar' : 'Salvar e usar neste orçamento')}
           </button>
         </>
       }

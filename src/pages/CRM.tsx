@@ -12,11 +12,9 @@ import {
   Maximize2,
   Trash2,
   RotateCcw,
-  Upload,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
-import ImportarContatosModal from '@/components/ImportarContatosModal'
 import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import { formatBRL } from '@/lib/format'
@@ -58,7 +56,6 @@ function estaAtrasado(lead: ClienteLead): boolean {
 }
 
 const COLUNAS: StatusCRM[] = [
-  'Lead',
   'Proposta Enviada',
   'Negociação',
   'Venda Concluída',
@@ -77,7 +74,7 @@ const LEAD_VAZIO = {
   nome: '',
   email: '',
   telefone: '',
-  status_crm: 'Lead' as StatusCRM,
+  status_crm: 'Proposta Enviada' as StatusCRM,
   origem: '',
   observacoes: '',
 }
@@ -160,7 +157,6 @@ export default function CRM() {
   const [lixeira, setLixeira] = useState<ClienteLead[]>([])
   const [carregandoLixeira, setCarregandoLixeira] = useState(false)
   const [restaurandoId, setRestaurandoId] = useState<string | null>(null)
-  const [importandoContatos, setImportandoContatos] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -439,18 +435,11 @@ export default function CRM() {
             Lixeira
           </button>
           <button
-            onClick={() => setImportandoContatos(true)}
-            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
-          >
-            <Upload className="h-4 w-4" strokeWidth={1.75} />
-            Importar contatos
-          </button>
-          <button
             onClick={() => setCriando(true)}
             className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
           >
             <Plus className="h-4 w-4" strokeWidth={2} />
-            Novo lead
+            Novo cliente
           </button>
         </div>
       </header>
@@ -585,7 +574,7 @@ export default function CRM() {
 
       {criando && (
         <Modal
-          title="Novo lead"
+          title="Novo cliente"
           onClose={() => setCriando(false)}
           footer={
             <>
@@ -1147,14 +1136,6 @@ export default function CRM() {
         <GerarContratoModal
           clienteIdInicial={mostrandoGerarContratoPara.id}
           onClose={() => setMostrandoGerarContratoPara(null)}
-        />
-      )}
-
-      {importandoContatos && (
-        <ImportarContatosModal
-          leadsExistentes={leads}
-          onClose={() => setImportandoContatos(false)}
-          onImportado={carregar}
         />
       )}
 

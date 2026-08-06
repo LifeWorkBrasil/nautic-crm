@@ -13,6 +13,7 @@ import {
   Compass,
   Layers,
   ClipboardList,
+  Users,
   Megaphone,
   Handshake,
   ShieldCheck,
@@ -33,6 +34,7 @@ const CATEGORIA_ICONES: Record<string, typeof Sailboat> = {
 
 const NAV_ITEMS_FIXOS = [
   { to: '/', label: 'CRM & Funil', icon: LayoutGrid, end: true, permissao: 'crm' },
+  { to: '/cadastro-clientes', label: 'Cadastro de Clientes', icon: Users, permissao: 'crm' },
   { to: '/captacao', label: 'Captação', icon: ClipboardList, permissao: 'captacao' },
   {
     to: '/produtos-terceiros',

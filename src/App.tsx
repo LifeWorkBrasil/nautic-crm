@@ -6,6 +6,7 @@ import { PermissoesProvider } from '@/lib/PermissoesContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import CRM from './pages/CRM'
+import CadastroClientes from './pages/CadastroClientes'
 import Captacao from './pages/Captacao'
 import ProdutosTerceiros from './pages/ProdutosTerceiros'
 import Catalogo from './pages/Catalogo'
@@ -48,6 +49,7 @@ export default function App() {
         <Route element={<PermissoesProvider session={session}><Outlet /></PermissoesProvider>}>
           <Route element={<Layout />}>
             <Route path="/" element={<CRM />} />
+            <Route path="/cadastro-clientes" element={<CadastroClientes />} />
             <Route path="/captacao" element={<Captacao />} />
             <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
             <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
