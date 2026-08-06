@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing, Eye, EyeOff } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
@@ -109,6 +109,7 @@ export default function Catalogo() {
     itens,
     carregando,
     erro,
+    setErro,
     editando,
     form,
     setForm,
@@ -134,6 +135,17 @@ export default function Catalogo() {
     setGrupoFiltroId(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subcategoriaId])
+
+  async function alternarOculto(produto: Produto) {
+    try {
+      await updateProduto(produto.id, {
+        status_estoque: produto.status_estoque === 'oculto' ? 'disponivel' : 'oculto',
+      })
+      await carregar()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Erro ao atualizar o produto')
+    }
+  }
 
   const camposRelevantes = campos.filter(
     (c) => c.categoria_id === categoria?.id || (form.grupo_id && c.grupo_id === form.grupo_id)
@@ -312,6 +324,27 @@ export default function Catalogo() {
                     Avise-me
                   </button>
                 )}
+                <button
+                  onClick={() => alternarOculto(produto)}
+                  title={
+                    produto.status_estoque === 'oculto'
+                      ? 'Voltar a mostrar no catálogo'
+                      : 'Ocultar do catálogo (venda suspensa)'
+                  }
+                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                >
+                  {produto.status_estoque === 'oculto' ? (
+                    <>
+                      <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Mostrar
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Ocultar
+                    </>
+                  )}
+                </button>
                 <button
                   onClick={() => excluir(produto.id)}
                   className="ml-auto flex items-center gap-1 text-xs text-signal-red/80 hover:text-signal-red"

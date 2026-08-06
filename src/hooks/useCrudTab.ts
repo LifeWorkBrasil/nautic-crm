@@ -83,6 +83,7 @@ export function useCrudTab<T extends { id: string }, F>({
     itens,
     carregando,
     erro,
+    setErro,
     editando,
     criando,
     form,
