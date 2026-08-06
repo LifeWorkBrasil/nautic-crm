@@ -215,24 +215,36 @@ export default function Catalogo() {
           {itens
             .filter((produto) => !grupoFiltroId || produto.grupo_id === grupoFiltroId)
             .map((produto) => (
-            <article key={produto.id} className="rounded-md border border-foam-200 bg-white p-4">
-              <button
-                onClick={() => setProdutoMidia(produto)}
-                className="mb-3 flex h-32 w-full items-center justify-center overflow-hidden rounded-md bg-hull-900/[0.04] text-slate-400 hover:bg-hull-900/[0.07]"
-              >
-                {produto.foto_principal_url ? (
-                  <img
-                    src={produto.foto_principal_url}
-                    alt={produto.nome}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex flex-col items-center gap-1 text-xs">
-                    <Images className="h-5 w-5" strokeWidth={1.5} />
-                    Gerenciar mídia
-                  </span>
+            <article
+              key={produto.id}
+              className={`rounded-md border bg-white p-4 ${
+                produto.status_estoque === 'oculto' ? 'border-signal-red/30' : 'border-foam-200'
+              }`}
+            >
+              <div className="relative mb-3 overflow-hidden rounded-md">
+                <button
+                  onClick={() => setProdutoMidia(produto)}
+                  className="flex h-32 w-full items-center justify-center bg-hull-900/[0.04] text-slate-400 hover:bg-hull-900/[0.07]"
+                >
+                  {produto.foto_principal_url ? (
+                    <img
+                      src={produto.foto_principal_url}
+                      alt={produto.nome}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex flex-col items-center gap-1 text-xs">
+                      <Images className="h-5 w-5" strokeWidth={1.5} />
+                      Gerenciar mídia
+                    </span>
+                  )}
+                </button>
+                {produto.status_estoque === 'oculto' && (
+                  <div className="pointer-events-none absolute -left-10 top-3 w-40 -rotate-45 bg-signal-red py-1 text-center text-[10px] font-bold uppercase tracking-wide text-white shadow-md">
+                    Venda suspensa
+                  </div>
                 )}
-              </button>
+              </div>
               <div className="mb-1 flex items-center gap-2">
                 <p className="font-display text-lg text-hull-900">{produto.nome}</p>
                 {produto.origem_captacao === 'Terceiro' && (
