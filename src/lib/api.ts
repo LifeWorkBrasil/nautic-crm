@@ -23,6 +23,7 @@ import type {
   InstagramStatus,
   Parceiro,
   MinutaContrato,
+  MensagemModelo,
   Contraproposta,
   ContrapropostaVeiculo,
   ContrapropostaImovel,
@@ -1481,6 +1482,44 @@ export async function updateMinuta(
 export async function deleteMinuta(id: string): Promise<void> {
   const { error } = await supabase.from('minutas_contrato').delete().eq('id', id)
   if (error) throw error
+}
+
+// ---------- Mensagens-modelo (atalhos de texto pra envio a clientes) ----------
+
+export async function listMensagensModelo(): Promise<MensagemModelo[]> {
+  const { data, error } = await supabase.from('mensagens_modelo').select('*').order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createMensagemModelo(
+  mensagem: Omit<MensagemModelo, 'id' | 'criado_em'>
+): Promise<MensagemModelo> {
+  const { data, error } = await supabase.from('mensagens_modelo').insert(mensagem).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateMensagemModelo(
+  id: string,
+  patch: Partial<Omit<MensagemModelo, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('mensagens_modelo').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteMensagemModelo(id: string): Promise<void> {
+  const { error } = await supabase.from('mensagens_modelo').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function uploadImagemMensagemModelo(empresaId: string, file: File): Promise<string> {
+  const extensao = file.name.split('.').pop() || 'jpg'
+  const caminho = `${empresaId}/mensagens-modelo/${Date.now()}.${extensao}`
+  const { error } = await supabase.storage.from('produtos').upload(caminho, file, { upsert: true })
+  if (error) throw error
+  const { data } = supabase.storage.from('produtos').getPublicUrl(caminho)
+  return data.publicUrl
 }
 
 // ---------- Contrapropostas (trading) ----------

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import {
   Zap,
   PackagePlus,
@@ -11,6 +11,9 @@ import {
   FileEdit,
   Tag,
   SlidersHorizontal,
+  MessageCircle,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
@@ -48,6 +51,11 @@ import {
   createMinuta,
   updateMinuta,
   deleteMinuta,
+  listMensagensModelo,
+  createMensagemModelo,
+  updateMensagemModelo,
+  deleteMensagemModelo,
+  uploadImagemMensagemModelo,
   getEmpresaConfig,
   updateEmpresaConfig,
 } from '@/lib/api'
@@ -62,9 +70,17 @@ import type {
   GrupoProduto,
   Parceiro,
   MinutaContrato,
+  MensagemModelo,
 } from '@/types'
 
-type Aba = 'motores' | 'acessorios' | 'categorias' | 'parceiros' | 'minutas' | 'preferencias'
+type Aba =
+  | 'motores'
+  | 'acessorios'
+  | 'categorias'
+  | 'parceiros'
+  | 'minutas'
+  | 'mensagens'
+  | 'preferencias'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'motores', label: 'Motores', icon: Zap },
@@ -72,6 +88,7 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'categorias', label: 'Categorias', icon: FolderTree },
   { key: 'parceiros', label: 'Parceiros', icon: Users },
   { key: 'minutas', label: 'Minutas de Contrato', icon: FileSignature },
+  { key: 'mensagens', label: 'Mensagens', icon: MessageCircle },
   { key: 'preferencias', label: 'Preferências', icon: SlidersHorizontal },
 ]
 
@@ -123,6 +140,7 @@ export default function Parametrizacao() {
       {aba === 'categorias' && <AbaCategorias />}
       {aba === 'parceiros' && <AbaParceiros />}
       {aba === 'minutas' && <AbaMinutas />}
+      {aba === 'mensagens' && <AbaMensagens />}
       {aba === 'preferencias' && <AbaPreferencias />}
     </div>
   )
@@ -1455,6 +1473,208 @@ function AbaMinutas() {
           minutaInicial={gerandoContratoPara}
           onClose={() => setGerandoContratoPara(null)}
         />
+      )}
+    </div>
+  )
+}
+
+type MensagemForm = { nome: string; atalho: string; texto: string; imagem_url: string | null }
+
+const MENSAGEM_VAZIA: MensagemForm = { nome: '', atalho: '', texto: '', imagem_url: null }
+
+function AbaMensagens() {
+  const { perfil } = usePermissoes()
+  const [enviandoImagem, setEnviandoImagem] = useState(false)
+  const [erroImagem, setErroImagem] = useState<string | null>(null)
+
+  const {
+    itens,
+    carregando,
+    erro,
+    editando,
+    form,
+    setForm,
+    salvando,
+    carregar,
+    abrirCriacao,
+    abrirEdicao,
+    fechar,
+    salvar,
+    excluir,
+    modalAberto,
+  } = useCrudTab<MensagemModelo, MensagemForm>({
+    list: listMensagensModelo,
+    create: createMensagemModelo,
+    update: updateMensagemModelo,
+    remove: deleteMensagemModelo,
+    vazio: MENSAGEM_VAZIA,
+    mensagemExclusao: 'Excluir este modelo de mensagem?',
+  })
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleImagemSelecionada(e: ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!arquivo || !perfil?.empresa_id) return
+    setEnviandoImagem(true)
+    setErroImagem(null)
+    try {
+      const url = await uploadImagemMensagemModelo(perfil.empresa_id, arquivo)
+      setForm({ ...form, imagem_url: url })
+    } catch (e) {
+      setErroImagem(e instanceof Error ? e.message : 'Erro ao enviar imagem')
+    } finally {
+      setEnviandoImagem(false)
+    }
+  }
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <ErroBanner erro={erroImagem} />
+      <p className="mb-4 text-sm text-slate-500">
+        Modelos de mensagem prontos pra usar na hora de mandar mensagem em massa ou pelo WhatsApp
+        — use <code className="rounded bg-foam-100 px-1">{'{{nome}}'}</code> ou{' '}
+        <code className="rounded bg-foam-100 px-1">{'{{primeiro_nome}}'}</code> pra personalizar.
+        A imagem é opcional (ex.: foto de um lançamento) — como o WhatsApp não deixa anexar uma
+        imagem automaticamente junto com o link, ela fica disponível pra baixar e anexar na
+        conversa manualmente.
+      </p>
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Novo modelo" onClick={abrirCriacao} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : itens.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhum modelo de mensagem cadastrado ainda.</p>
+      ) : (
+        <div className="space-y-2">
+          {itens.map((mensagem) => (
+            <div
+              key={mensagem.id}
+              className="flex items-center justify-between gap-3 rounded-md border border-foam-200 bg-white p-4"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                {mensagem.imagem_url && (
+                  <img
+                    src={mensagem.imagem_url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-md object-cover"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-display text-lg text-hull-900">{mensagem.nome}</p>
+                    <span className="rounded-full bg-brass-200/40 px-2 py-0.5 text-[10px] font-medium text-hull-900">
+                      /{mensagem.atalho}
+                    </span>
+                  </div>
+                  <p className="truncate text-xs text-slate-500">{mensagem.texto}</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  onClick={() =>
+                    abrirEdicao(mensagem, {
+                      nome: mensagem.nome,
+                      atalho: mensagem.atalho,
+                      texto: mensagem.texto,
+                      imagem_url: mensagem.imagem_url,
+                    })
+                  }
+                  className="text-wake-500 hover:text-wake-600"
+                >
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+                <button
+                  onClick={() => excluir(mensagem.id)}
+                  className="text-signal-red/80 hover:text-signal-red"
+                >
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modalAberto && (
+        <Modal
+          title={editando ? `Editar ${editando.nome}` : 'Novo modelo de mensagem'}
+          onClose={fechar}
+          size="lg"
+          footer={
+            <>
+              <button onClick={fechar} className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900">
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                disabled={salvando || !form.nome.trim() || !form.atalho.trim() || !form.texto.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <div>
+              <CampoTexto
+                label="Atalho"
+                value={form.atalho}
+                onChange={(v) => setForm({ ...form, atalho: v })}
+              />
+              <span className="mt-1 block text-[11px] text-slate-400">Ex.: lancamento-glm60</span>
+            </div>
+            <CampoTextArea
+              label="Texto da mensagem"
+              value={form.texto}
+              onChange={(v) => setForm({ ...form, texto: v })}
+              rows={6}
+            />
+
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                Imagem (opcional)
+              </span>
+              {form.imagem_url ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={form.imagem_url}
+                    alt=""
+                    className="h-16 w-16 rounded-md border border-foam-200 object-cover"
+                  />
+                  <button
+                    onClick={() => setForm({ ...form, imagem_url: null })}
+                    className="flex items-center gap-1.5 rounded-md border border-foam-200 px-3 py-1.5 text-xs text-hull-900 hover:border-wake-400"
+                  >
+                    <X className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Remover imagem
+                  </button>
+                </div>
+              ) : (
+                <label className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900 hover:border-wake-400">
+                  <ImageIcon className="h-4 w-4" strokeWidth={1.75} />
+                  {enviandoImagem ? 'Enviando…' : 'Selecionar imagem'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={enviandoImagem}
+                    onChange={handleImagemSelecionada}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

@@ -324,6 +324,15 @@ export interface MinutaContrato {
   criado_em: string
 }
 
+export interface MensagemModelo {
+  id: string
+  nome: string
+  atalho: string
+  texto: string
+  imagem_url: string | null
+  criado_em: string
+}
+
 export interface Contraproposta {
   id: string
   cliente_id: string

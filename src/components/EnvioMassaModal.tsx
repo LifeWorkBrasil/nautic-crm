@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Send, ExternalLink, SkipForward, Square, Check, X as XIcon, Clock } from 'lucide-react'
+import { Send, ExternalLink, SkipForward, Square, Check, X as XIcon, Clock, Download } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
-import { adicionarHistorico } from '@/lib/api'
+import { adicionarHistorico, listMensagensModelo } from '@/lib/api'
 import { PROVEDORES_ENVIO, montarMensagemPersonalizada } from '@/lib/envioMassa'
-import type { ClienteLead } from '@/types'
+import type { ClienteLead, MensagemModelo } from '@/types'
 
 type Etapa = 'mensagem' | 'fila'
 type StatusEnvio = 'pendente' | 'aberto' | 'pulado'
@@ -24,6 +24,20 @@ export default function EnvioMassaModal({
   const [mensagem, setMensagem] = useState('')
   const [intervaloSegundos, setIntervaloSegundos] = useState(INTERVALO_PADRAO_SEGUNDOS)
   const [provedor, setProvedor] = useState<'assistido' | 'api_oficial'>('assistido')
+  const [modelos, setModelos] = useState<MensagemModelo[]>([])
+  const [modeloSelecionadoId, setModeloSelecionadoId] = useState('')
+
+  useEffect(() => {
+    listMensagensModelo().then(setModelos).catch(() => {})
+  }, [])
+
+  const modeloSelecionado = modelos.find((m) => m.id === modeloSelecionadoId) ?? null
+
+  function aplicarModelo(id: string) {
+    setModeloSelecionadoId(id)
+    const modelo = modelos.find((m) => m.id === id)
+    if (modelo) setMensagem(modelo.texto)
+  }
 
   const [indiceAtual, setIndiceAtual] = useState(0)
   const [statusPorIndice, setStatusPorIndice] = useState<StatusEnvio[]>(() =>
@@ -88,6 +102,26 @@ export default function EnvioMassaModal({
               personalizar.
             </p>
 
+            {modelos.length > 0 && (
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">
+                  Usar um modelo salvo (opcional)
+                </span>
+                <select
+                  value={modeloSelecionadoId}
+                  onChange={(e) => aplicarModelo(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Escrever mensagem do zero</option>
+                  {modelos.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nome} (/{m.atalho})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium text-hull-900">Mensagem</span>
               <textarea
@@ -98,6 +132,31 @@ export default function EnvioMassaModal({
                 className="input resize-none"
               />
             </label>
+
+            {modeloSelecionado?.imagem_url && (
+              <div className="flex items-center gap-3 rounded-md border border-brass-400/40 bg-brass-200/10 p-3 text-sm">
+                <img
+                  src={modeloSelecionado.imagem_url}
+                  alt=""
+                  className="h-14 w-14 rounded-md object-cover"
+                />
+                <div>
+                  <p className="text-hull-900">
+                    Esse modelo tem uma imagem — o WhatsApp não deixa anexar ela automaticamente
+                    junto com o link, então baixe e anexe na conversa manualmente.
+                  </p>
+                  <a
+                    href={modeloSelecionado.imagem_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
+                  >
+                    <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    Baixar imagem
+                  </a>
+                </div>
+              </div>
+            )}
 
             {mensagem.trim() && primeiroContato && (
               <div className="rounded-md border border-foam-200 bg-foam-100 p-3 text-sm">
