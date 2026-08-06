@@ -475,6 +475,13 @@ export async function deleteMotor(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function createMotoresBulk(motores: Omit<Motor, 'id'>[]): Promise<Motor[]> {
+  if (motores.length === 0) return []
+  const { data, error } = await supabase.from('motores').insert(motores).select()
+  if (error) throw error
+  return data ?? []
+}
+
 // ---------- Acessórios ----------
 
 export async function listAcessorios(): Promise<Acessorio[]> {

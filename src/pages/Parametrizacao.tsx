@@ -14,10 +14,13 @@ import {
   MessageCircle,
   Image as ImageIcon,
   X,
+  Upload,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
+import ImportarMotoresModal from '@/components/ImportarMotoresModal'
+import ImportarAcessoriosModal from '@/components/ImportarAcessoriosModal'
 import { CampoTexto, CampoNumero, CampoTextArea } from '@/components/campos'
 import { formatBRL } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -276,6 +279,7 @@ function AbaMotores() {
   const [criando, setCriando] = useState(false)
   const [form, setForm] = useState(MOTOR_VAZIO)
   const [salvando, setSalvando] = useState(false)
+  const [importando, setImportando] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -352,7 +356,14 @@ function AbaMotores() {
   return (
     <div>
       <ErroBanner erro={erro} />
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2">
+        <button
+          onClick={() => setImportando(true)}
+          className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+        >
+          <Upload className="h-4 w-4" strokeWidth={1.75} />
+          Importar planilha
+        </button>
         <AddButton label="Novo motor" onClick={abrirCriacao} />
       </div>
 
@@ -473,6 +484,10 @@ function AbaMotores() {
           </div>
         </Modal>
       )}
+
+      {importando && (
+        <ImportarMotoresModal onClose={() => setImportando(false)} onImportado={carregar} />
+      )}
     </div>
   )
 }
@@ -499,6 +514,7 @@ function AbaAcessorios() {
   const [criando, setCriando] = useState(false)
   const [form, setForm] = useState(ACESSORIO_VAZIO)
   const [salvando, setSalvando] = useState(false)
+  const [importando, setImportando] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -577,7 +593,14 @@ function AbaAcessorios() {
   return (
     <div>
       <ErroBanner erro={erro} />
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2">
+        <button
+          onClick={() => setImportando(true)}
+          className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+        >
+          <Upload className="h-4 w-4" strokeWidth={1.75} />
+          Importar planilha
+        </button>
         <AddButton label="Novo acessório" onClick={abrirCriacao} />
       </div>
 
@@ -709,6 +732,15 @@ function AbaAcessorios() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {importando && (
+        <ImportarAcessoriosModal
+          produtos={produtos}
+          subcategorias={subcategorias}
+          onClose={() => setImportando(false)}
+          onImportado={carregar}
+        />
       )}
     </div>
   )
