@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing, Eye, EyeOff } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing, Eye, EyeOff, Search } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
@@ -60,6 +60,7 @@ export default function Catalogo() {
   const [produtoItens, setProdutoItens] = useState<Produto | null>(null)
   const [produtoWhatsapp, setProdutoWhatsapp] = useState<Produto | null>(null)
   const [grupoFiltroId, setGrupoFiltroId] = useState<string | null>(null)
+  const [busca, setBusca] = useState('')
   const [gerenciandoCampos, setGerenciandoCampos] = useState<'categoria' | 'grupo' | null>(null)
   const [produtoAvisos, setProdutoAvisos] = useState<Produto | null>(null)
 
@@ -151,6 +152,16 @@ export default function Catalogo() {
     (c) => c.categoria_id === categoria?.id || (form.grupo_id && c.grupo_id === form.grupo_id)
   )
 
+  const termoBusca = busca.trim().toLowerCase()
+  const itensFiltrados = itens.filter((produto) => {
+    if (grupoFiltroId && produto.grupo_id !== grupoFiltroId) return false
+    if (!termoBusca) return true
+    return (
+      produto.nome.toLowerCase().includes(termoBusca) ||
+      produto.descricao.toLowerCase().includes(termoBusca)
+    )
+  })
+
   return (
     <div className="p-8">
       <header className="mb-8">
@@ -162,7 +173,19 @@ export default function Catalogo() {
         </h1>
       </header>
 
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="relative">
+          <Search
+            className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            strokeWidth={1.75}
+          />
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome ou descrição"
+            className="input w-72 pl-8"
+          />
+        </div>
         <button
           onClick={abrirCriacao}
           className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
@@ -210,11 +233,11 @@ export default function Catalogo() {
         <p className="text-sm text-slate-400">Carregando…</p>
       ) : itens.length === 0 ? (
         <p className="text-sm text-slate-400">Nenhum produto cadastrado nesta subcategoria ainda.</p>
+      ) : itensFiltrados.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhum produto encontrado para essa busca.</p>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {itens
-            .filter((produto) => !grupoFiltroId || produto.grupo_id === grupoFiltroId)
-            .map((produto) => (
+          {itensFiltrados.map((produto) => (
             <article
               key={produto.id}
               className={`rounded-md border bg-white p-4 ${
