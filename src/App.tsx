@@ -19,6 +19,7 @@ import Relatorios from './pages/Relatorios'
 import CatalogoPdf from './pages/CatalogoPdf'
 import ProdutoPublico from './pages/ProdutoPublico'
 import Embarcacoes from './pages/Embarcacoes'
+import EmbarcacaoFicha from './pages/EmbarcacaoFicha'
 import EmbarcacaoPublica from './pages/EmbarcacaoPublica'
 
 export default function App() {
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/captacao" element={<Captacao />} />
             <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
             <Route path="/embarcacoes" element={<Embarcacoes />} />
+            <Route path="/embarcacoes/:id" element={<EmbarcacaoFicha />} />
             <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
             <Route path="/parametrizacao" element={<Parametrizacao />} />
             <Route path="/orcamentos" element={<Orcamentos />} />

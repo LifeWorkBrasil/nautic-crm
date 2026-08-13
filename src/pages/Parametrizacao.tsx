@@ -17,6 +17,7 @@ import {
   Upload,
   Download,
   Anchor,
+  Wrench,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
@@ -68,9 +69,14 @@ import {
   createMarina,
   updateMarina,
   deleteMarina,
+  listFornecedores,
+  createFornecedor,
+  updateFornecedor,
+  deleteFornecedor,
 } from '@/lib/api'
 import { PLACEHOLDERS_DISPONIVEIS, PLACEHOLDERS_COLCHETES_DISPONIVEIS } from '@/lib/contratos'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 import type {
   Motor,
   Acessorio,
@@ -82,6 +88,7 @@ import type {
   MinutaContrato,
   MensagemModelo,
   Marina,
+  Fornecedor,
 } from '@/types'
 
 type Aba =
@@ -92,6 +99,7 @@ type Aba =
   | 'minutas'
   | 'mensagens'
   | 'marinas'
+  | 'fornecedores'
   | 'preferencias'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
@@ -102,6 +110,7 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'minutas', label: 'Minutas de Contrato', icon: FileSignature },
   { key: 'mensagens', label: 'Mensagens', icon: MessageCircle },
   { key: 'marinas', label: 'Marinas', icon: Anchor },
+  { key: 'fornecedores', label: 'Fornecedores', icon: Wrench },
   { key: 'preferencias', label: 'Preferências', icon: SlidersHorizontal },
 ]
 
@@ -155,6 +164,7 @@ export default function Parametrizacao() {
       {aba === 'minutas' && <AbaMinutas />}
       {aba === 'mensagens' && <AbaMensagens />}
       {aba === 'marinas' && <AbaMarinas />}
+      {aba === 'fornecedores' && <AbaFornecedores />}
       {aba === 'preferencias' && <AbaPreferencias />}
     </div>
   )
@@ -175,7 +185,7 @@ function AbaPreferencias() {
         setUsaCaptacao(config?.usa_captacao ?? true)
         setUsaMotores(config?.usa_motores ?? true)
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar preferências'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar preferências')))
       .finally(() => setCarregando(false))
   }, [])
 
@@ -192,7 +202,7 @@ function AbaPreferencias() {
       setErro(null)
     } catch (e) {
       setLocal(!valor)
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar preferência')
+      setErro(mensagemErro(e, 'Erro ao salvar preferência'))
     } finally {
       setSalvandoChave(null)
     }
@@ -303,7 +313,7 @@ function AbaMotores() {
       setItens(await listMotores())
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar motores')
+      setErro(mensagemErro(e, 'Erro ao carregar motores'))
     } finally {
       setCarregando(false)
     }
@@ -342,7 +352,7 @@ function AbaMotores() {
       setCriando(false)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar motor')
+      setErro(mensagemErro(e, 'Erro ao salvar motor'))
     } finally {
       setSalvando(false)
     }
@@ -353,7 +363,7 @@ function AbaMotores() {
       await updateMotor(m.id, { ativo: !m.ativo })
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao atualizar motor')
+      setErro(mensagemErro(e, 'Erro ao atualizar motor'))
     }
   }
 
@@ -363,7 +373,7 @@ function AbaMotores() {
       await deleteMotor(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir motor')
+      setErro(mensagemErro(e, 'Erro ao excluir motor'))
     }
   }
 
@@ -569,7 +579,7 @@ function AbaAcessorios() {
       setSubcategorias(sc)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar acessórios')
+      setErro(mensagemErro(e, 'Erro ao carregar acessórios'))
     } finally {
       setCarregando(false)
     }
@@ -616,7 +626,7 @@ function AbaAcessorios() {
       setCriando(false)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar acessório')
+      setErro(mensagemErro(e, 'Erro ao salvar acessório'))
     } finally {
       setSalvando(false)
     }
@@ -628,7 +638,7 @@ function AbaAcessorios() {
       await deleteAcessorio(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir acessório')
+      setErro(mensagemErro(e, 'Erro ao excluir acessório'))
     }
   }
 
@@ -867,7 +877,7 @@ function AbaCategorias() {
       setGrupos(g)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar categorias')
+      setErro(mensagemErro(e, 'Erro ao carregar categorias'))
     } finally {
       setCarregando(false)
     }
@@ -899,7 +909,7 @@ function AbaCategorias() {
       setCriandoCategoria(false)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar categoria')
+      setErro(mensagemErro(e, 'Erro ao salvar categoria'))
     } finally {
       setSalvando(false)
     }
@@ -912,7 +922,7 @@ function AbaCategorias() {
       await deleteCategoria(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir categoria')
+      setErro(mensagemErro(e, 'Erro ao excluir categoria'))
     }
   }
 
@@ -944,7 +954,7 @@ function AbaCategorias() {
       setCriandoSubcategoriaPara(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar subcategoria')
+      setErro(mensagemErro(e, 'Erro ao salvar subcategoria'))
     } finally {
       setSalvando(false)
     }
@@ -957,7 +967,7 @@ function AbaCategorias() {
       await deleteSubcategoria(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir subcategoria')
+      setErro(mensagemErro(e, 'Erro ao excluir subcategoria'))
     }
   }
 
@@ -984,7 +994,7 @@ function AbaCategorias() {
       setCriandoGrupoPara(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar grupo')
+      setErro(mensagemErro(e, 'Erro ao salvar grupo'))
     } finally {
       setSalvando(false)
     }
@@ -996,7 +1006,7 @@ function AbaCategorias() {
       await deleteGrupo(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir grupo')
+      setErro(mensagemErro(e, 'Erro ao excluir grupo'))
     }
   }
 
@@ -1635,7 +1645,7 @@ function AbaMensagens() {
       const url = await uploadImagemMensagemModelo(perfil.empresa_id, arquivo)
       setForm({ ...form, imagem_url: url })
     } catch (e) {
-      setErroImagem(e instanceof Error ? e.message : 'Erro ao enviar imagem')
+      setErroImagem(mensagemErro(e, 'Erro ao enviar imagem'))
     } finally {
       setEnviandoImagem(false)
     }
@@ -1923,6 +1933,197 @@ function AbaMarinas() {
                 pela página pública de cada embarcação.
               </p>
             </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Fornecedores (serviços de manutenção do módulo de Embarcações)
+// ---------------------------------------------------------------------------
+
+const FORNECEDOR_VAZIO = { nome: '', telefone: '', email: '', servicos: '', marcas: '', observacoes: '' }
+
+function listaParaTexto(lista: string[]): string {
+  return lista.join(', ')
+}
+
+function textoParaLista(texto: string): string[] {
+  return texto
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+async function criarFornecedorForm(form: typeof FORNECEDOR_VAZIO): Promise<Fornecedor> {
+  return createFornecedor({
+    nome: form.nome,
+    telefone: form.telefone || null,
+    email: form.email || null,
+    servicos: textoParaLista(form.servicos),
+    marcas: textoParaLista(form.marcas),
+    observacoes: form.observacoes || null,
+  })
+}
+
+async function atualizarFornecedorForm(id: string, form: typeof FORNECEDOR_VAZIO): Promise<void> {
+  return updateFornecedor(id, {
+    nome: form.nome,
+    telefone: form.telefone || null,
+    email: form.email || null,
+    servicos: textoParaLista(form.servicos),
+    marcas: textoParaLista(form.marcas),
+    observacoes: form.observacoes || null,
+  })
+}
+
+function AbaFornecedores() {
+  const {
+    itens: fornecedores,
+    carregando,
+    erro,
+    editando,
+    form,
+    salvando,
+    setForm,
+    carregar,
+    abrirCriacao,
+    abrirEdicao,
+    fechar,
+    salvar,
+    excluir,
+    modalAberto,
+  } = useCrudTab<Fornecedor, typeof FORNECEDOR_VAZIO>({
+    list: listFornecedores,
+    create: criarFornecedorForm,
+    update: atualizarFornecedorForm,
+    remove: deleteFornecedor,
+    vazio: FORNECEDOR_VAZIO,
+    mensagemExclusao: 'Excluir este fornecedor?',
+  })
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Novo fornecedor" onClick={abrirCriacao} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : fornecedores.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhum fornecedor cadastrado.</p>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-foam-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-foam-100 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Nome</th>
+                <th className="px-4 py-3 font-medium">Contato</th>
+                <th className="px-4 py-3 font-medium">Serviços</th>
+                <th className="px-4 py-3 font-medium">Marcas</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-foam-200">
+              {fornecedores.map((fornecedor) => (
+                <tr key={fornecedor.id}>
+                  <td className="px-4 py-3 text-hull-900">{fornecedor.nome}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {[fornecedor.telefone, fornecedor.email].filter(Boolean).join(' · ') || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{listaParaTexto(fornecedor.servicos) || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{listaParaTexto(fornecedor.marcas) || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() =>
+                          abrirEdicao(fornecedor, {
+                            nome: fornecedor.nome,
+                            telefone: fornecedor.telefone ?? '',
+                            email: fornecedor.email ?? '',
+                            servicos: listaParaTexto(fornecedor.servicos),
+                            marcas: listaParaTexto(fornecedor.marcas),
+                            observacoes: fornecedor.observacoes ?? '',
+                          })
+                        }
+                        className="text-wake-500 hover:text-wake-600"
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                      <button
+                        onClick={() => excluir(fornecedor.id)}
+                        className="text-signal-red/80 hover:text-signal-red"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalAberto && (
+        <Modal
+          title={editando ? `Editar ${editando.nome}` : 'Novo fornecedor'}
+          onClose={fechar}
+          footer={
+            <>
+              <button onClick={fechar} className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900">
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                disabled={salvando || !form.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Telefone"
+                value={form.telefone}
+                onChange={(v) => setForm({ ...form, telefone: v })}
+              />
+              <CampoTexto label="E-mail" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+            </div>
+            <div>
+              <CampoTexto
+                label="Serviços prestados"
+                value={form.servicos}
+                onChange={(v) => setForm({ ...form, servicos: v })}
+              />
+              <p className="mt-1 text-xs text-slate-400">Separe por vírgula — ex: Motor, Elétrica, Estofamento.</p>
+            </div>
+            <div>
+              <CampoTexto
+                label="Marcas que representa"
+                value={form.marcas}
+                onChange={(v) => setForm({ ...form, marcas: v })}
+              />
+              <p className="mt-1 text-xs text-slate-400">Separe por vírgula — ex: Volvo Penta, Mercruiser.</p>
+            </div>
+            <CampoTextArea
+              label="Observações"
+              value={form.observacoes}
+              onChange={(v) => setForm({ ...form, observacoes: v })}
+              rows={3}
+            />
           </div>
         </Modal>
       )}

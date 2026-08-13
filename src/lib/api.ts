@@ -42,6 +42,8 @@ import type {
   EmbarcacaoMovimentacao,
   EmbarcacaoAcessorio,
   EmbarcacaoPublico,
+  Fornecedor,
+  AnexoManutencao,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -1796,7 +1798,7 @@ export async function deleteMarina(id: string): Promise<void> {
 }
 
 const EMBARCACAO_SELECT =
-  'id, nome, numero_registro, tipo, comprimento, marina_id, proprietario_id, broker_id, produto_id, marinheiro_nome, marinheiro_contato, status, foto_url, criado_em, atualizado_em, marinas(nome), clientes_leads(nome), parceiros(nome)'
+  'id, nome, numero_registro, tipo, comprimento, marina_id, proprietario_id, broker_id, produto_id, marinheiro_nome, marinheiro_contato, status, foto_url, fabricante, modelo, cor_costado, ano, estado_geral, criado_em, atualizado_em, marinas(nome), clientes_leads(nome), parceiros(nome)'
 
 function mapEmbarcacaoRow({
   marinas,
@@ -1825,6 +1827,14 @@ export async function listEmbarcacoes(): Promise<
   const { data, error } = await supabase.from('embarcacoes').select(EMBARCACAO_SELECT).order('nome')
   if (error) throw error
   return (data ?? []).map(mapEmbarcacaoRow)
+}
+
+export async function getEmbarcacao(
+  id: string
+): Promise<(Embarcacao & { marina_nome: string | null; proprietario_nome: string | null; broker_nome: string | null }) | null> {
+  const { data, error } = await supabase.from('embarcacoes').select(EMBARCACAO_SELECT).eq('id', id).maybeSingle()
+  if (error) throw error
+  return data ? mapEmbarcacaoRow(data) : null
 }
 
 export async function listEmbarcacoesPorBroker(
@@ -1937,8 +1947,128 @@ export async function createAcessorioEmbarcacao(
   return data
 }
 
+export async function updateAcessorioEmbarcacao(
+  id: string,
+  patch: Partial<Omit<EmbarcacaoAcessorio, 'id' | 'embarcacao_id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('embarcacoes_acessorios').update(patch).eq('id', id)
+  if (error) throw error
+}
+
 export async function deleteAcessorioEmbarcacao(id: string): Promise<void> {
   const { error } = await supabase.from('embarcacoes_acessorios').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createManutencaoEmbarcacao(
+  manutencao: Omit<EmbarcacaoManutencao, 'id' | 'criado_em' | 'fotos' | 'anexos'>
+): Promise<EmbarcacaoManutencao> {
+  const { data, error } = await supabase
+    .from('embarcacoes_manutencoes')
+    .insert({ ...manutencao, fotos: [], anexos: [] })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateManutencaoEmbarcacao(
+  id: string,
+  patch: Partial<Omit<EmbarcacaoManutencao, 'id' | 'embarcacao_id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('embarcacoes_manutencoes').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function uploadAnexoManutencaoEmbarcacao(
+  empresaId: string,
+  manutencaoId: string,
+  file: File
+): Promise<AnexoManutencao[]> {
+  if (file.type !== 'application/pdf') {
+    throw new Error('O anexo deve ser um arquivo PDF.')
+  }
+  const path = `${empresaId}/embarcacao-manutencao-${manutencaoId}/${crypto.randomUUID()}.pdf`
+  const { error: uploadError } = await supabase.storage.from('manuais').upload(path, file)
+  if (uploadError) throw uploadError
+
+  const { data: publicUrlData } = supabase.storage.from('manuais').getPublicUrl(path)
+
+  const { data: manutencao, error: fetchError } = await supabase
+    .from('embarcacoes_manutencoes')
+    .select('anexos')
+    .eq('id', manutencaoId)
+    .single()
+  if (fetchError) throw fetchError
+
+  const anexos: AnexoManutencao[] = [
+    ...(manutencao.anexos ?? []),
+    { url: publicUrlData.publicUrl, nome_arquivo: file.name },
+  ]
+
+  const { error: updateError } = await supabase
+    .from('embarcacoes_manutencoes')
+    .update({ anexos })
+    .eq('id', manutencaoId)
+  if (updateError) throw updateError
+
+  return anexos
+}
+
+export async function criarTagsEmbarcacaoLote(
+  tags: Pick<EmbarcacaoTag, 'embarcacao_id' | 'tag_id' | 'modelo_nfc' | 'modo_gravacao'>[]
+): Promise<EmbarcacaoTag[]> {
+  if (tags.length === 0) return []
+  const { data, error } = await supabase.from('embarcacoes_tags').insert(tags).select()
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listTodasTagsEmbarcacoes(): Promise<
+  (EmbarcacaoTag & { embarcacao_nome: string })[]
+> {
+  const { data, error } = await supabase
+    .from('embarcacoes_tags')
+    .select('*, embarcacoes(nome)')
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(
+    ({
+      embarcacoes,
+      ...tag
+    }: EmbarcacaoTag & { embarcacoes?: { nome: string } | { nome: string }[] | null }) => ({
+      ...tag,
+      embarcacao_nome: (Array.isArray(embarcacoes) ? embarcacoes[0]?.nome : embarcacoes?.nome) ?? '',
+    })
+  )
+}
+
+// ---------- Fornecedores ----------
+
+export async function listFornecedores(): Promise<Fornecedor[]> {
+  const { data, error } = await supabase.from('fornecedores').select('*').order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createFornecedor(
+  fornecedor: Omit<Fornecedor, 'id' | 'criado_em'>
+): Promise<Fornecedor> {
+  const { data, error } = await supabase.from('fornecedores').insert(fornecedor).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateFornecedor(
+  id: string,
+  patch: Partial<Omit<Fornecedor, 'id' | 'criado_em'>>
+): Promise<void> {
+  const { error } = await supabase.from('fornecedores').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteFornecedor(id: string): Promise<void> {
+  const { error } = await supabase.from('fornecedores').delete().eq('id', id)
   if (error) throw error
 }
 

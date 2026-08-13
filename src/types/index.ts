@@ -404,6 +404,12 @@ export interface Embarcacao {
   marinheiro_contato: string | null
   status: StatusEmbarcacao
   foto_url: string | null
+  fabricante: string | null
+  modelo: string | null
+  cor_costado: string | null
+  ano: number | null
+  // Checklist de vistoria do casco: { "Costado": "OK", "Fundo": "...", ... }
+  estado_geral: Record<string, string>
   criado_em: string
   atualizado_em: string
 }
@@ -422,16 +428,25 @@ export interface EmbarcacaoTag {
   criado_em: string
 }
 
+export interface AnexoManutencao {
+  url: string
+  nome_arquivo: string
+}
+
 export interface EmbarcacaoManutencao {
   id: string
   embarcacao_id: string
+  item_id: string | null
   tipo: string | null
   descricao: string | null
   realizado_em: string | null
   realizado_por: string | null
   custo: number | null
   proxima_data: string | null
+  horas_uso_registrada: number | null
+  fornecedor_id: string | null
   fotos: string[]
+  anexos: AnexoManutencao[]
   criado_por: string | null
   criado_em: string
 }
@@ -458,14 +473,44 @@ export interface EmbarcacaoMovimentacao {
   criado_em: string
 }
 
+export type CategoriaItemEmbarcacao = 'MOTOR' | 'GERADOR' | 'AR_CONDICIONADO' | 'ACESSORIO'
+
 export interface EmbarcacaoAcessorio {
   id: string
   embarcacao_id: string
+  categoria: CategoriaItemEmbarcacao
   nome: string
+  marca: string | null
+  modelo: string | null
   numero_serie: string | null
+  quantidade: number
+  possui: boolean
+  estado: string | null
+  caracteristicas: string | null
+  potencia: string | null
+  tipo: string | null
+  combustivel: string | null
+  ano: number | null
+  joystick: boolean | null
+  horas_uso: number | null
+  ultima_revisao_em: string | null
   instalado_em: string | null
   garantia_vence_em: string | null
+  fornecedor_id: string | null
+  /** @deprecated legado em texto livre — usar fornecedor_id. Mantido só-leitura para itens antigos. */
   fornecedor: string | null
+  observacoes: string | null
+  criado_em: string
+}
+
+export interface Fornecedor {
+  id: string
+  nome: string
+  telefone: string | null
+  email: string | null
+  servicos: string[]
+  marcas: string[]
+  observacoes: string | null
   criado_em: string
 }
 

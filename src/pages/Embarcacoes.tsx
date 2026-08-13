@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, Nfc, Copy, Check, History, Wrench, Sparkles, ArrowUpDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Pencil, Trash2, Search, History, Layers, Download } from 'lucide-react'
 import Modal from '@/components/Modal'
 import NovoClienteModal from '@/components/NovoClienteModal'
+import BuscaVinculo from '@/components/BuscaVinculo'
+import LoteTagsNfcModal from '@/components/LoteTagsNfcModal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import {
   listEmbarcacoes,
@@ -12,28 +15,11 @@ import {
   listLeads,
   listParceiros,
   createParceiro,
-  listTagsEmbarcacao,
-  createTagEmbarcacao,
-  alternarAtivoTagEmbarcacao,
-  deleteTagEmbarcacao,
-  listManutencoesEmbarcacao,
-  listLimpezasEmbarcacao,
-  listMovimentacoesEmbarcacao,
+  listTodasTagsEmbarcacoes,
 } from '@/lib/api'
-import { NFC_MODELS, computeUrlNdefBytes, getModelCapacity, type ModeloNfc as ModeloNfcCapacidade } from '@/lib/nfcCapacity'
 import { mensagemErro } from '@/lib/errors'
-import type {
-  Embarcacao,
-  Marina,
-  ClienteLead,
-  Parceiro,
-  EmbarcacaoTag,
-  StatusEmbarcacao,
-  ModoGravacaoNfc,
-  EmbarcacaoManutencao,
-  EmbarcacaoLimpeza,
-  EmbarcacaoMovimentacao,
-} from '@/types'
+import { exportarTagsCsv } from '@/lib/exportarCsv'
+import type { Embarcacao, Marina, ClienteLead, Parceiro, StatusEmbarcacao } from '@/types'
 
 type EmbarcacaoComNomes = Embarcacao & {
   marina_nome: string | null
@@ -68,6 +54,11 @@ const EMBARCACAO_VAZIA = {
   marinheiro_contato: '',
   status: 'ATIVA' as StatusEmbarcacao,
   foto_url: null as string | null,
+  fabricante: '',
+  modelo: '',
+  cor_costado: '',
+  ano: null as number | null,
+  estado_geral: {} as Record<string, string>,
 }
 
 export default function Embarcacoes() {
@@ -86,7 +77,7 @@ export default function Embarcacoes() {
   const [salvando, setSalvando] = useState(false)
 
   const [criandoProprietario, setCriandoProprietario] = useState<string | null>(null)
-  const [verHistoricoDe, setVerHistoricoDe] = useState<EmbarcacaoComNomes | null>(null)
+  const [gerandoLote, setGerandoLote] = useState(false)
 
   async function carregar() {
     setCarregando(true)
@@ -145,6 +136,11 @@ export default function Embarcacoes() {
       marinheiro_contato: e.marinheiro_contato ?? '',
       status: e.status,
       foto_url: e.foto_url,
+      fabricante: e.fabricante ?? '',
+      modelo: e.modelo ?? '',
+      cor_costado: e.cor_costado ?? '',
+      ano: e.ano,
+      estado_geral: e.estado_geral,
     })
     setEditando(e)
   }
@@ -163,6 +159,9 @@ export default function Embarcacoes() {
         tipo: form.tipo || null,
         marinheiro_nome: form.marinheiro_nome || null,
         marinheiro_contato: form.marinheiro_contato || null,
+        fabricante: form.fabricante || null,
+        modelo: form.modelo || null,
+        cor_costado: form.cor_costado || null,
       }
       if (editando) {
         await updateEmbarcacao(editando.id, payload)
@@ -189,6 +188,29 @@ export default function Embarcacoes() {
     }
   }
 
+  async function exportarTodasAsTags() {
+    try {
+      const tags = await listTodasTagsEmbarcacoes()
+      if (tags.length === 0) {
+        setErro('Nenhuma tag cadastrada ainda.')
+        return
+      }
+      const base = `${window.location.origin}${import.meta.env.BASE_URL}embarcacao/`
+      exportarTagsCsv(
+        tags.map((t) => ({
+          tag_id: t.tag_id,
+          url: `${base}${t.tag_id}`,
+          embarcacao_nome: t.embarcacao_nome,
+          modelo_nfc: t.modelo_nfc,
+        })),
+        'todas-as-tags',
+        'completo'
+      )
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao exportar tags'))
+    }
+  }
+
   function handleProprietarioCriado(lead: ClienteLead) {
     setLeads((prev) => [lead, ...prev])
     setForm((f) => ({ ...f, proprietario_id: lead.id }))
@@ -206,13 +228,29 @@ export default function Embarcacoes() {
             Embarcações
           </h1>
         </div>
-        <button
-          onClick={abrirCriacao}
-          className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          Nova embarcação
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportarTodasAsTags}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            <Download className="h-4 w-4" strokeWidth={1.75} />
+            Exportar todas as tags
+          </button>
+          <button
+            onClick={() => setGerandoLote(true)}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            <Layers className="h-4 w-4" strokeWidth={1.75} />
+            Gerar tags em lote
+          </button>
+          <button
+            onClick={abrirCriacao}
+            className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2.5 text-sm font-medium text-foam-50 transition-colors hover:bg-hull-800"
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Nova embarcação
+          </button>
+        </div>
       </header>
 
       {erro && (
@@ -286,13 +324,13 @@ export default function Embarcacoes() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => setVerHistoricoDe(e)}
+                      <Link
+                        to={`/embarcacoes/${e.id}`}
                         className="text-slate-400 hover:text-wake-500"
-                        title="Histórico de eventos"
+                        title="Ficha completa"
                       >
                         <History className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      </button>
+                      </Link>
                       <button onClick={() => abrirEdicao(e)} className="text-wake-500 hover:text-wake-600">
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </button>
@@ -346,6 +384,26 @@ export default function Embarcacoes() {
                 label="Comprimento (m)"
                 value={form.comprimento ?? 0}
                 onChange={(v) => setForm({ ...form, comprimento: v || null })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Fabricante"
+                value={form.fabricante}
+                onChange={(v) => setForm({ ...form, fabricante: v })}
+              />
+              <CampoTexto label="Modelo" value={form.modelo} onChange={(v) => setForm({ ...form, modelo: v })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Cor do costado"
+                value={form.cor_costado}
+                onChange={(v) => setForm({ ...form, cor_costado: v })}
+              />
+              <CampoNumero
+                label="Ano"
+                value={form.ano ?? 0}
+                onChange={(v) => setForm({ ...form, ano: v || null })}
               />
             </div>
 
@@ -420,9 +478,13 @@ export default function Embarcacoes() {
             </label>
 
             {editando && (
-              <div className="border-t border-foam-200 pt-4">
-                <TagsNfcSection embarcacaoId={editando.id} onErro={setErro} />
-              </div>
+              <p className="text-xs text-slate-400">
+                Motor, itens instalados, estado geral, manutenções e tags NFC ficam na{' '}
+                <Link to={`/embarcacoes/${editando.id}`} className="text-wake-500 hover:text-wake-600">
+                  ficha completa
+                </Link>
+                .
+              </p>
             )}
           </div>
         </Modal>
@@ -438,438 +500,15 @@ export default function Embarcacoes() {
         />
       )}
 
-      {verHistoricoDe && (
-        <HistoricoEventosModal embarcacao={verHistoricoDe} onClose={() => setVerHistoricoDe(null)} />
-      )}
-    </div>
-  )
-}
-
-function BuscaVinculo({
-  label,
-  itens,
-  valorId,
-  onSelecionar,
-  onCriarNovo,
-  placeholder,
-}: {
-  label: string
-  itens: { id: string; nome: string }[]
-  valorId: string | null
-  onSelecionar: (id: string | null) => void
-  onCriarNovo: (nomeDigitado: string) => void
-  placeholder?: string
-}) {
-  const [busca, setBusca] = useState('')
-  const [aberto, setAberto] = useState(false)
-  const selecionado = itens.find((i) => i.id === valorId) ?? null
-
-  const resultados = useMemo(() => {
-    const termo = busca.trim().toLowerCase()
-    if (!termo) return []
-    return itens.filter((i) => i.nome.toLowerCase().includes(termo)).slice(0, 8)
-  }, [itens, busca])
-
-  if (selecionado) {
-    return (
-      <div>
-        <span className="mb-1.5 block text-sm font-medium text-hull-900">{label}</span>
-        <div className="flex items-center justify-between rounded-md border border-foam-200 px-3 py-2 text-sm text-hull-900">
-          <span>{selecionado.nome}</span>
-          <button onClick={() => onSelecionar(null)} className="text-xs text-wake-500 hover:text-wake-600">
-            Trocar
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <span className="mb-1.5 block text-sm font-medium text-hull-900">{label}</span>
-      <input
-        value={busca}
-        onChange={(e) => {
-          setBusca(e.target.value)
-          setAberto(true)
-        }}
-        onFocus={() => setAberto(true)}
-        onBlur={() => setTimeout(() => setAberto(false), 150)}
-        placeholder={placeholder}
-        className="input"
-      />
-      {aberto && busca.trim() && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-foam-200 bg-white shadow-lg">
-          {resultados.map((r) => (
-            <button
-              key={r.id}
-              onMouseDown={() => {
-                onSelecionar(r.id)
-                setBusca('')
-              }}
-              className="block w-full px-3 py-2 text-left text-sm text-hull-900 hover:bg-foam-100"
-            >
-              {r.nome}
-            </button>
-          ))}
-          <button
-            onMouseDown={() => {
-              onCriarNovo(busca.trim())
-              setBusca('')
-            }}
-            className="block w-full border-t border-foam-200 px-3 py-2 text-left text-sm text-wake-500 hover:bg-foam-100"
-          >
-            + Cadastrar "{busca.trim()}"
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TagsNfcSection({ embarcacaoId, onErro }: { embarcacaoId: string; onErro: (msg: string) => void }) {
-  const [tags, setTags] = useState<EmbarcacaoTag[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [criando, setCriando] = useState(false)
-
-  async function carregar() {
-    setCarregando(true)
-    try {
-      setTags(await listTagsEmbarcacao(embarcacaoId))
-    } catch (e) {
-      onErro(mensagemErro(e, 'Erro ao carregar tags NFC'))
-    } finally {
-      setCarregando(false)
-    }
-  }
-
-  useEffect(() => {
-    carregar()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embarcacaoId])
-
-  async function alternarAtivo(tag: EmbarcacaoTag) {
-    try {
-      await alternarAtivoTagEmbarcacao(tag.id, !tag.ativo)
-      await carregar()
-    } catch (e) {
-      onErro(mensagemErro(e, 'Erro ao atualizar tag'))
-    }
-  }
-
-  async function excluirTag(id: string) {
-    if (!confirm('Excluir esta tag NFC? O chaveiro físico correspondente para de funcionar.')) return
-    try {
-      await deleteTagEmbarcacao(id)
-      await carregar()
-    } catch (e) {
-      onErro(mensagemErro(e, 'Erro ao excluir tag'))
-    }
-  }
-
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-hull-900">
-          <Nfc className="h-4 w-4 text-slate-400" strokeWidth={1.75} />
-          Tags NFC
-        </span>
-        <button onClick={() => setCriando(true)} className="text-xs text-wake-500 hover:text-wake-600">
-          + Nova tag
-        </button>
-      </div>
-
-      {carregando ? (
-        <p className="text-xs text-slate-400">Carregando…</p>
-      ) : tags.length === 0 ? (
-        <p className="text-xs text-slate-400">Nenhum chaveiro NFC gravado ainda.</p>
-      ) : (
-        <ul className="space-y-1.5">
-          {tags.map((tag) => (
-            <li
-              key={tag.id}
-              className="flex items-center justify-between rounded-md border border-foam-200 px-3 py-2 text-sm"
-            >
-              <div>
-                <span className="font-mono text-hull-900">{tag.tag_id}</span>
-                <span className="ml-2 text-xs text-slate-400">
-                  {tag.modelo_nfc} · {tag.modo_gravacao} · {tag.contagem_leituras} leituras
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => alternarAtivo(tag)}
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    tag.ativo ? 'bg-signal-green/10 text-signal-green' : 'bg-slate-400/10 text-slate-500'
-                  }`}
-                >
-                  {tag.ativo ? 'Ativa' : 'Inativa'}
-                </button>
-                <button onClick={() => excluirTag(tag.id)} className="text-signal-red/80 hover:text-signal-red">
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {criando && (
-        <NovaTagNfcForm
-          embarcacaoId={embarcacaoId}
-          onClose={() => setCriando(false)}
-          onCriada={() => {
-            setCriando(false)
+      {gerandoLote && (
+        <LoteTagsNfcModal
+          onClose={() => setGerandoLote(false)}
+          onCriadas={() => {
+            setGerandoLote(false)
             carregar()
           }}
-          onErro={onErro}
         />
       )}
     </div>
-  )
-}
-
-function NovaTagNfcForm({
-  embarcacaoId,
-  onClose,
-  onCriada,
-  onErro,
-}: {
-  embarcacaoId: string
-  onClose: () => void
-  onCriada: () => void
-  onErro: (msg: string) => void
-}) {
-  const [tagId, setTagId] = useState('')
-  const [modelo, setModelo] = useState<ModeloNfcCapacidade>('NTAG213')
-  const [modoGravacao, setModoGravacao] = useState<ModoGravacaoNfc>('HUB')
-  const [salvando, setSalvando] = useState(false)
-  const [copiado, setCopiado] = useState(false)
-
-  const url = `${window.location.origin}${import.meta.env.BASE_URL}embarcacao/${tagId || 'TAG-XXX'}`
-  const bytesUsados = computeUrlNdefBytes(url)
-  const capacidade = getModelCapacity(modelo, null)
-  const cabe = bytesUsados <= capacidade
-  const percentual = capacidade > 0 ? Math.min(100, Math.round((bytesUsados / capacidade) * 100)) : 0
-
-  async function salvar() {
-    if (!tagId.trim()) return
-    setSalvando(true)
-    try {
-      await createTagEmbarcacao({
-        embarcacao_id: embarcacaoId,
-        tag_id: tagId.trim(),
-        modelo_nfc: modelo,
-        modo_gravacao: modoGravacao,
-      })
-      onCriada()
-    } catch (e) {
-      onErro(mensagemErro(e, 'Erro ao gravar tag'))
-    } finally {
-      setSalvando(false)
-    }
-  }
-
-  function copiarUrl() {
-    navigator.clipboard.writeText(url)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 1500)
-  }
-
-  return (
-    <div className="mt-3 rounded-md border border-foam-200 bg-foam-100/60 p-3">
-      <div className="grid grid-cols-2 gap-3">
-        <CampoTexto label="Código físico da tag" value={tagId} onChange={setTagId} />
-        <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-hull-900">Modelo do chip</span>
-          <select
-            value={modelo}
-            onChange={(e) => setModelo(e.target.value as ModeloNfcCapacidade)}
-            className="input"
-          >
-            {Object.entries(NFC_MODELS).map(([key, m]) => (
-              <option key={key} value={key}>
-                {m.label}
-                {m.usableBytes ? ` (${m.usableBytes} bytes)` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <label className="mt-3 block">
-        <span className="mb-1.5 block text-sm font-medium text-hull-900">Modo de gravação</span>
-        <select
-          value={modoGravacao}
-          onChange={(e) => setModoGravacao(e.target.value as ModoGravacaoNfc)}
-          className="input"
-        >
-          <option value="HUB">Hub (recomendado)</option>
-          <option value="DIRECT">Direto</option>
-        </select>
-      </label>
-
-      <div className="mt-3 rounded-md border border-foam-200 bg-white p-3">
-        <p className="mb-1.5 text-xs text-slate-400">
-          Grave esta URL no chip com um app de NFC (ex: NFC Tools):
-        </p>
-        <div className="flex items-center gap-2">
-          <span className="flex-1 truncate font-mono text-xs text-hull-900">{url}</span>
-          <button onClick={copiarUrl} className="shrink-0 text-slate-400 hover:text-wake-500">
-            {copiado ? <Check className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />}
-          </button>
-        </div>
-        <div className="mt-2">
-          <div className="mb-1 flex items-center justify-between text-[11px]">
-            <span className={cabe ? 'text-slate-400' : 'text-signal-red'}>
-              {bytesUsados} / {capacidade} bytes
-            </span>
-            <span className={cabe ? 'text-signal-green' : 'text-signal-red'}>
-              {cabe ? 'Cabe no chip' : 'Excede a capacidade'}
-            </span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-foam-200">
-            <div
-              className={`h-full ${!cabe ? 'bg-signal-red' : percentual > 80 ? 'bg-brass-500' : 'bg-signal-green'}`}
-              style={{ width: `${percentual}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-3 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-md px-3 py-1.5 text-xs text-slate-500 hover:text-hull-900">
-          Cancelar
-        </button>
-        <button
-          onClick={salvar}
-          disabled={salvando || !tagId.trim() || !cabe}
-          className="rounded-md bg-hull-900 px-3 py-1.5 text-xs font-medium text-foam-50 disabled:opacity-50"
-        >
-          {salvando ? 'Salvando…' : 'Salvar tag'}
-        </button>
-      </div>
-    </div>
-  )
-}
-
-type EventoTimeline = {
-  id: string
-  tipo: 'manutencao' | 'limpeza' | 'movimentacao'
-  data: string | null
-  titulo: string
-  detalhe: string | null
-}
-
-const ICONES_EVENTO: Record<EventoTimeline['tipo'], typeof Wrench> = {
-  manutencao: Wrench,
-  limpeza: Sparkles,
-  movimentacao: ArrowUpDown,
-}
-
-function mapManutencao(m: EmbarcacaoManutencao): EventoTimeline {
-  return {
-    id: m.id,
-    tipo: 'manutencao',
-    data: m.realizado_em,
-    titulo: m.tipo ?? 'Manutenção',
-    detalhe: [m.descricao, m.realizado_por].filter(Boolean).join(' — ') || null,
-  }
-}
-
-function mapLimpeza(l: EmbarcacaoLimpeza): EventoTimeline {
-  return {
-    id: l.id,
-    tipo: 'limpeza',
-    data: l.limpo_em,
-    titulo: 'Limpeza',
-    detalhe: [l.limpo_por, l.observacoes].filter(Boolean).join(' — ') || null,
-  }
-}
-
-function mapMovimentacao(mv: EmbarcacaoMovimentacao): EventoTimeline {
-  return {
-    id: mv.id,
-    tipo: 'movimentacao',
-    data: mv.movimentado_em,
-    titulo: mv.tipo_movimentacao === 'SUBIDA' ? 'Subida (terra)' : 'Descida (água)',
-    detalhe: [mv.responsavel, mv.observacoes].filter(Boolean).join(' — ') || null,
-  }
-}
-
-function HistoricoEventosModal({
-  embarcacao,
-  onClose,
-}: {
-  embarcacao: EmbarcacaoComNomes
-  onClose: () => void
-}) {
-  const [eventos, setEventos] = useState<EventoTimeline[]>([])
-  const [carregando, setCarregando] = useState(true)
-  const [erro, setErro] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function carregar() {
-      setCarregando(true)
-      try {
-        const [manutencoes, limpezas, movimentacoes] = await Promise.all([
-          listManutencoesEmbarcacao(embarcacao.id),
-          listLimpezasEmbarcacao(embarcacao.id),
-          listMovimentacoesEmbarcacao(embarcacao.id),
-        ])
-        const todos = [
-          ...manutencoes.map(mapManutencao),
-          ...limpezas.map(mapLimpeza),
-          ...movimentacoes.map(mapMovimentacao),
-        ].sort((a, b) => (b.data ?? '').localeCompare(a.data ?? ''))
-        setEventos(todos)
-        setErro(null)
-      } catch (e) {
-        setErro(mensagemErro(e, 'Erro ao carregar histórico'))
-      } finally {
-        setCarregando(false)
-      }
-    }
-    carregar()
-  }, [embarcacao.id])
-
-  return (
-    <Modal title={`Histórico — ${embarcacao.nome}`} onClose={onClose} size="lg">
-      <div className="space-y-3">
-        {erro && (
-          <div className="rounded-md border border-signal-red/30 bg-signal-red/5 px-3 py-2 text-sm text-signal-red">
-            {erro}
-          </div>
-        )}
-        {carregando ? (
-          <p className="text-sm text-slate-400">Carregando…</p>
-        ) : eventos.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhum evento registrado ainda.</p>
-        ) : (
-          <ul className="space-y-2">
-            {eventos.map((ev) => {
-              const Icone = ICONES_EVENTO[ev.tipo]
-              return (
-                <li
-                  key={`${ev.tipo}-${ev.id}`}
-                  className="flex items-start gap-3 rounded-md border border-foam-200 p-3"
-                >
-                  <Icone className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.75} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-hull-900">{ev.titulo}</p>
-                      <p className="shrink-0 text-xs text-slate-400">
-                        {ev.data ? new Date(ev.data).toLocaleDateString('pt-BR') : '—'}
-                      </p>
-                    </div>
-                    {ev.detalhe && <p className="mt-0.5 text-xs text-slate-500">{ev.detalhe}</p>}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-    </Modal>
   )
 }
