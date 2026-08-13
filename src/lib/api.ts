@@ -34,6 +34,14 @@ import type {
   PerfilAcesso,
   CampoPersonalizado,
   LinkPublicoProduto,
+  Marina,
+  Embarcacao,
+  EmbarcacaoTag,
+  EmbarcacaoManutencao,
+  EmbarcacaoLimpeza,
+  EmbarcacaoMovimentacao,
+  EmbarcacaoAcessorio,
+  EmbarcacaoPublico,
 } from '@/types'
 
 // ---------- Categorias / Subcategorias ----------
@@ -1761,4 +1769,201 @@ export async function updatePerfilAcesso(id: string, nome: string, tabKeys: stri
 export async function deletePerfilAcesso(id: string): Promise<void> {
   const { error } = await supabase.from('perfis_acesso').delete().eq('id', id)
   if (error) throw error
+}
+
+// ---------- Embarcações (módulo NFC) ----------
+
+export async function listMarinas(): Promise<Marina[]> {
+  const { data, error } = await supabase.from('marinas').select('*').order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createMarina(marina: Omit<Marina, 'id' | 'criado_em'>): Promise<Marina> {
+  const { data, error } = await supabase.from('marinas').insert(marina).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateMarina(id: string, patch: Partial<Omit<Marina, 'id' | 'criado_em'>>): Promise<void> {
+  const { error } = await supabase.from('marinas').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteMarina(id: string): Promise<void> {
+  const { error } = await supabase.from('marinas').delete().eq('id', id)
+  if (error) throw error
+}
+
+const EMBARCACAO_SELECT =
+  'id, nome, numero_registro, tipo, comprimento, marina_id, proprietario_id, broker_id, produto_id, marinheiro_nome, marinheiro_contato, status, foto_url, criado_em, atualizado_em, marinas(nome), clientes_leads(nome), parceiros(nome)'
+
+function mapEmbarcacaoRow({
+  marinas,
+  clientes_leads,
+  parceiros,
+  ...embarcacao
+}: {
+  marinas?: { nome: string } | { nome: string }[] | null
+  clientes_leads?: { nome: string } | { nome: string }[] | null
+  parceiros?: { nome: string } | { nome: string }[] | null
+  [key: string]: unknown
+}): Embarcacao & { marina_nome: string | null; proprietario_nome: string | null; broker_nome: string | null } {
+  const nomeDe = (rel?: { nome: string } | { nome: string }[] | null) =>
+    (Array.isArray(rel) ? rel[0]?.nome : rel?.nome) ?? null
+  return {
+    ...(embarcacao as unknown as Embarcacao),
+    marina_nome: nomeDe(marinas),
+    proprietario_nome: nomeDe(clientes_leads),
+    broker_nome: nomeDe(parceiros),
+  }
+}
+
+export async function listEmbarcacoes(): Promise<
+  (Embarcacao & { marina_nome: string | null; proprietario_nome: string | null; broker_nome: string | null })[]
+> {
+  const { data, error } = await supabase.from('embarcacoes').select(EMBARCACAO_SELECT).order('nome')
+  if (error) throw error
+  return (data ?? []).map(mapEmbarcacaoRow)
+}
+
+export async function listEmbarcacoesPorBroker(
+  brokerId: string
+): Promise<(Embarcacao & { marina_nome: string | null; proprietario_nome: string | null; broker_nome: string | null })[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes')
+    .select(EMBARCACAO_SELECT)
+    .eq('broker_id', brokerId)
+    .order('nome')
+  if (error) throw error
+  return (data ?? []).map(mapEmbarcacaoRow)
+}
+
+export async function createEmbarcacao(embarcacao: Omit<Embarcacao, 'id' | 'criado_em' | 'atualizado_em'>): Promise<Embarcacao> {
+  const { data, error } = await supabase.from('embarcacoes').insert(embarcacao).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateEmbarcacao(
+  id: string,
+  patch: Partial<Omit<Embarcacao, 'id' | 'criado_em' | 'atualizado_em'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('embarcacoes')
+    .update({ ...patch, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteEmbarcacao(id: string): Promise<void> {
+  const { error } = await supabase.from('embarcacoes').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function listTagsEmbarcacao(embarcacaoId: string): Promise<EmbarcacaoTag[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes_tags')
+    .select('*')
+    .eq('embarcacao_id', embarcacaoId)
+    .order('criado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createTagEmbarcacao(
+  tag: Pick<EmbarcacaoTag, 'embarcacao_id' | 'tag_id' | 'modelo_nfc' | 'modo_gravacao'>
+): Promise<EmbarcacaoTag> {
+  const { data, error } = await supabase.from('embarcacoes_tags').insert(tag).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function alternarAtivoTagEmbarcacao(id: string, ativo: boolean): Promise<void> {
+  const { error } = await supabase.from('embarcacoes_tags').update({ ativo }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTagEmbarcacao(id: string): Promise<void> {
+  const { error } = await supabase.from('embarcacoes_tags').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function listManutencoesEmbarcacao(embarcacaoId: string): Promise<EmbarcacaoManutencao[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes_manutencoes')
+    .select('*')
+    .eq('embarcacao_id', embarcacaoId)
+    .order('realizado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listLimpezasEmbarcacao(embarcacaoId: string): Promise<EmbarcacaoLimpeza[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes_limpezas')
+    .select('*')
+    .eq('embarcacao_id', embarcacaoId)
+    .order('limpo_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listMovimentacoesEmbarcacao(embarcacaoId: string): Promise<EmbarcacaoMovimentacao[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes_movimentacoes')
+    .select('*')
+    .eq('embarcacao_id', embarcacaoId)
+    .order('movimentado_em', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function listAcessoriosEmbarcacao(embarcacaoId: string): Promise<EmbarcacaoAcessorio[]> {
+  const { data, error } = await supabase
+    .from('embarcacoes_acessorios')
+    .select('*')
+    .eq('embarcacao_id', embarcacaoId)
+    .order('nome')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createAcessorioEmbarcacao(
+  acessorio: Omit<EmbarcacaoAcessorio, 'id' | 'criado_em'>
+): Promise<EmbarcacaoAcessorio> {
+  const { data, error } = await supabase.from('embarcacoes_acessorios').insert(acessorio).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteAcessorioEmbarcacao(id: string): Promise<void> {
+  const { error } = await supabase.from('embarcacoes_acessorios').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Página pública /embarcacao/:tagId — sem autenticação, resolve via RPC security definer
+export async function buscarEmbarcacaoPorTag(tagId: string): Promise<EmbarcacaoPublico | null> {
+  const { data, error } = await supabase.rpc('buscar_embarcacao_por_tag', { p_tag_id: tagId })
+  if (error) throw error
+  return data?.[0] ?? null
+}
+
+export type TipoEventoEmbarcacao = 'manutencao' | 'limpeza' | 'movimentacao'
+
+// Registro de evento sem login, validado pelo PIN da marina — chamado pela página pública
+export async function registrarEventoEmbarcacao(input: {
+  tagId: string
+  pin: string
+  tipoEvento: TipoEventoEmbarcacao
+  dados: Record<string, string | number | null>
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('registrar_evento_embarcacao', {
+    p_tag_id: input.tagId,
+    p_pin: input.pin,
+    p_tipo_evento: input.tipoEvento,
+    p_dados: input.dados,
+  })
+  if (error) throw error
+  return data
 }

@@ -376,3 +376,108 @@ export interface LinkPublicoProduto {
   criado_em: string
   expira_em: string
 }
+
+// ---------- Módulo de Embarcações (NFC) ----------
+
+export interface Marina {
+  id: string
+  nome: string
+  localizacao: string | null
+  contato: string | null
+  pin_acesso: string | null
+  criado_em: string
+}
+
+export type StatusEmbarcacao = 'ATIVA' | 'EM_MANUTENCAO' | 'VENDIDA' | 'INATIVA'
+
+export interface Embarcacao {
+  id: string
+  nome: string
+  numero_registro: string | null
+  tipo: string | null
+  comprimento: number | null
+  marina_id: string | null
+  proprietario_id: string | null
+  broker_id: string | null
+  produto_id: string | null
+  marinheiro_nome: string | null
+  marinheiro_contato: string | null
+  status: StatusEmbarcacao
+  foto_url: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export type ModeloNfc = 'NTAG213' | 'NTAG215' | 'NTAG216' | 'CUSTOM'
+export type ModoGravacaoNfc = 'HUB' | 'DIRECT'
+
+export interface EmbarcacaoTag {
+  id: string
+  embarcacao_id: string
+  tag_id: string
+  modelo_nfc: ModeloNfc
+  modo_gravacao: ModoGravacaoNfc
+  ativo: boolean
+  contagem_leituras: number
+  criado_em: string
+}
+
+export interface EmbarcacaoManutencao {
+  id: string
+  embarcacao_id: string
+  tipo: string | null
+  descricao: string | null
+  realizado_em: string | null
+  realizado_por: string | null
+  custo: number | null
+  proxima_data: string | null
+  fotos: string[]
+  criado_por: string | null
+  criado_em: string
+}
+
+export interface EmbarcacaoLimpeza {
+  id: string
+  embarcacao_id: string
+  limpo_em: string | null
+  limpo_por: string | null
+  observacoes: string | null
+  fotos: string[]
+  criado_em: string
+}
+
+export type TipoMovimentacao = 'SUBIDA' | 'DESCIDA'
+
+export interface EmbarcacaoMovimentacao {
+  id: string
+  embarcacao_id: string
+  tipo_movimentacao: TipoMovimentacao
+  movimentado_em: string
+  responsavel: string | null
+  observacoes: string | null
+  criado_em: string
+}
+
+export interface EmbarcacaoAcessorio {
+  id: string
+  embarcacao_id: string
+  nome: string
+  numero_serie: string | null
+  instalado_em: string | null
+  garantia_vence_em: string | null
+  fornecedor: string | null
+  criado_em: string
+}
+
+// Colunas seguras da view pública embarcacoes_publico (sem dados do proprietário)
+export interface EmbarcacaoPublico {
+  id: string
+  nome: string
+  tipo: string | null
+  comprimento: number | null
+  foto_url: string | null
+  marina_id: string | null
+  marinheiro_nome: string | null
+  status: StatusEmbarcacao
+  empresa_id: string
+}

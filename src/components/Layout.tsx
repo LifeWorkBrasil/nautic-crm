@@ -42,6 +42,7 @@ const NAV_ITEMS_FIXOS = [
     icon: Handshake,
     permissao: 'produtos_terceiros',
   },
+  { to: '/embarcacoes', label: 'Embarcações', icon: Anchor, permissao: 'embarcacoes' },
   { to: '/parametrizacao', label: 'Parametrização', icon: Settings2, permissao: 'parametrizacao' },
   { to: '/orcamentos', label: 'Gerador de Orçamentos', icon: FileText, permissao: 'orcamentos' },
   { to: '/marketing', label: 'Marketing', icon: Megaphone, permissao: 'marketing' },

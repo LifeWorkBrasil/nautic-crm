@@ -18,6 +18,8 @@ import Admin from './pages/Admin'
 import Relatorios from './pages/Relatorios'
 import CatalogoPdf from './pages/CatalogoPdf'
 import ProdutoPublico from './pages/ProdutoPublico'
+import Embarcacoes from './pages/Embarcacoes'
+import EmbarcacaoPublica from './pages/EmbarcacaoPublica'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -43,6 +45,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/p/:linkId" element={<ProdutoPublico />} />
+      <Route path="/embarcacao/:tagId" element={<EmbarcacaoPublica />} />
       {!session ? (
         <Route path="*" element={<Login />} />
       ) : (
@@ -52,6 +55,7 @@ export default function App() {
             <Route path="/cadastro-clientes" element={<CadastroClientes />} />
             <Route path="/captacao" element={<Captacao />} />
             <Route path="/produtos-terceiros" element={<ProdutosTerceiros />} />
+            <Route path="/embarcacoes" element={<Embarcacoes />} />
             <Route path="/catalogo/:subcategoriaId" element={<Catalogo />} />
             <Route path="/parametrizacao" element={<Parametrizacao />} />
             <Route path="/orcamentos" element={<Orcamentos />} />

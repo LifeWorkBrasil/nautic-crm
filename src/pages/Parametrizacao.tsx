@@ -16,6 +16,7 @@ import {
   X,
   Upload,
   Download,
+  Anchor,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
@@ -63,6 +64,10 @@ import {
   uploadImagemMensagemModelo,
   getEmpresaConfig,
   updateEmpresaConfig,
+  listMarinas,
+  createMarina,
+  updateMarina,
+  deleteMarina,
 } from '@/lib/api'
 import { PLACEHOLDERS_DISPONIVEIS, PLACEHOLDERS_COLCHETES_DISPONIVEIS } from '@/lib/contratos'
 import { usePermissoes } from '@/lib/PermissoesContext'
@@ -76,6 +81,7 @@ import type {
   Parceiro,
   MinutaContrato,
   MensagemModelo,
+  Marina,
 } from '@/types'
 
 type Aba =
@@ -85,6 +91,7 @@ type Aba =
   | 'parceiros'
   | 'minutas'
   | 'mensagens'
+  | 'marinas'
   | 'preferencias'
 
 const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
@@ -94,6 +101,7 @@ const TABS: { key: Aba; label: string; icon: typeof Zap }[] = [
   { key: 'parceiros', label: 'Parceiros', icon: Users },
   { key: 'minutas', label: 'Minutas de Contrato', icon: FileSignature },
   { key: 'mensagens', label: 'Mensagens', icon: MessageCircle },
+  { key: 'marinas', label: 'Marinas', icon: Anchor },
   { key: 'preferencias', label: 'Preferências', icon: SlidersHorizontal },
 ]
 
@@ -146,6 +154,7 @@ export default function Parametrizacao() {
       {aba === 'parceiros' && <AbaParceiros />}
       {aba === 'minutas' && <AbaMinutas />}
       {aba === 'mensagens' && <AbaMensagens />}
+      {aba === 'marinas' && <AbaMarinas />}
       {aba === 'preferencias' && <AbaPreferencias />}
     </div>
   )
@@ -1772,6 +1781,147 @@ function AbaMensagens() {
                   />
                 </label>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Marinas (módulo de Embarcações / NFC)
+// ---------------------------------------------------------------------------
+
+const MARINA_VAZIA = { nome: '', localizacao: '', contato: '', pin_acesso: '' }
+
+function AbaMarinas() {
+  const {
+    itens: marinas,
+    carregando,
+    erro,
+    editando,
+    form,
+    salvando,
+    setForm,
+    carregar,
+    abrirCriacao,
+    abrirEdicao,
+    fechar,
+    salvar,
+    excluir,
+    modalAberto,
+  } = useCrudTab<Marina, typeof MARINA_VAZIA>({
+    list: listMarinas,
+    create: createMarina,
+    update: updateMarina,
+    remove: deleteMarina,
+    vazio: MARINA_VAZIA,
+    mensagemExclusao: 'Excluir esta marina? Embarcações vinculadas a ela ficam sem marina.',
+  })
+
+  useEffect(() => {
+    carregar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div>
+      <ErroBanner erro={erro} />
+      <div className="mb-4 flex justify-end">
+        <AddButton label="Nova marina" onClick={abrirCriacao} />
+      </div>
+
+      {carregando ? (
+        <p className="text-sm text-slate-400">Carregando…</p>
+      ) : marinas.length === 0 ? (
+        <p className="text-sm text-slate-400">Nenhuma marina cadastrada.</p>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-foam-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-foam-100 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Nome</th>
+                <th className="px-4 py-3 font-medium">Localização</th>
+                <th className="px-4 py-3 font-medium">Contato</th>
+                <th className="px-4 py-3 font-medium">PIN de acesso</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-foam-200">
+              {marinas.map((marina) => (
+                <tr key={marina.id}>
+                  <td className="px-4 py-3 text-hull-900">{marina.nome}</td>
+                  <td className="px-4 py-3 text-slate-600">{marina.localizacao || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{marina.contato || '—'}</td>
+                  <td className="px-4 py-3 font-mono text-slate-600">{marina.pin_acesso || '—'}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() =>
+                          abrirEdicao(marina, {
+                            nome: marina.nome,
+                            localizacao: marina.localizacao ?? '',
+                            contato: marina.contato ?? '',
+                            pin_acesso: marina.pin_acesso ?? '',
+                          })
+                        }
+                        className="text-wake-500 hover:text-wake-600"
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                      <button
+                        onClick={() => excluir(marina.id)}
+                        className="text-signal-red/80 hover:text-signal-red"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalAberto && (
+        <Modal
+          title={editando ? `Editar ${editando.nome}` : 'Nova marina'}
+          onClose={fechar}
+          footer={
+            <>
+              <button onClick={fechar} className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900">
+                Cancelar
+              </button>
+              <button
+                onClick={salvar}
+                disabled={salvando || !form.nome.trim()}
+                className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Salvar'}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+            <CampoTexto
+              label="Localização"
+              value={form.localizacao}
+              onChange={(v) => setForm({ ...form, localizacao: v })}
+            />
+            <CampoTexto label="Contato" value={form.contato} onChange={(v) => setForm({ ...form, contato: v })} />
+            <div>
+              <CampoTexto
+                label="PIN de acesso"
+                value={form.pin_acesso}
+                onChange={(v) => setForm({ ...form, pin_acesso: v })}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Pedido à equipe da marina antes de registrar manutenção, limpeza ou movimentação
+                pela página pública de cada embarcação.
+              </p>
             </div>
           </div>
         </Modal>
