@@ -646,7 +646,7 @@ function NovaTagNfcForm({
   const [salvando, setSalvando] = useState(false)
   const [copiado, setCopiado] = useState(false)
 
-  const url = `${window.location.origin}/embarcacao/${tagId || 'TAG-XXX'}`
+  const url = `${window.location.origin}${import.meta.env.BASE_URL}embarcacao/${tagId || 'TAG-XXX'}`
   const bytesUsados = computeUrlNdefBytes(url)
   const capacidade = getModelCapacity(modelo, null)
   const cabe = bytesUsados <= capacidade
