@@ -20,12 +20,13 @@ import {
   listTodasTagsEmbarcacoes,
   listCamposPersonalizados,
   listAlertasManutencao,
+  listProdutos,
   type AlertaManutencao,
 } from '@/lib/api'
 import { mensagemErro } from '@/lib/errors'
 import { exportarTagsCsv } from '@/lib/exportarCsv'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
-import type { Embarcacao, Marina, ClienteLead, Parceiro, StatusEmbarcacao, CampoPersonalizado } from '@/types'
+import type { Embarcacao, Marina, ClienteLead, Parceiro, Produto, StatusEmbarcacao, CampoPersonalizado } from '@/types'
 
 type EmbarcacaoComNomes = Embarcacao & {
   marina_nome: string | null
@@ -73,6 +74,7 @@ export default function Embarcacoes() {
   const [marinas, setMarinas] = useState<Marina[]>([])
   const [leads, setLeads] = useState<ClienteLead[]>([])
   const [parceiros, setParceiros] = useState<Parceiro[]>([])
+  const [produtos, setProdutos] = useState<Produto[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
@@ -93,13 +95,14 @@ export default function Embarcacoes() {
   async function carregar() {
     setCarregando(true)
     try {
-      const [emb, mar, ld, pc, cp, al] = await Promise.all([
+      const [emb, mar, ld, pc, cp, al, prod] = await Promise.all([
         listEmbarcacoes(),
         listMarinas(),
         listLeads(),
         listParceiros(),
         listCamposPersonalizados(),
         listAlertasManutencao(),
+        listProdutos(),
       ])
       setItens(emb)
       setMarinas(mar)
@@ -107,6 +110,7 @@ export default function Embarcacoes() {
       setParceiros(pc)
       setCamposPersonalizados(cp.filter((c) => c.contexto === 'embarcacao'))
       setAlertas(al)
+      setProdutos(prod)
       setErro(null)
     } catch (e) {
       setErro(mensagemErro(e, 'Erro ao carregar embarcações'))
@@ -225,6 +229,23 @@ export default function Embarcacoes() {
     } catch (e) {
       setErro(mensagemErro(e, 'Erro ao exportar tags'))
     }
+  }
+
+  function selecionarProdutoEstoque(produtoId: string | null) {
+    if (!produtoId) {
+      setForm((f) => ({ ...f, produto_id: null }))
+      return
+    }
+    const p = produtos.find((pr) => pr.id === produtoId)
+    if (!p) return
+    setForm((f) => ({
+      ...f,
+      produto_id: p.id,
+      nome: p.nome,
+      comprimento: p.comprimento,
+      ano: p.ano,
+      foto_url: p.foto_principal_url ?? f.foto_url,
+    }))
   }
 
   function handleProprietarioCriado(lead: ClienteLead) {
@@ -401,6 +422,17 @@ export default function Embarcacoes() {
           }
         >
           <div className="space-y-4">
+            {criando && (
+              <BuscaVinculo
+                label="Puxar do estoque (opcional)"
+                itens={produtos}
+                valorId={form.produto_id}
+                onSelecionar={selecionarProdutoEstoque}
+                onCriarNovo={() => {}}
+                permitirCriar={false}
+                placeholder="Buscar produto no catálogo…"
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
               <CampoTexto

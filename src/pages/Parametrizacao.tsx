@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import {
   Zap,
   PackagePlus,
@@ -55,6 +55,8 @@ import {
   createParceiro,
   updateParceiro,
   deleteParceiro,
+  listEmbarcacoesDoParceiro,
+  setEmbarcacoesVinculadas,
   listMinutas,
   createMinuta,
   updateMinuta,
@@ -70,6 +72,7 @@ import {
   createMarina,
   updateMarina,
   deleteMarina,
+  listEmbarcacoes,
   listFornecedores,
   createFornecedor,
   updateFornecedor,
@@ -87,6 +90,9 @@ import type {
   SubcategoriaProduto,
   GrupoProduto,
   Parceiro,
+  CategoriaParceiro,
+  HabilitacaoMarinheiro,
+  RegimeTrabalho,
   MinutaContrato,
   MensagemModelo,
   Marina,
@@ -1299,20 +1305,164 @@ function AbaCategorias() {
 // Parceiros
 // ---------------------------------------------------------------------------
 
+const CATEGORIA_PARCEIRO_LABELS: Record<CategoriaParceiro, string> = {
+  marinheiro: 'Marinheiro',
+  tecnico: 'Técnico',
+  proprietario: 'Proprietário',
+  outro: 'Outro',
+}
+
+const HABILITACAO_OPCOES: HabilitacaoMarinheiro[] = ['Amador', 'Arrais-Amador', 'Mestre Amador', 'Capitão Amador']
+const REGIME_TRABALHO_OPCOES: RegimeTrabalho[] = ['CLT', 'MEI', 'Autônomo', 'Outro']
+const ESPECIALIDADE_SUGESTOES = ['Mecânico', 'Eletricista', 'Laminador', 'Pintor', 'Tapeceiro', 'Marceneiro']
+
 type ParceiroForm = {
   nome: string
   contato: string
   telefone: string
   observacoes: string
+  categoria: CategoriaParceiro
+  especialidade: string
+  habilitacao: HabilitacaoMarinheiro | ''
+  regiao_atuacao: string
+  fins_de_semana_livres: boolean
+  regime_trabalho: RegimeTrabalho | ''
+  marcas_autorizadas: string
+  tipos_equipamento_autorizados: string
 }
 
-const PARCEIRO_VAZIO: ParceiroForm = { nome: '', contato: '', telefone: '', observacoes: '' }
+const PARCEIRO_VAZIO: ParceiroForm = {
+  nome: '',
+  contato: '',
+  telefone: '',
+  observacoes: '',
+  categoria: 'outro',
+  especialidade: '',
+  habilitacao: '',
+  regiao_atuacao: '',
+  fins_de_semana_livres: false,
+  regime_trabalho: '',
+  marcas_autorizadas: '',
+  tipos_equipamento_autorizados: '',
+}
+
+function parceiroFormParaPayload(f: ParceiroForm) {
+  return {
+    nome: f.nome,
+    contato: f.contato || null,
+    telefone: f.telefone || null,
+    observacoes: f.observacoes || null,
+    categoria: f.categoria,
+    especialidade: f.categoria === 'tecnico' ? f.especialidade || null : null,
+    habilitacao: f.categoria === 'marinheiro' ? f.habilitacao || null : null,
+    regiao_atuacao: f.categoria === 'marinheiro' ? f.regiao_atuacao || null : null,
+    fins_de_semana_livres: f.categoria === 'marinheiro' ? f.fins_de_semana_livres : null,
+    regime_trabalho: f.categoria === 'marinheiro' ? f.regime_trabalho || null : null,
+    marcas_autorizadas: f.categoria === 'tecnico' ? textoParaLista(f.marcas_autorizadas) : [],
+    tipos_equipamento_autorizados: f.categoria === 'tecnico' ? textoParaLista(f.tipos_equipamento_autorizados) : [],
+  }
+}
+
+function parceiroParaForm(p: Parceiro): ParceiroForm {
+  return {
+    nome: p.nome,
+    contato: p.contato ?? '',
+    telefone: p.telefone ?? '',
+    observacoes: p.observacoes ?? '',
+    categoria: p.categoria,
+    especialidade: p.especialidade ?? '',
+    habilitacao: p.habilitacao ?? '',
+    regiao_atuacao: p.regiao_atuacao ?? '',
+    fins_de_semana_livres: p.fins_de_semana_livres ?? false,
+    regime_trabalho: p.regime_trabalho ?? '',
+    marcas_autorizadas: listaParaTexto(p.marcas_autorizadas),
+    tipos_equipamento_autorizados: listaParaTexto(p.tipos_equipamento_autorizados),
+  }
+}
+
+function EmbarcacoesVinculadasField({
+  todas,
+  vinculadas,
+  onChange,
+}: {
+  todas: { id: string; nome: string }[]
+  vinculadas: { id: string; nome: string }[]
+  onChange: (novas: { id: string; nome: string }[]) => void
+}) {
+  const [busca, setBusca] = useState('')
+  const [aberto, setAberto] = useState(false)
+
+  const resultados = useMemo(() => {
+    const termo = busca.trim().toLowerCase()
+    if (!termo) return []
+    const jaVinculadas = new Set(vinculadas.map((v) => v.id))
+    return todas.filter((e) => !jaVinculadas.has(e.id) && e.nome.toLowerCase().includes(termo)).slice(0, 8)
+  }, [todas, vinculadas, busca])
+
+  return (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium text-hull-900">Embarcações vinculadas</span>
+      {vinculadas.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {vinculadas.map((v) => (
+            <span
+              key={v.id}
+              className="flex items-center gap-1.5 rounded-full bg-foam-200 px-3 py-1 text-xs text-hull-900"
+            >
+              {v.nome}
+              <button
+                onClick={() => onChange(vinculadas.filter((x) => x.id !== v.id))}
+                className="text-slate-500 hover:text-signal-red"
+              >
+                <X className="h-3 w-3" strokeWidth={2} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <input
+          value={busca}
+          onChange={(e) => {
+            setBusca(e.target.value)
+            setAberto(true)
+          }}
+          onFocus={() => setAberto(true)}
+          onBlur={() => setTimeout(() => setAberto(false), 150)}
+          placeholder="Buscar embarcação por nome…"
+          className="input"
+        />
+        {aberto && busca.trim() && (
+          <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-foam-200 bg-white shadow-lg">
+            {resultados.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-slate-400">Nenhum resultado.</p>
+            ) : (
+              resultados.map((r) => (
+                <button
+                  key={r.id}
+                  onMouseDown={() => {
+                    onChange([...vinculadas, r])
+                    setBusca('')
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm text-hull-900 hover:bg-foam-100"
+                >
+                  {r.nome}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function AbaParceiros() {
   const {
     itens,
     carregando,
     erro,
+    setErro,
     editando,
     form,
     setForm,
@@ -1326,29 +1476,47 @@ function AbaParceiros() {
     modalAberto,
   } = useCrudTab<Parceiro, ParceiroForm>({
     list: listParceiros,
-    create: (f) =>
-      createParceiro({
-        nome: f.nome,
-        contato: f.contato || null,
-        telefone: f.telefone || null,
-        observacoes: f.observacoes || null,
-      }),
-    update: (id, f) =>
-      updateParceiro(id, {
-        nome: f.nome,
-        contato: f.contato || null,
-        telefone: f.telefone || null,
-        observacoes: f.observacoes || null,
-      }),
+    create: (f) => createParceiro(parceiroFormParaPayload(f)),
+    update: (id, f) => updateParceiro(id, parceiroFormParaPayload(f)),
     remove: deleteParceiro,
     vazio: PARCEIRO_VAZIO,
-    mensagemExclusao: 'Excluir este parceiro? Produtos vinculados a ele ficam sem parceiro.',
+    mensagemExclusao:
+      'Excluir este parceiro? Produtos e embarcações vinculados a ele ficam sem esse vínculo.',
   })
+
+  const [embarcacoesTodas, setEmbarcacoesTodas] = useState<{ id: string; nome: string }[]>([])
+  const [vinculadas, setVinculadas] = useState<{ id: string; nome: string }[]>([])
 
   useEffect(() => {
     carregar()
+    listEmbarcacoes().then(setEmbarcacoesTodas)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (editando) {
+      listEmbarcacoesDoParceiro(editando.id)
+        .then(setVinculadas)
+        .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar embarcações vinculadas')))
+    } else {
+      setVinculadas([])
+    }
+  }, [editando, setErro])
+
+  async function salvarComVinculo() {
+    if (editando && form.categoria === 'proprietario') {
+      try {
+        await setEmbarcacoesVinculadas(
+          editando.id,
+          vinculadas.map((v) => v.id)
+        )
+      } catch (e) {
+        setErro(mensagemErro(e, 'Erro ao vincular embarcações'))
+        return
+      }
+    }
+    await salvar()
+  }
 
   return (
     <div>
@@ -1362,41 +1530,50 @@ function AbaParceiros() {
       ) : itens.length === 0 ? (
         <p className="text-sm text-slate-400">Nenhum parceiro cadastrado ainda.</p>
       ) : (
-        <div className="space-y-2">
-          {itens.map((parceiro) => (
-            <div
-              key={parceiro.id}
-              className="flex items-center justify-between rounded-md border border-foam-200 bg-white p-4"
-            >
-              <div>
-                <p className="font-display text-lg text-hull-900">{parceiro.nome}</p>
-                <p className="text-xs text-slate-500">
-                  {[parceiro.contato, parceiro.telefone].filter(Boolean).join(' · ') || '—'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() =>
-                    abrirEdicao(parceiro, {
-                      nome: parceiro.nome,
-                      contato: parceiro.contato ?? '',
-                      telefone: parceiro.telefone ?? '',
-                      observacoes: parceiro.observacoes ?? '',
-                    })
-                  }
-                  className="text-wake-500 hover:text-wake-600"
-                >
-                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-                <button
-                  onClick={() => excluir(parceiro.id)}
-                  className="text-signal-red/80 hover:text-signal-red"
-                >
-                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-md border border-foam-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-foam-100 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Código</th>
+                <th className="px-4 py-3 font-medium">Nome</th>
+                <th className="px-4 py-3 font-medium">Categoria</th>
+                <th className="px-4 py-3 font-medium">Contato</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-foam-200">
+              {itens.map((parceiro) => (
+                <tr key={parceiro.id}>
+                  <td className="px-4 py-3 text-slate-500">#{parceiro.codigo}</td>
+                  <td className="px-4 py-3 text-hull-900">{parceiro.nome}</td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-foam-200 px-2 py-0.5 text-[10px] font-medium text-hull-900">
+                      {CATEGORIA_PARCEIRO_LABELS[parceiro.categoria]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {[parceiro.contato, parceiro.telefone].filter(Boolean).join(' · ') || '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        onClick={() => abrirEdicao(parceiro, parceiroParaForm(parceiro))}
+                        className="text-wake-500 hover:text-wake-600"
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                      <button
+                        onClick={() => excluir(parceiro.id)}
+                        className="text-signal-red/80 hover:text-signal-red"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -1410,7 +1587,7 @@ function AbaParceiros() {
                 Cancelar
               </button>
               <button
-                onClick={salvar}
+                onClick={salvarComVinculo}
                 disabled={salvando || !form.nome.trim()}
                 className="rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
               >
@@ -1420,13 +1597,145 @@ function AbaParceiros() {
           }
         >
           <div className="space-y-4">
-            <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
-            <CampoTexto label="Contato" value={form.contato} onChange={(v) => setForm({ ...form, contato: v })} />
-            <CampoTexto
-              label="Telefone"
-              value={form.telefone}
-              onChange={(v) => setForm({ ...form, telefone: v })}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto label="Nome" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-hull-900">Categoria</span>
+                <select
+                  value={form.categoria}
+                  onChange={(e) => setForm({ ...form, categoria: e.target.value as CategoriaParceiro })}
+                  className="input"
+                >
+                  {(Object.keys(CATEGORIA_PARCEIRO_LABELS) as CategoriaParceiro[]).map((c) => (
+                    <option key={c} value={c}>
+                      {CATEGORIA_PARCEIRO_LABELS[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <CampoTexto
+                label="Contato"
+                value={form.contato}
+                onChange={(v) => setForm({ ...form, contato: v })}
+              />
+              <CampoTexto
+                label="Telefone"
+                value={form.telefone}
+                onChange={(v) => setForm({ ...form, telefone: v })}
+              />
+            </div>
+
+            {form.categoria === 'marinheiro' && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-hull-900">Habilitação</span>
+                    <select
+                      value={form.habilitacao}
+                      onChange={(e) =>
+                        setForm({ ...form, habilitacao: e.target.value as HabilitacaoMarinheiro | '' })
+                      }
+                      className="input"
+                    >
+                      <option value="">Não informada</option>
+                      {HABILITACAO_OPCOES.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <CampoTexto
+                    label="Região de atuação"
+                    value={form.regiao_atuacao}
+                    onChange={(v) => setForm({ ...form, regiao_atuacao: v })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-medium text-hull-900">Regime de trabalho</span>
+                    <select
+                      value={form.regime_trabalho}
+                      onChange={(e) => setForm({ ...form, regime_trabalho: e.target.value as RegimeTrabalho | '' })}
+                      className="input"
+                    >
+                      <option value="">Não informado</option>
+                      {REGIME_TRABALHO_OPCOES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="mt-6 flex items-center gap-2 text-sm text-hull-900">
+                    <input
+                      type="checkbox"
+                      checked={form.fins_de_semana_livres}
+                      onChange={(e) => setForm({ ...form, fins_de_semana_livres: e.target.checked })}
+                      className="h-4 w-4 rounded border-foam-300"
+                    />
+                    Livre nos fins de semana
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {form.categoria === 'tecnico' && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium text-hull-900">Especialidade</span>
+                  <input
+                    list="especialidades-sugeridas"
+                    value={form.especialidade}
+                    onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
+                    placeholder="Ex: Mecânico"
+                    className="input"
+                  />
+                  <datalist id="especialidades-sugeridas">
+                    {ESPECIALIDADE_SUGESTOES.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </label>
+                <div>
+                  <CampoTexto
+                    label="Marcas que atende"
+                    value={form.marcas_autorizadas}
+                    onChange={(v) => setForm({ ...form, marcas_autorizadas: v })}
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Separe por vírgula — ex: Mercury, Mercruiser, Volvo Penta.
+                  </p>
+                </div>
+                <div>
+                  <CampoTexto
+                    label="Tipos de equipamento que atende"
+                    value={form.tipos_equipamento_autorizados}
+                    onChange={(v) => setForm({ ...form, tipos_equipamento_autorizados: v })}
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Separe por vírgula — ex: Motor de popa, Motor de centro, Gerador, Ar condicionado, GPS.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {form.categoria === 'proprietario' && (
+              <div className="border-t border-foam-200 pt-4">
+                {editando ? (
+                  <EmbarcacoesVinculadasField
+                    todas={embarcacoesTodas}
+                    vinculadas={vinculadas}
+                    onChange={setVinculadas}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-400">Salve o parceiro pra poder vincular embarcações.</p>
+                )}
+              </div>
+            )}
+
             <CampoTexto
               label="Observações"
               value={form.observacoes}

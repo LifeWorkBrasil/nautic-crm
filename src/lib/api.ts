@@ -180,15 +180,34 @@ export async function listParceiros(): Promise<Parceiro[]> {
   return data ?? []
 }
 
-export async function createParceiro(parceiro: Omit<Parceiro, 'id' | 'criado_em'>): Promise<Parceiro> {
-  const { data, error } = await supabase.from('parceiros').insert(parceiro).select().single()
+export async function createParceiro(
+  parceiro: Pick<Parceiro, 'nome'> & Partial<Omit<Parceiro, 'id' | 'codigo' | 'criado_em' | 'nome'>>
+): Promise<Parceiro> {
+  const { data, error } = await supabase
+    .from('parceiros')
+    .insert({
+      contato: null,
+      telefone: null,
+      observacoes: null,
+      categoria: 'outro',
+      especialidade: null,
+      habilitacao: null,
+      regiao_atuacao: null,
+      fins_de_semana_livres: null,
+      regime_trabalho: null,
+      marcas_autorizadas: [],
+      tipos_equipamento_autorizados: [],
+      ...parceiro,
+    })
+    .select()
+    .single()
   if (error) throw error
   return data
 }
 
 export async function updateParceiro(
   id: string,
-  patch: Partial<Omit<Parceiro, 'id' | 'criado_em'>>
+  patch: Partial<Omit<Parceiro, 'id' | 'codigo' | 'criado_em'>>
 ): Promise<void> {
   const { error } = await supabase.from('parceiros').update(patch).eq('id', id)
   if (error) throw error
@@ -197,6 +216,31 @@ export async function updateParceiro(
 export async function deleteParceiro(id: string): Promise<void> {
   const { error } = await supabase.from('parceiros').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function listEmbarcacoesDoParceiro(
+  parceiroId: string
+): Promise<{ id: string; nome: string }[]> {
+  const { data, error } = await supabase
+    .from('parceiro_embarcacoes')
+    .select('embarcacoes(id, nome)')
+    .eq('parceiro_id', parceiroId)
+  if (error) throw error
+  return (data ?? []).flatMap((row) => {
+    const rel = row.embarcacoes as { id: string; nome: string } | { id: string; nome: string }[] | null
+    const embarcacao = Array.isArray(rel) ? rel[0] : rel
+    return embarcacao ? [embarcacao] : []
+  })
+}
+
+export async function setEmbarcacoesVinculadas(parceiroId: string, embarcacaoIds: string[]): Promise<void> {
+  const { error: delError } = await supabase.from('parceiro_embarcacoes').delete().eq('parceiro_id', parceiroId)
+  if (delError) throw delError
+  if (embarcacaoIds.length === 0) return
+  const { error: insError } = await supabase
+    .from('parceiro_embarcacoes')
+    .insert(embarcacaoIds.map((embarcacao_id) => ({ parceiro_id: parceiroId, embarcacao_id })))
+  if (insError) throw insError
 }
 
 // ---------- Produtos ----------

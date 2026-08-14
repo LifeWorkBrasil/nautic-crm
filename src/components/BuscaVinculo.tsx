@@ -7,6 +7,7 @@ export default function BuscaVinculo({
   onSelecionar,
   onCriarNovo,
   placeholder,
+  permitirCriar = true,
 }: {
   label: string
   itens: { id: string; nome: string }[]
@@ -14,6 +15,7 @@ export default function BuscaVinculo({
   onSelecionar: (id: string | null) => void
   onCriarNovo: (nomeDigitado: string) => void
   placeholder?: string
+  permitirCriar?: boolean
 }) {
   const [busca, setBusca] = useState('')
   const [aberto, setAberto] = useState(false)
@@ -67,15 +69,20 @@ export default function BuscaVinculo({
               {r.nome}
             </button>
           ))}
-          <button
-            onMouseDown={() => {
-              onCriarNovo(busca.trim())
-              setBusca('')
-            }}
-            className="block w-full border-t border-foam-200 px-3 py-2 text-left text-sm text-wake-500 hover:bg-foam-100"
-          >
-            + Cadastrar "{busca.trim()}"
-          </button>
+          {permitirCriar && (
+            <button
+              onMouseDown={() => {
+                onCriarNovo(busca.trim())
+                setBusca('')
+              }}
+              className="block w-full border-t border-foam-200 px-3 py-2 text-left text-sm text-wake-500 hover:bg-foam-100"
+            >
+              + Cadastrar "{busca.trim()}"
+            </button>
+          )}
+          {!permitirCriar && resultados.length === 0 && (
+            <p className="px-3 py-2 text-sm text-slate-400">Nenhum resultado.</p>
+          )}
         </div>
       )}
     </div>

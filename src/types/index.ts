@@ -146,12 +146,25 @@ export interface ProdutoItemIncluso {
   marca: string | null
 }
 
+export type CategoriaParceiro = 'marinheiro' | 'tecnico' | 'proprietario' | 'outro'
+export type HabilitacaoMarinheiro = 'Amador' | 'Arrais-Amador' | 'Mestre Amador' | 'Capitão Amador'
+export type RegimeTrabalho = 'CLT' | 'MEI' | 'Autônomo' | 'Outro'
+
 export interface Parceiro {
   id: string
+  codigo: number
   nome: string
   contato: string | null
   telefone: string | null
   observacoes: string | null
+  categoria: CategoriaParceiro
+  especialidade: string | null
+  habilitacao: HabilitacaoMarinheiro | null
+  regiao_atuacao: string | null
+  fins_de_semana_livres: boolean | null
+  regime_trabalho: RegimeTrabalho | null
+  marcas_autorizadas: string[]
+  tipos_equipamento_autorizados: string[]
   criado_em: string
 }
 
