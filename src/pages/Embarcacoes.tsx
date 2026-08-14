@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Pencil, Trash2, Search, History, Layers, Download } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, History, Layers, Download, AlertTriangle, MessageCircle } from 'lucide-react'
 import Modal from '@/components/Modal'
 import NovoClienteModal from '@/components/NovoClienteModal'
 import BuscaVinculo from '@/components/BuscaVinculo'
 import LoteTagsNfcModal from '@/components/LoteTagsNfcModal'
+import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
+import CampoDinamico from '@/components/CampoDinamico'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import {
   listEmbarcacoes,
@@ -16,10 +18,14 @@ import {
   listParceiros,
   createParceiro,
   listTodasTagsEmbarcacoes,
+  listCamposPersonalizados,
+  listAlertasManutencao,
+  type AlertaManutencao,
 } from '@/lib/api'
 import { mensagemErro } from '@/lib/errors'
 import { exportarTagsCsv } from '@/lib/exportarCsv'
-import type { Embarcacao, Marina, ClienteLead, Parceiro, StatusEmbarcacao } from '@/types'
+import { linkWhatsappComTexto } from '@/lib/whatsapp'
+import type { Embarcacao, Marina, ClienteLead, Parceiro, StatusEmbarcacao, CampoPersonalizado } from '@/types'
 
 type EmbarcacaoComNomes = Embarcacao & {
   marina_nome: string | null
@@ -59,6 +65,7 @@ const EMBARCACAO_VAZIA = {
   cor_costado: '',
   ano: null as number | null,
   estado_geral: {} as Record<string, string>,
+  atributos: {} as Record<string, string | number | boolean | null>,
 }
 
 export default function Embarcacoes() {
@@ -78,20 +85,28 @@ export default function Embarcacoes() {
 
   const [criandoProprietario, setCriandoProprietario] = useState<string | null>(null)
   const [gerandoLote, setGerandoLote] = useState(false)
+  const [camposPersonalizados, setCamposPersonalizados] = useState<CampoPersonalizado[]>([])
+  const [configurandoCampos, setConfigurandoCampos] = useState(false)
+  const [mostrandoAlertas, setMostrandoAlertas] = useState(false)
+  const [alertas, setAlertas] = useState<AlertaManutencao[]>([])
 
   async function carregar() {
     setCarregando(true)
     try {
-      const [emb, mar, ld, pc] = await Promise.all([
+      const [emb, mar, ld, pc, cp, al] = await Promise.all([
         listEmbarcacoes(),
         listMarinas(),
         listLeads(),
         listParceiros(),
+        listCamposPersonalizados(),
+        listAlertasManutencao(),
       ])
       setItens(emb)
       setMarinas(mar)
       setLeads(ld)
       setParceiros(pc)
+      setCamposPersonalizados(cp.filter((c) => c.contexto === 'embarcacao'))
+      setAlertas(al)
       setErro(null)
     } catch (e) {
       setErro(mensagemErro(e, 'Erro ao carregar embarcações'))
@@ -141,6 +156,7 @@ export default function Embarcacoes() {
       cor_costado: e.cor_costado ?? '',
       ano: e.ano,
       estado_geral: e.estado_geral,
+      atributos: e.atributos,
     })
     setEditando(e)
   }
@@ -229,6 +245,21 @@ export default function Embarcacoes() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {alertas.length > 0 && (
+            <button
+              onClick={() => setMostrandoAlertas(true)}
+              className="flex items-center gap-2 rounded-md border border-signal-red/30 bg-signal-red/5 px-3 py-2.5 text-sm text-signal-red transition-colors hover:bg-signal-red/10"
+            >
+              <AlertTriangle className="h-4 w-4" strokeWidth={1.75} />
+              {alertas.length} vencendo
+            </button>
+          )}
+          <button
+            onClick={() => setConfigurandoCampos(true)}
+            className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
+          >
+            Campos personalizados
+          </button>
           <button
             onClick={exportarTodasAsTags}
             className="flex items-center gap-2 rounded-md border border-foam-200 px-3 py-2.5 text-sm text-hull-900 transition-colors hover:border-wake-400"
@@ -477,6 +508,19 @@ export default function Embarcacoes() {
               </select>
             </label>
 
+            {camposPersonalizados.length > 0 && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                {camposPersonalizados.map((campo) => (
+                  <CampoDinamico
+                    key={campo.id}
+                    campo={campo}
+                    valor={form.atributos[campo.id] ?? null}
+                    onChange={(v) => setForm({ ...form, atributos: { ...form.atributos, [campo.id]: v } })}
+                  />
+                ))}
+              </div>
+            )}
+
             {editando && (
               <p className="text-xs text-slate-400">
                 Motor, itens instalados, estado geral, manutenções e tags NFC ficam na{' '}
@@ -488,6 +532,17 @@ export default function Embarcacoes() {
             )}
           </div>
         </Modal>
+      )}
+
+      {configurandoCampos && (
+        <CamposPersonalizadosModal
+          contexto="embarcacao"
+          titulo="Embarcações"
+          onClose={() => {
+            setConfigurandoCampos(false)
+            carregar()
+          }}
+        />
       )}
 
       {criandoProprietario !== null && (
@@ -509,6 +564,106 @@ export default function Embarcacoes() {
           }}
         />
       )}
+
+      {mostrandoAlertas && <PainelVencimentosModal alertas={alertas} onClose={() => setMostrandoAlertas(false)} />}
     </div>
+  )
+}
+
+function diasRestantes(dataIso: string): number {
+  const hoje = new Date()
+  hoje.setHours(0, 0, 0, 0)
+  const data = new Date(`${dataIso}T00:00:00`)
+  return Math.round((data.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function PainelVencimentosModal({
+  alertas,
+  onClose,
+}: {
+  alertas: AlertaManutencao[]
+  onClose: () => void
+}) {
+  const porMarina = useMemo(() => {
+    const grupos = new Map<string, { total: number; vencidos: number }>()
+    for (const a of alertas) {
+      const chave = a.marina_nome ?? 'Sem marina'
+      const atual = grupos.get(chave) ?? { total: 0, vencidos: 0 }
+      atual.total += 1
+      if (diasRestantes(a.data) < 0) atual.vencidos += 1
+      grupos.set(chave, atual)
+    }
+    return Array.from(grupos.entries()).map(([marina, v]) => ({ marina, ...v }))
+  }, [alertas])
+
+  return (
+    <Modal title="Vencimentos próximos (30 dias)" onClose={onClose} size="xl">
+      <div className="space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          {porMarina.map(({ marina, total, vencidos }) => (
+            <div key={marina} className="rounded-md border border-foam-200 bg-white p-3">
+              <p className="text-sm font-medium text-hull-900">{marina}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {total} no total
+                {vencidos > 0 && <span className="ml-1.5 text-signal-red">· {vencidos} vencido(s)</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="overflow-hidden rounded-md border border-foam-200 bg-white">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-foam-100 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 font-medium">Embarcação</th>
+                <th className="px-4 py-3 font-medium">Item</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
+                <th className="px-4 py-3 font-medium">Marina</th>
+                <th className="px-4 py-3 font-medium">Data</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-foam-200">
+              {alertas.map((a, i) => {
+                const dias = diasRestantes(a.data)
+                const dataFormatada = new Date(`${a.data}T00:00:00`).toLocaleDateString('pt-BR')
+                const mensagem = `Olá${a.marinheiro_nome ? ` ${a.marinheiro_nome}` : ''}! Passando pra lembrar: ${
+                  a.item_nome ?? (a.tipo === 'garantia' ? 'garantia' : 'revisão')
+                } da embarcação ${a.embarcacao_nome} ${dias < 0 ? 'venceu em' : 'vence em'} ${dataFormatada}.`
+                return (
+                  <tr key={`${a.tipo}-${a.embarcacao_id}-${i}`}>
+                    <td className="px-4 py-3 text-hull-900">{a.embarcacao_nome}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.item_nome ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.tipo === 'garantia' ? 'Garantia' : 'Revisão'}</td>
+                    <td className="px-4 py-3 text-slate-600">{a.marina_nome ?? '—'}</td>
+                    <td className={`px-4 py-3 ${dias < 0 ? 'text-signal-red' : 'text-slate-600'}`}>
+                      {dataFormatada}
+                      <span className="ml-1.5 text-xs">
+                        ({dias < 0 ? `${Math.abs(dias)}d atrás` : dias === 0 ? 'hoje' : `em ${dias}d`})
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {a.marinheiro_contato ? (
+                        <a
+                          href={linkWhatsappComTexto(a.marinheiro_contato, mensagem)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-xs text-signal-green hover:opacity-80"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
+                          Enviar lembrete
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-300">Sem contato</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
   )
 }

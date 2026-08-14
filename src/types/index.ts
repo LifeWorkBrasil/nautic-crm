@@ -86,10 +86,13 @@ export interface GrupoProduto {
 
 export type TipoCampoPersonalizado = 'texto' | 'numero' | 'booleano' | 'selecao'
 
+export type ContextoCampoPersonalizado = 'embarcacao' | 'marina'
+
 export interface CampoPersonalizado {
   id: string
   categoria_id: string | null
   grupo_id: string | null
+  contexto: ContextoCampoPersonalizado | null
   nome: string
   tipo: TipoCampoPersonalizado
   opcoes: string[] | null
@@ -385,6 +388,7 @@ export interface Marina {
   localizacao: string | null
   contato: string | null
   pin_acesso: string | null
+  atributos: Record<string, string | number | boolean | null>
   criado_em: string
 }
 
@@ -410,6 +414,7 @@ export interface Embarcacao {
   ano: number | null
   // Checklist de vistoria do casco: { "Costado": "OK", "Fundo": "...", ... }
   estado_geral: Record<string, string>
+  atributos: Record<string, string | number | boolean | null>
   criado_em: string
   atualizado_em: string
 }

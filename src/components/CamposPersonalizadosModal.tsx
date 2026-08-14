@@ -8,7 +8,8 @@ import {
   updateCampoPersonalizado,
   deleteCampoPersonalizado,
 } from '@/lib/api'
-import type { CampoPersonalizado, TipoCampoPersonalizado } from '@/types'
+import type { CampoPersonalizado, TipoCampoPersonalizado, ContextoCampoPersonalizado } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const TIPOS_CAMPO: { valor: TipoCampoPersonalizado; label: string }[] = [
   { valor: 'texto', label: 'Texto' },
@@ -22,11 +23,13 @@ const UNIDADES_SUGERIDAS = ['m', 'cm', 'mm', 'kg', 'lt']
 export default function CamposPersonalizadosModal({
   categoriaId,
   grupoId,
+  contexto,
   titulo,
   onClose,
 }: {
   categoriaId?: string
   grupoId?: string
+  contexto?: ContextoCampoPersonalizado
   titulo: string
   onClose: () => void
 }) {
@@ -45,11 +48,13 @@ export default function CamposPersonalizadosModal({
     try {
       const todos = await listCamposPersonalizados()
       setCampos(
-        todos.filter((c) => (categoriaId ? c.categoria_id === categoriaId : c.grupo_id === grupoId))
+        todos.filter((c) =>
+          categoriaId ? c.categoria_id === categoriaId : contexto ? c.contexto === contexto : c.grupo_id === grupoId
+        )
       )
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar campos')
+      setErro(mensagemErro(e, 'Erro ao carregar campos'))
     } finally {
       setCarregando(false)
     }
@@ -99,6 +104,7 @@ export default function CamposPersonalizadosModal({
         await createCampoPersonalizado({
           categoria_id: categoriaId ?? null,
           grupo_id: grupoId ?? null,
+          contexto: contexto ?? null,
           nome: nome.trim(),
           tipo,
           opcoes,
@@ -109,20 +115,20 @@ export default function CamposPersonalizadosModal({
       limparForm()
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar campo')
+      setErro(mensagemErro(e, 'Erro ao salvar campo'))
     } finally {
       setSalvando(false)
     }
   }
 
   async function excluirCampo(id: string) {
-    if (!confirm('Excluir este campo? Valores já preenchidos em produtos serão perdidos.')) return
+    if (!confirm('Excluir este campo? Valores já preenchidos serão perdidos.')) return
     try {
       await deleteCampoPersonalizado(id)
       if (editandoId === id) limparForm()
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir campo')
+      setErro(mensagemErro(e, 'Erro ao excluir campo'))
     }
   }
 

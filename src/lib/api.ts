@@ -2097,3 +2097,96 @@ export async function registrarEventoEmbarcacao(input: {
   if (error) throw error
   return data
 }
+
+// ---------- Alertas de manutenção (garantia vencendo + revisão agendada) ----------
+
+export interface AlertaManutencao {
+  tipo: 'garantia' | 'revisao'
+  embarcacao_id: string
+  embarcacao_nome: string
+  marina_nome: string | null
+  marinheiro_nome: string | null
+  marinheiro_contato: string | null
+  item_nome: string | null
+  data: string
+}
+
+type EmbarcacaoRelAlerta = {
+  id: string
+  nome: string
+  marinheiro_nome: string | null
+  marinheiro_contato: string | null
+  marinas?: { nome: string } | { nome: string }[] | null
+}
+
+function extrairEmbarcacaoRel(
+  rel: EmbarcacaoRelAlerta | EmbarcacaoRelAlerta[] | null | undefined
+): EmbarcacaoRelAlerta | null {
+  return (Array.isArray(rel) ? rel[0] : rel) ?? null
+}
+
+export async function listAlertasManutencao(diasJanela = 30): Promise<AlertaManutencao[]> {
+  const limite = new Date()
+  limite.setDate(limite.getDate() + diasJanela)
+  const limiteIso = limite.toISOString().slice(0, 10)
+
+  const [garantiasRes, revisoesRes] = await Promise.all([
+    supabase
+      .from('embarcacoes_acessorios')
+      .select('nome, garantia_vence_em, embarcacoes(id, nome, marinheiro_nome, marinheiro_contato, marinas(nome))')
+      .not('garantia_vence_em', 'is', null)
+      .lte('garantia_vence_em', limiteIso),
+    supabase
+      .from('embarcacoes_manutencoes')
+      .select('tipo, proxima_data, embarcacoes(id, nome, marinheiro_nome, marinheiro_contato, marinas(nome))')
+      .not('proxima_data', 'is', null)
+      .lte('proxima_data', limiteIso),
+  ])
+  if (garantiasRes.error) throw garantiasRes.error
+  if (revisoesRes.error) throw revisoesRes.error
+
+  const nomeMarina = (rel: EmbarcacaoRelAlerta | null) => {
+    if (!rel?.marinas) return null
+    return Array.isArray(rel.marinas) ? (rel.marinas[0]?.nome ?? null) : rel.marinas.nome
+  }
+
+  const garantias: AlertaManutencao[] = (garantiasRes.data ?? []).flatMap((row) => {
+    const embarcacao = extrairEmbarcacaoRel(
+      row.embarcacoes as EmbarcacaoRelAlerta | EmbarcacaoRelAlerta[] | null
+    )
+    if (!embarcacao || !row.garantia_vence_em) return []
+    return [
+      {
+        tipo: 'garantia' as const,
+        embarcacao_id: embarcacao.id,
+        embarcacao_nome: embarcacao.nome,
+        marina_nome: nomeMarina(embarcacao),
+        marinheiro_nome: embarcacao.marinheiro_nome,
+        marinheiro_contato: embarcacao.marinheiro_contato,
+        item_nome: row.nome,
+        data: row.garantia_vence_em,
+      },
+    ]
+  })
+
+  const revisoes: AlertaManutencao[] = (revisoesRes.data ?? []).flatMap((row) => {
+    const embarcacao = extrairEmbarcacaoRel(
+      row.embarcacoes as EmbarcacaoRelAlerta | EmbarcacaoRelAlerta[] | null
+    )
+    if (!embarcacao || !row.proxima_data) return []
+    return [
+      {
+        tipo: 'revisao' as const,
+        embarcacao_id: embarcacao.id,
+        embarcacao_nome: embarcacao.nome,
+        marina_nome: nomeMarina(embarcacao),
+        marinheiro_nome: embarcacao.marinheiro_nome,
+        marinheiro_contato: embarcacao.marinheiro_contato,
+        item_nome: row.tipo,
+        data: row.proxima_data,
+      },
+    ]
+  })
+
+  return [...garantias, ...revisoes].sort((a, b) => a.data.localeCompare(b.data))
+}

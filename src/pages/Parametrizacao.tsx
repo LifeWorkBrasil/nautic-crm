@@ -22,6 +22,7 @@ import {
 import Modal from '@/components/Modal'
 import GerarContratoModal from '@/components/GerarContratoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
+import CampoDinamico from '@/components/CampoDinamico'
 import ImportarMotoresModal from '@/components/ImportarMotoresModal'
 import ImportarAcessoriosModal from '@/components/ImportarAcessoriosModal'
 import { exportarTabelaExcel } from '@/lib/exportarExcel'
@@ -73,6 +74,7 @@ import {
   createFornecedor,
   updateFornecedor,
   deleteFornecedor,
+  listCamposPersonalizados,
 } from '@/lib/api'
 import { PLACEHOLDERS_DISPONIVEIS, PLACEHOLDERS_COLCHETES_DISPONIVEIS } from '@/lib/contratos'
 import { usePermissoes } from '@/lib/PermissoesContext'
@@ -89,6 +91,7 @@ import type {
   MensagemModelo,
   Marina,
   Fornecedor,
+  CampoPersonalizado,
 } from '@/types'
 
 type Aba =
@@ -1803,7 +1806,7 @@ function AbaMensagens() {
 // Marinas (módulo de Embarcações / NFC)
 // ---------------------------------------------------------------------------
 
-const MARINA_VAZIA = { nome: '', localizacao: '', contato: '', pin_acesso: '' }
+const MARINA_VAZIA = { nome: '', localizacao: '', contato: '', pin_acesso: '', atributos: {} as Record<string, string | number | boolean | null> }
 
 function AbaMarinas() {
   const {
@@ -1830,15 +1833,33 @@ function AbaMarinas() {
     mensagemExclusao: 'Excluir esta marina? Embarcações vinculadas a ela ficam sem marina.',
   })
 
+  const [camposPersonalizados, setCamposPersonalizados] = useState<CampoPersonalizado[]>([])
+  const [configurandoCampos, setConfigurandoCampos] = useState(false)
+
+  async function carregarCampos() {
+    try {
+      setCamposPersonalizados((await listCamposPersonalizados()).filter((c) => c.contexto === 'marina'))
+    } catch {
+      // silencioso — a aba de marinas não depende de campos personalizados pra funcionar
+    }
+  }
+
   useEffect(() => {
     carregar()
+    carregarCampos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <div>
       <ErroBanner erro={erro} />
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex justify-end gap-2">
+        <button
+          onClick={() => setConfigurandoCampos(true)}
+          className="flex items-center gap-2 rounded-md border border-foam-200 px-4 py-2 text-sm text-hull-900 hover:border-wake-400"
+        >
+          Campos personalizados
+        </button>
         <AddButton label="Nova marina" onClick={abrirCriacao} />
       </div>
 
@@ -1874,6 +1895,7 @@ function AbaMarinas() {
                             localizacao: marina.localizacao ?? '',
                             contato: marina.contato ?? '',
                             pin_acesso: marina.pin_acesso ?? '',
+                            atributos: marina.atributos,
                           })
                         }
                         className="text-wake-500 hover:text-wake-600"
@@ -1933,8 +1955,31 @@ function AbaMarinas() {
                 pela página pública de cada embarcação.
               </p>
             </div>
+            {camposPersonalizados.length > 0 && (
+              <div className="space-y-4 border-t border-foam-200 pt-4">
+                {camposPersonalizados.map((campo) => (
+                  <CampoDinamico
+                    key={campo.id}
+                    campo={campo}
+                    valor={form.atributos[campo.id] ?? null}
+                    onChange={(v) => setForm({ ...form, atributos: { ...form.atributos, [campo.id]: v } })}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </Modal>
+      )}
+
+      {configurandoCampos && (
+        <CamposPersonalizadosModal
+          contexto="marina"
+          titulo="Marinas"
+          onClose={() => {
+            setConfigurandoCampos(false)
+            carregarCampos()
+          }}
+        />
       )}
     </div>
   )

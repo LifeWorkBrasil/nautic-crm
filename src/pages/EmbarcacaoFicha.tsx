@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   Check,
   FileText,
   Upload,
+  QrCode,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import BuscaVinculo from '@/components/BuscaVinculo'
@@ -41,6 +43,7 @@ import { mensagemErro } from '@/lib/errors'
 import { exportarTagsCsv } from '@/lib/exportarCsv'
 import { NFC_MODELS, computeUrlNdefBytes, getModelCapacity, type ModeloNfc as ModeloNfcCapacidade } from '@/lib/nfcCapacity'
 import { ACESSORIOS_PADRAO, ESTADO_GERAL_ITENS_PADRAO } from '@/lib/checklistEmbarcacoes'
+import { gerarQrCodeDataUrl } from '@/lib/gerarQrTag'
 import type {
   Embarcacao,
   EmbarcacaoAcessorio,
@@ -1430,6 +1433,9 @@ function TagsNfcTabSection({
   const [tags, setTags] = useState<EmbarcacaoTag[]>([])
   const [carregando, setCarregando] = useState(true)
   const [criando, setCriando] = useState(false)
+  const [gerandoQrId, setGerandoQrId] = useState<string | null>(null)
+  const [labelAtual, setLabelAtual] = useState<{ nome: string; tagId: string; qrDataUrl: string } | null>(null)
+  const labelRef = useRef<HTMLDivElement>(null)
 
   async function carregar() {
     setCarregando(true)
@@ -1464,6 +1470,32 @@ function TagsNfcTabSection({
       await carregar()
     } catch (e) {
       onErro(mensagemErro(e, 'Erro ao excluir tag'))
+    }
+  }
+
+  async function baixarQrCode(tag: EmbarcacaoTag) {
+    setGerandoQrId(tag.id)
+    try {
+      const url = `${window.location.origin}${import.meta.env.BASE_URL}embarcacao/${tag.tag_id}`
+      const qrDataUrl = await gerarQrCodeDataUrl(url)
+      flushSync(() => setLabelAtual({ nome: embarcacao.nome, tagId: tag.tag_id, qrDataUrl }))
+      if (!labelRef.current) return
+      const { default: html2pdf } = await import('html2pdf.js')
+      await html2pdf()
+        .set({
+          margin: 0,
+          filename: `qr-${tag.tag_id}.pdf`,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 3, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: [90, 60], orientation: 'landscape' },
+        })
+        .from(labelRef.current)
+        .save()
+    } catch (e) {
+      onErro(mensagemErro(e, 'Erro ao gerar QR code'))
+    } finally {
+      setGerandoQrId(null)
+      setLabelAtual(null)
     }
   }
 
@@ -1526,6 +1558,14 @@ function TagsNfcTabSection({
                 >
                   {tag.ativo ? 'Ativa' : 'Inativa'}
                 </button>
+                <button
+                  onClick={() => baixarQrCode(tag)}
+                  disabled={gerandoQrId === tag.id}
+                  className="text-slate-400 hover:text-wake-500 disabled:opacity-50"
+                  title="Baixar QR code (redundância caso o NFC falhe)"
+                >
+                  <QrCode className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </button>
                 <button onClick={() => excluirTag(tag.id)} className="text-signal-red/80 hover:text-signal-red">
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
                 </button>
@@ -1534,6 +1574,16 @@ function TagsNfcTabSection({
           ))}
         </ul>
       )}
+
+      <div className="fixed -left-[9999px] top-0">
+        {labelAtual && (
+          <div ref={labelRef} className="flex w-[300px] flex-col items-center justify-center bg-white p-4">
+            <p className="mb-2 text-center text-sm font-semibold text-hull-900">{labelAtual.nome}</p>
+            <img src={labelAtual.qrDataUrl} alt="QR code" className="h-36 w-36" />
+            <p className="mt-2 font-mono text-xs text-hull-900">{labelAtual.tagId}</p>
+          </div>
+        )}
+      </div>
 
       {criando && (
         <NovaTagNfcForm
