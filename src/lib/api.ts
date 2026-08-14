@@ -1798,7 +1798,7 @@ export async function deleteMarina(id: string): Promise<void> {
 }
 
 const EMBARCACAO_SELECT =
-  'id, nome, numero_registro, tipo, comprimento, marina_id, proprietario_id, broker_id, produto_id, marinheiro_nome, marinheiro_contato, status, foto_url, fabricante, modelo, cor_costado, ano, estado_geral, criado_em, atualizado_em, marinas(nome), clientes_leads(nome), parceiros(nome)'
+  'id, nome, numero_registro, tipo, comprimento, marina_id, proprietario_id, broker_id, produto_id, marinheiro_nome, marinheiro_contato, status, foto_url, fabricante, modelo, cor_costado, ano, estado_geral, atributos, criado_em, atualizado_em, marinas(nome), clientes_leads(nome), parceiros(nome)'
 
 function mapEmbarcacaoRow({
   marinas,
