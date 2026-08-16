@@ -16,6 +16,7 @@ import {
 } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { formatPreco } from '@/lib/format'
+import { mensagemErro } from '@/lib/errors'
 import type {
   ClienteLead,
   Produto,
@@ -96,7 +97,7 @@ export default function EnviarWhatsappProdutoModal({
         setEmpresa(emp)
         setMensagem(montarMensagemPadrao(produto))
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar dados'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar dados')))
       .finally(() => setCarregando(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produto.id])
@@ -127,7 +128,7 @@ export default function EnviarWhatsappProdutoModal({
         `${atual.trimEnd()}\n\nVeja fotos e detalhes completos aqui:\n${url}\n(link válido até ${dataFormatada})`
       )
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar link')
+      setErro(mensagemErro(e, 'Erro ao gerar link'))
     } finally {
       setGerandoLink(false)
     }
@@ -180,7 +181,7 @@ export default function EnviarWhatsappProdutoModal({
         .from(fichaRef.current)
         .save()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar a ficha em PDF')
+      setErro(mensagemErro(e, 'Erro ao gerar a ficha em PDF'))
     } finally {
       setGerandoFicha(false)
     }

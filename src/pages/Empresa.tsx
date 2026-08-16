@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Building2, UploadCloud, Save, Check } from 'lucide-react'
 import { getEmpresaConfig, updateEmpresaConfig, uploadLogoEmpresa } from '@/lib/api'
 import type { EmpresaConfig } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 export default function Empresa() {
   const [config, setConfig] = useState<EmpresaConfig | null>(null)
@@ -41,7 +42,7 @@ export default function Empresa() {
       })
       setSalvo(true)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+      setErro(mensagemErro(e, 'Erro ao salvar'))
     } finally {
       setSalvando(false)
     }
@@ -56,7 +57,7 @@ export default function Empresa() {
       await updateEmpresaConfig(config.id, { logo_url: url })
       setConfig((prev) => (prev ? { ...prev, logo_url: url } : prev))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao enviar logo')
+      setErro(mensagemErro(e, 'Erro ao enviar logo'))
     } finally {
       setEnviandoLogo(false)
     }

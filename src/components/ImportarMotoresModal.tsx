@@ -4,6 +4,7 @@ import Modal from '@/components/Modal'
 import { createMotoresBulk } from '@/lib/api'
 import { parseLinhasPlanilha, baixarModeloPlanilha } from '@/lib/importarPlanilha'
 import type { Motor } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const CABECALHOS = ['Marca', 'Modelo', 'Potência (HP)', 'Preço (R$)', 'Combustível', 'Ativo']
 const LINHA_EXEMPLO = [['Yamaha', 'F350', 350, 250000, 'Gasolina', 'Sim']]
@@ -98,7 +99,7 @@ export default function ImportarMotoresModal({
       setResultado(criados.length)
       onImportado()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao importar motores')
+      setErro(mensagemErro(e, 'Erro ao importar motores'))
     } finally {
       setImportando(false)
     }

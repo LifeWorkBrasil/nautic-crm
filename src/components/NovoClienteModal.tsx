@@ -3,6 +3,7 @@ import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
 import { createLead, updateLead } from '@/lib/api'
 import type { ClienteLead } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const FORM_VAZIO = {
   nome: '',
@@ -91,7 +92,7 @@ export default function NovoClienteModal({
         onCriado(lead)
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao cadastrar cliente')
+      setErro(mensagemErro(e, 'Erro ao cadastrar cliente'))
     } finally {
       setSalvando(false)
     }

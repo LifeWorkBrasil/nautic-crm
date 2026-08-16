@@ -28,6 +28,7 @@ import {
   restaurarLead,
 } from '@/lib/api'
 import type { ClienteLead, StatusCRM, UsuarioPerfil } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const STATUS_STYLES: Record<StatusCRM, string> = {
   Lead: 'bg-wake-500/10 text-wake-600',
@@ -74,7 +75,7 @@ export default function CadastroClientes() {
       setUsuarios(us)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar clientes')
+      setErro(mensagemErro(e, 'Erro ao carregar clientes'))
     } finally {
       setCarregando(false)
     }
@@ -134,7 +135,7 @@ export default function CadastroClientes() {
         prev.map((c) => (c.id === cliente.id ? { ...c, status_crm: 'Proposta Enviada' } : c))
       )
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao mover cliente')
+      setErro(mensagemErro(e, 'Erro ao mover cliente'))
     } finally {
       setMovendoId(null)
     }
@@ -147,7 +148,7 @@ export default function CadastroClientes() {
       await excluirLead(cliente.id)
       setClientes((prev) => prev.filter((c) => c.id !== cliente.id))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir cliente')
+      setErro(mensagemErro(e, 'Erro ao excluir cliente'))
     } finally {
       setExcluindoId(null)
     }
@@ -174,7 +175,7 @@ export default function CadastroClientes() {
     setCarregandoLixeira(true)
     listLeadsLixeira()
       .then(setLixeira)
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar lixeira'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar lixeira')))
       .finally(() => setCarregandoLixeira(false))
   }
 
@@ -185,7 +186,7 @@ export default function CadastroClientes() {
       setLixeira((prev) => prev.filter((c) => c.id !== cliente.id))
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao restaurar cliente')
+      setErro(mensagemErro(e, 'Erro ao restaurar cliente'))
     } finally {
       setRestaurandoId(null)
     }

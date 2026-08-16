@@ -10,6 +10,7 @@ import {
   type ContatoImportado,
 } from '@/lib/importarContatos'
 import type { ClienteLead } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 type Etapa = 'escolher' | 'revisar' | 'importando' | 'concluido'
 
@@ -150,7 +151,7 @@ export default function ImportarContatosModal({
       setEtapa('concluido')
       onImportado()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao importar contatos')
+      setErro(mensagemErro(e, 'Erro ao importar contatos'))
       setEtapa('revisar')
     }
   }

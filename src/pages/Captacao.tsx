@@ -3,6 +3,7 @@ import { Plus, Trash2, CheckCircle2 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 import {
   listCaptacoes,
   createCaptacao,
@@ -67,7 +68,7 @@ export default function CaptacaoPage() {
       setSubcategorias(sub)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar captações')
+      setErro(mensagemErro(e, 'Erro ao carregar captações'))
     } finally {
       setCarregando(false)
     }
@@ -112,7 +113,7 @@ export default function CaptacaoPage() {
       await carregar()
       setEditando(criada)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao criar captação')
+      setErro(mensagemErro(e, 'Erro ao criar captação'))
     } finally {
       setSalvandoNova(false)
     }
@@ -124,7 +125,7 @@ export default function CaptacaoPage() {
       await deleteCaptacao(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir captação')
+      setErro(mensagemErro(e, 'Erro ao excluir captação'))
     }
   }
 
@@ -341,7 +342,7 @@ function DetalheCaptacao({
         setItens(i)
         setFotos(f)
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar itens/fotos'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar itens/fotos')))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [captacao.id])
 
@@ -378,7 +379,7 @@ function DetalheCaptacao({
       onAlterado()
       onClose()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar captação')
+      setErro(mensagemErro(e, 'Erro ao salvar captação'))
     } finally {
       setSalvando(false)
     }
@@ -396,14 +397,14 @@ function DetalheCaptacao({
       })
       setItens((prev) => [...prev, item])
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao adicionar item')
+      setErro(mensagemErro(e, 'Erro ao adicionar item'))
     }
   }
 
   function salvarItem(item: CaptacaoItem, patch: Partial<CaptacaoItem>) {
     setItens((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))
     updateCaptacaoItem(item.id, patch).catch((e) =>
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar item')
+      setErro(mensagemErro(e, 'Erro ao salvar item'))
     )
   }
 
@@ -412,7 +413,7 @@ function DetalheCaptacao({
       await deleteCaptacaoItem(id)
       setItens((prev) => prev.filter((i) => i.id !== id))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao remover item')
+      setErro(mensagemErro(e, 'Erro ao remover item'))
     }
   }
 
@@ -425,7 +426,7 @@ function DetalheCaptacao({
         setFotos((prev) => [...prev, foto])
       }
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao enviar foto')
+      setErro(mensagemErro(e, 'Erro ao enviar foto'))
     } finally {
       setEnviandoFoto(false)
     }
@@ -437,7 +438,7 @@ function DetalheCaptacao({
       await deleteFotoCaptacao(foto)
       setFotos((prev) => prev.filter((f) => f.id !== foto.id))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir foto')
+      setErro(mensagemErro(e, 'Erro ao excluir foto'))
     }
   }
 
@@ -449,7 +450,7 @@ function DetalheCaptacao({
       onAlterado()
       onClose()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao publicar captação')
+      setErro(mensagemErro(e, 'Erro ao publicar captação'))
     } finally {
       setPublicando(false)
     }

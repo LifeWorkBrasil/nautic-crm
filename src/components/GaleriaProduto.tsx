@@ -14,6 +14,7 @@ import {
   deleteManualProduto,
 } from '@/lib/api'
 import type { FotoProduto, VideoProduto, ManualProduto } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 function extrairYoutubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/)
@@ -54,7 +55,7 @@ export default function GaleriaProduto({
       setManuais(m)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar mídia')
+      setErro(mensagemErro(e, 'Erro ao carregar mídia'))
     }
   }
 
@@ -72,7 +73,7 @@ export default function GaleriaProduto({
       await carregar()
       onAlterar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao enviar foto')
+      setErro(mensagemErro(e, 'Erro ao enviar foto'))
     } finally {
       setEnviandoFoto(false)
     }
@@ -84,7 +85,7 @@ export default function GaleriaProduto({
       await carregar()
       onAlterar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao definir foto principal')
+      setErro(mensagemErro(e, 'Erro ao definir foto principal'))
     }
   }
 
@@ -95,7 +96,7 @@ export default function GaleriaProduto({
       await carregar()
       onAlterar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir foto')
+      setErro(mensagemErro(e, 'Erro ao excluir foto'))
     }
   }
 
@@ -111,7 +112,7 @@ export default function GaleriaProduto({
       setTituloVideo('')
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao adicionar vídeo')
+      setErro(mensagemErro(e, 'Erro ao adicionar vídeo'))
     }
   }
 
@@ -121,7 +122,7 @@ export default function GaleriaProduto({
       await deleteVideoProduto(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir vídeo')
+      setErro(mensagemErro(e, 'Erro ao excluir vídeo'))
     }
   }
 
@@ -131,7 +132,7 @@ export default function GaleriaProduto({
       await uploadManualProduto(empresaId, produtoId, file)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao enviar manual')
+      setErro(mensagemErro(e, 'Erro ao enviar manual'))
     } finally {
       setEnviandoManual(false)
     }
@@ -143,7 +144,7 @@ export default function GaleriaProduto({
       await deleteManualProduto(manual)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir manual')
+      setErro(mensagemErro(e, 'Erro ao excluir manual'))
     }
   }
 

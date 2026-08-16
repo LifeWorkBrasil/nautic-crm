@@ -11,6 +11,7 @@ import {
   getEmpresaConfig,
 } from '@/lib/api'
 import FichaProdutoPdf from '@/components/FichaProdutoPdf'
+import { mensagemErro } from '@/lib/errors'
 import type {
   Produto,
   CategoriaProduto,
@@ -60,7 +61,7 @@ export default function CatalogoPdf() {
         setItensInclusos(ii)
         setEmpresa(emp)
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar dados'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar dados')))
       .finally(() => setCarregando(false))
   }, [])
 
@@ -102,7 +103,7 @@ export default function CatalogoPdf() {
         .from(containerRef.current)
         .save()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar PDF')
+      setErro(mensagemErro(e, 'Erro ao gerar PDF'))
     } finally {
       setGerando(false)
     }

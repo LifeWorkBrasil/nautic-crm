@@ -36,6 +36,7 @@ import GerarReelsModal from '@/components/GerarReelsModal'
 import GerarFlyerModal from '@/components/GerarFlyerModal'
 import PreviewPublicacaoModal from '@/components/PreviewPublicacaoModal'
 import type { MidiaBancoItem, PostMarketing, InstagramStatus } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const ANTECEDENCIA_MINIMA_MS = 5 * 60 * 1000
 
@@ -149,7 +150,7 @@ export default function Marketing() {
       setLegenda(texto)
       setOrigemLegenda(provedor)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar legenda')
+      setErro(mensagemErro(e, 'Erro ao gerar legenda'))
     } finally {
       setGerando(false)
     }
@@ -177,7 +178,7 @@ export default function Marketing() {
       setPosts((prev) => [novoComNome, ...prev])
       setUltimoPostSalvo(novoComNome)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+      setErro(mensagemErro(e, 'Erro ao salvar'))
     } finally {
       setSalvando(false)
     }
@@ -208,7 +209,7 @@ export default function Marketing() {
       setMostrarAgendamento(false)
       setDataAgendamento('')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao programar publicação')
+      setErro(mensagemErro(e, 'Erro ao programar publicação'))
     } finally {
       setProgramando(false)
     }
@@ -223,7 +224,7 @@ export default function Marketing() {
       setPosts((prev) => prev.map(atualiza))
       setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao cancelar agendamento')
+      setErro(mensagemErro(e, 'Erro ao cancelar agendamento'))
     }
   }
 
@@ -241,7 +242,7 @@ export default function Marketing() {
       setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
       return true
     } catch (e) {
-      const mensagem = e instanceof Error ? e.message : 'Erro ao publicar no Instagram'
+      const mensagem = mensagemErro(e, 'Erro ao publicar no Instagram')
       setErro(mensagem)
       setErroPreview(mensagem)
       return false
@@ -268,7 +269,7 @@ export default function Marketing() {
       setUltimoPostSalvo((prev) => (prev ? atualiza(prev) : prev))
       setErroPreview(null)
     } catch (e) {
-      setErroPreview(e instanceof Error ? e.message : 'Erro ao remover foto do post')
+      setErroPreview(mensagemErro(e, 'Erro ao remover foto do post'))
     }
   }
 
@@ -309,7 +310,7 @@ export default function Marketing() {
       await desconectarInstagram()
       setInstagram(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao desconectar Instagram')
+      setErro(mensagemErro(e, 'Erro ao desconectar Instagram'))
     } finally {
       setDesconectando(false)
     }
@@ -324,7 +325,7 @@ export default function Marketing() {
       setPosts((prev) => prev.filter((p) => p.id !== postId))
       setUltimoPostSalvo((prev) => (prev?.id === postId ? null : prev))
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir legenda')
+      setErro(mensagemErro(e, 'Erro ao excluir legenda'))
     } finally {
       setExcluindoId(null)
     }
@@ -373,7 +374,7 @@ export default function Marketing() {
       setAgendandoItemId(null)
       setDataAgendamentoItem('')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao programar publicação')
+      setErro(mensagemErro(e, 'Erro ao programar publicação'))
     } finally {
       setProgramandoItemId(null)
     }

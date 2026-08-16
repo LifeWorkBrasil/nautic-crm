@@ -5,6 +5,7 @@ import { gerarVideoReels } from '@/lib/gerarReels'
 import { uploadVideoReels, publicarReelsInstagram, agendarReels } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import type { EstiloTrilha } from '@/lib/gerarReels'
+import { mensagemErro } from '@/lib/errors'
 
 const OPCOES_TRILHA: { valor: EstiloTrilha; label: string }[] = [
   { valor: 'sem_musica', label: 'Sem música' },
@@ -67,7 +68,7 @@ export default function GerarReelsModal({
       setVideoUrl(URL.createObjectURL(video))
       setEtapa('pre_visualizar')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar o vídeo')
+      setErro(mensagemErro(e, 'Erro ao gerar o vídeo'))
       setEtapa('escolher')
     }
   }
@@ -92,7 +93,7 @@ export default function GerarReelsModal({
 
       onPublicado(media_id)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao publicar o Reels')
+      setErro(mensagemErro(e, 'Erro ao publicar o Reels'))
       setEtapa('pre_visualizar')
     }
   }
@@ -114,7 +115,7 @@ export default function GerarReelsModal({
 
       onAgendado(dataEscolhida.toISOString())
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao programar o Reels')
+      setErro(mensagemErro(e, 'Erro ao programar o Reels'))
       setEtapa('pre_visualizar')
     }
   }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Modal from '@/components/Modal'
 import { CampoTexto } from '@/components/campos'
 import { supabase } from '@/lib/supabase'
+import { mensagemErro } from '@/lib/errors'
 
 export default function AlterarSenhaModal({ onClose }: { onClose: () => void }) {
   const [novaSenha, setNovaSenha] = useState('')
@@ -26,7 +27,7 @@ export default function AlterarSenhaModal({ onClose }: { onClose: () => void }) 
       if (error) throw error
       setSucesso(true)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao alterar senha')
+      setErro(mensagemErro(e, 'Erro ao alterar senha'))
     } finally {
       setSalvando(false)
     }

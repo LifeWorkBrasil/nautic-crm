@@ -12,6 +12,7 @@ import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 import {
   listProdutos,
   createProduto,
@@ -144,7 +145,7 @@ export default function Catalogo() {
       })
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao atualizar o produto')
+      setErro(mensagemErro(e, 'Erro ao atualizar o produto'))
     }
   }
 

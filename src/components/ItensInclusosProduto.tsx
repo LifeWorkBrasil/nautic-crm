@@ -8,6 +8,7 @@ import {
   deleteItemInclusoProduto,
 } from '@/lib/api'
 import type { ProdutoItemIncluso } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 export default function ItensInclusosProduto({
   produtoId,
@@ -29,7 +30,7 @@ export default function ItensInclusosProduto({
       setItens(i)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar itens')
+      setErro(mensagemErro(e, 'Erro ao carregar itens'))
     }
   }
 
@@ -51,7 +52,7 @@ export default function ItensInclusosProduto({
       setItens((prev) => [...prev, item])
       onAlterar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao adicionar item')
+      setErro(mensagemErro(e, 'Erro ao adicionar item'))
     }
   }
 
@@ -59,7 +60,7 @@ export default function ItensInclusosProduto({
     setItens((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))
     updateItemInclusoProduto(item.id, patch)
       .then(onAlterar)
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao salvar item'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao salvar item')))
   }
 
   async function removerItem(id: string) {
@@ -68,7 +69,7 @@ export default function ItensInclusosProduto({
       setItens((prev) => prev.filter((i) => i.id !== id))
       onAlterar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao remover item')
+      setErro(mensagemErro(e, 'Erro ao remover item'))
     }
   }
 

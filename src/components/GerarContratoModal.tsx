@@ -3,6 +3,7 @@ import { Building2, FileDown } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { formatBRL } from '@/lib/format'
 import { preencherMinuta } from '@/lib/contratos'
+import { mensagemErro } from '@/lib/errors'
 import {
   listLeads,
   listOrcamentosCliente,
@@ -146,7 +147,7 @@ export default function GerarContratoModal({
         imovel: imovel ? { id: '', contraproposta_id: contraproposta.id, ...imovel } : null,
       })
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao registrar trading')
+      setErro(mensagemErro(e, 'Erro ao registrar trading'))
     }
   }
 
@@ -171,7 +172,7 @@ export default function GerarContratoModal({
         .from(previewRef.current)
         .save()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar PDF')
+      setErro(mensagemErro(e, 'Erro ao gerar PDF'))
     } finally {
       setGerandoPdf(false)
     }

@@ -11,6 +11,7 @@ import {
   publicarNoInstagram,
 } from '@/lib/api'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 
 type Template = 'padrao' | 'antes_depois'
 type Etapa = 'escolher' | 'gerando' | 'pre_visualizar' | 'enviando' | 'publicando'
@@ -88,7 +89,7 @@ export default function GerarFlyerModal({
       setFlyerUrl(URL.createObjectURL(blob))
       setEtapa('pre_visualizar')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar o flyer')
+      setErro(mensagemErro(e, 'Erro ao gerar o flyer'))
       setEtapa('escolher')
     }
   }
@@ -114,7 +115,7 @@ export default function GerarFlyerModal({
 
       onPublicado(media_id)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao publicar o flyer')
+      setErro(mensagemErro(e, 'Erro ao publicar o flyer'))
       setEtapa('pre_visualizar')
     }
   }

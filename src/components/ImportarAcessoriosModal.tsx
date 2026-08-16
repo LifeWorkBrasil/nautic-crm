@@ -4,6 +4,7 @@ import Modal from '@/components/Modal'
 import { createAcessorio } from '@/lib/api'
 import { parseLinhasPlanilha, baixarModeloPlanilha } from '@/lib/importarPlanilha'
 import type { Acessorio, Produto, SubcategoriaProduto } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const CABECALHOS = ['Nome', 'Preço (R$)', 'Categoria', 'Vínculo (produto)', 'Subcategorias']
 const LINHA_EXEMPLO = [['Guincho de proa 800W', 5800, 'Acessório', '', 'Todas']]
@@ -135,7 +136,7 @@ export default function ImportarAcessoriosModal({
       setResultado(criados)
       onImportado()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao importar acessórios')
+      setErro(mensagemErro(e, 'Erro ao importar acessórios'))
     } finally {
       setImportando(false)
     }

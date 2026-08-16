@@ -23,6 +23,7 @@ import { formatBRL, formatPreco } from '@/lib/format'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import NovoClienteModal from '@/components/NovoClienteModal'
+import { mensagemErro } from '@/lib/errors'
 import type {
   Produto,
   Motor,
@@ -165,7 +166,7 @@ export default function Orcamentos() {
         setSubcategorias(sc)
         setGrupos(gr)
       } catch (e) {
-        setErro(e instanceof Error ? e.message : 'Erro ao carregar dados')
+        setErro(mensagemErro(e, 'Erro ao carregar dados'))
       } finally {
         setCarregando(false)
       }
@@ -259,7 +260,7 @@ export default function Orcamentos() {
         setParcelas(data.parcelas.map((p) => ({ percentual: p.percentual })))
         setProdutoId(data.produto_id)
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar orçamento para edição'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar orçamento para edição')))
       .finally(() => {
         if (!cancelado) setCarregandoEdicao(false)
       })
@@ -367,7 +368,7 @@ export default function Orcamentos() {
         .from(previewRef.current)
         .save()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar PDF')
+      setErro(mensagemErro(e, 'Erro ao gerar PDF'))
     } finally {
       setGerandoPdf(false)
     }
@@ -415,7 +416,7 @@ export default function Orcamentos() {
       })
       setMensagemWhatsapp(`${texto}${montarBlocoMidia()}`)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao gerar mensagem')
+      setErro(mensagemErro(e, 'Erro ao gerar mensagem'))
     } finally {
       setGerandoMensagem(false)
     }
@@ -444,7 +445,7 @@ export default function Orcamentos() {
       }
       setSalvo(true)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar orçamento')
+      setErro(mensagemErro(e, 'Erro ao salvar orçamento'))
     } finally {
       setSalvando(false)
     }

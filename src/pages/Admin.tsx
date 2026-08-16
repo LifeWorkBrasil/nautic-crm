@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, ShieldCheck } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 import {
   listUsuarios,
   listTabsSistema,
@@ -162,7 +163,7 @@ export default function Admin() {
       setPerfis(p)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar')
+      setErro(mensagemErro(e, 'Erro ao carregar'))
     } finally {
       setCarregando(false)
     }
@@ -251,7 +252,7 @@ export default function Admin() {
       fechar()
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar usuário')
+      setErro(mensagemErro(e, 'Erro ao salvar usuário'))
     } finally {
       setSalvando(false)
     }
@@ -295,7 +296,7 @@ export default function Admin() {
       fecharPerfil()
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar perfil')
+      setErro(mensagemErro(e, 'Erro ao salvar perfil'))
     } finally {
       setSalvando(false)
     }
@@ -307,7 +308,7 @@ export default function Admin() {
       await deletePerfilAcesso(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir perfil')
+      setErro(mensagemErro(e, 'Erro ao excluir perfil'))
     }
   }
 
@@ -335,7 +336,7 @@ export default function Admin() {
         adminSenha: '',
       })
     } catch (e) {
-      setErroTenant(e instanceof Error ? e.message : 'Erro ao criar tenant')
+      setErroTenant(mensagemErro(e, 'Erro ao criar tenant'))
     } finally {
       setCriandoTenant(false)
     }
@@ -352,7 +353,7 @@ export default function Admin() {
       setSenhaResetada(formResetSenha.email)
       setFormResetSenha({ email: '', novaSenha: '' })
     } catch (e) {
-      setErroResetSenha(e instanceof Error ? e.message : 'Erro ao redefinir senha')
+      setErroResetSenha(mensagemErro(e, 'Erro ao redefinir senha'))
     } finally {
       setResetandoSenha(false)
     }

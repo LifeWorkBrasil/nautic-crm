@@ -4,6 +4,7 @@ import Modal from '@/components/Modal'
 import { listAvisosReposicao, marcarAvisoNotificado } from '@/lib/api'
 import { linkWhatsappComTexto } from '@/lib/whatsapp'
 import type { AvisoReposicao } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 export default function AvisosReposicaoModal({
   produtoId,
@@ -24,7 +25,7 @@ export default function AvisosReposicaoModal({
       setAvisos(await listAvisosReposicao(produtoId))
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar avisos')
+      setErro(mensagemErro(e, 'Erro ao carregar avisos'))
     } finally {
       setCarregando(false)
     }
@@ -40,7 +41,7 @@ export default function AvisosReposicaoModal({
       await marcarAvisoNotificado(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao marcar como notificado')
+      setErro(mensagemErro(e, 'Erro ao marcar como notificado'))
     }
   }
 

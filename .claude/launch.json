@@ -10,6 +10,16 @@
     {
       "name": "curalabs3d-landing",
       "url": "http://localhost:8899"
+    },
+    {
+      "name": "curalabs3d-catalogo-dev",
+      "url": "http://localhost:5175"
+    },
+    {
+      "name": "dunkboating-landing",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "C:/APP/dunkboating-landing", "-l", "8900"],
+      "port": 8900
     }
   ]
 }

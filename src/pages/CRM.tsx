@@ -19,6 +19,7 @@ import { CampoTexto } from '@/components/campos'
 import { usePermissoes } from '@/lib/PermissoesContext'
 import { formatBRL } from '@/lib/format'
 import { linkWhatsapp } from '@/lib/whatsapp'
+import { mensagemErro } from '@/lib/errors'
 import {
   listLeads,
   createLead,
@@ -168,7 +169,7 @@ export default function CRM() {
       setUsuarios(us)
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar leads')
+      setErro(mensagemErro(e, 'Erro ao carregar leads'))
     } finally {
       setCarregando(false)
     }
@@ -222,7 +223,7 @@ export default function CRM() {
       setEditando(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao assumir lead')
+      setErro(mensagemErro(e, 'Erro ao assumir lead'))
     } finally {
       setAssumindo(false)
     }
@@ -236,7 +237,7 @@ export default function CRM() {
       setLeads((prev) => prev.filter((l) => l.id !== lead.id))
       if (editando?.id === lead.id) setEditando(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir cliente')
+      setErro(mensagemErro(e, 'Erro ao excluir cliente'))
     } finally {
       setExcluindoId(null)
     }
@@ -247,7 +248,7 @@ export default function CRM() {
     setCarregandoLixeira(true)
     listLeadsLixeira()
       .then(setLixeira)
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar lixeira'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar lixeira')))
       .finally(() => setCarregandoLixeira(false))
   }
 
@@ -258,7 +259,7 @@ export default function CRM() {
       setLixeira((prev) => prev.filter((l) => l.id !== lead.id))
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao restaurar cliente')
+      setErro(mensagemErro(e, 'Erro ao restaurar cliente'))
     } finally {
       setRestaurandoId(null)
     }
@@ -289,7 +290,7 @@ export default function CRM() {
     setHistorico([])
     listHistoricoCliente(lead.id)
       .then(setHistorico)
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar histórico'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar histórico')))
 
     setOrcamentosCliente([])
     setContrapropostas([])
@@ -300,7 +301,7 @@ export default function CRM() {
         setOrcamentosCliente(o)
         setContrapropostas(c)
       })
-      .catch((e) => setErro(e instanceof Error ? e.message : 'Erro ao carregar propostas'))
+      .catch((e) => setErro(mensagemErro(e, 'Erro ao carregar propostas')))
   }
 
   async function handleCriarContraproposta() {
@@ -340,7 +341,7 @@ export default function CRM() {
       setMostrandoFormContraproposta(false)
       setFormContraproposta(FORM_CONTRAPROPOSTA_VAZIO)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao registrar contraproposta')
+      setErro(mensagemErro(e, 'Erro ao registrar contraproposta'))
     } finally {
       setSalvandoContraproposta(false)
     }
@@ -358,7 +359,7 @@ export default function CRM() {
       setEditando(null)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar cliente')
+      setErro(mensagemErro(e, 'Erro ao salvar cliente'))
     } finally {
       setSalvandoEdicao(false)
     }
@@ -372,7 +373,7 @@ export default function CRM() {
       setHistorico((prev) => [entrada, ...prev])
       setNovoTexto('')
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao registrar contato')
+      setErro(mensagemErro(e, 'Erro ao registrar contato'))
     } finally {
       setRegistrandoContato(false)
     }
@@ -386,7 +387,7 @@ export default function CRM() {
       setForm(LEAD_VAZIO)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao criar lead')
+      setErro(mensagemErro(e, 'Erro ao criar lead'))
     } finally {
       setSalvando(false)
     }
@@ -400,7 +401,7 @@ export default function CRM() {
     try {
       await updateLeadStatus(lead.id, novoStatus)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao mover lead')
+      setErro(mensagemErro(e, 'Erro ao mover lead'))
       carregar()
     }
   }

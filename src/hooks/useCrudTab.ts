@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { mensagemErro } from '@/lib/errors'
 
 interface UseCrudTabOptions<T, F> {
   list: () => Promise<T[]>
@@ -31,7 +32,7 @@ export function useCrudTab<T extends { id: string }, F>({
       setItens(await list())
       setErro(null)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao carregar')
+      setErro(mensagemErro(e, 'Erro ao carregar'))
     } finally {
       setCarregando(false)
     }
@@ -63,7 +64,7 @@ export function useCrudTab<T extends { id: string }, F>({
       fechar()
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+      setErro(mensagemErro(e, 'Erro ao salvar'))
     } finally {
       setSalvando(false)
     }
@@ -75,7 +76,7 @@ export function useCrudTab<T extends { id: string }, F>({
       await remove(id)
       await carregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao excluir')
+      setErro(mensagemErro(e, 'Erro ao excluir'))
     }
   }
 

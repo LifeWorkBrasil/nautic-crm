@@ -8,6 +8,7 @@ import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
 import { usePermissoes } from '@/lib/PermissoesContext'
+import { mensagemErro } from '@/lib/errors'
 import {
   listProdutosTerceiros,
   createProduto,
@@ -182,7 +183,7 @@ export default function ProdutosTerceiros() {
       setForm({ ...form, parceiro_id: novo.id })
       setNovoParceiroNome('')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Erro ao criar parceiro')
+      alert(mensagemErro(e, 'Erro ao criar parceiro'))
     } finally {
       setCriandoParceiro(false)
     }

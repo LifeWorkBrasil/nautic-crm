@@ -13,6 +13,7 @@ import {
 import { exportarTabelaExcel } from '@/lib/exportarExcel'
 import { formatBRL } from '@/lib/format'
 import type { StatusCRM, Produto } from '@/types'
+import { mensagemErro } from '@/lib/errors'
 
 const STATUS_ESTOQUE_LABEL: Record<Produto['status_estoque'], string> = {
   disponivel: 'Disponível',
@@ -99,7 +100,7 @@ export default function Relatorios() {
 
       setLinhasAtividade(linhas)
     } catch (e) {
-      setErroAtividade(e instanceof Error ? e.message : 'Erro ao gerar relatório')
+      setErroAtividade(mensagemErro(e, 'Erro ao gerar relatório'))
     } finally {
       setGerandoAtividade(false)
     }
@@ -143,7 +144,7 @@ export default function Relatorios() {
         setSubcategoriaPorId(new Map(subcategorias.map((s) => [s.id, { nome: s.nome, categoria_id: s.categoria_id }])))
         setGrupoPorId(new Map(grupos.map((g) => [g.id, g.nome])))
       })
-      .catch((e) => setErroCatalogo(e instanceof Error ? e.message : 'Erro ao carregar catálogo'))
+      .catch((e) => setErroCatalogo(mensagemErro(e, 'Erro ao carregar catálogo')))
       .finally(() => setCarregandoCatalogo(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aba])
