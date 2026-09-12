@@ -56,6 +56,7 @@ type ProdutoForm = {
   status_estoque: 'disponivel' | 'esgotado' | 'oculto'
   data_reposicao: string | null
   marca: string | null
+  fabricante_logo_url: string | null
 }
 
 export default function Catalogo() {
@@ -118,6 +119,7 @@ export default function Catalogo() {
     status_estoque: 'disponivel',
     data_reposicao: null,
     marca: null,
+    fabricante_logo_url: null,
   }
 
   const {
@@ -460,6 +462,7 @@ export default function Catalogo() {
                       status_estoque: produto.status_estoque,
                       data_reposicao: produto.data_reposicao,
                       marca: produto.marca ?? null,
+                      fabricante_logo_url: produto.fabricante_logo_url ?? null,
                     })
                   }
                   className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
