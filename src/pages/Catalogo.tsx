@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing, Eye, EyeOff, Search } from 'lucide-react'
+import { Plus, Images, Pencil, Trash2, ListChecks, MessageCircle, Tag, BellRing, Eye, EyeOff, Search, FileDown } from 'lucide-react'
 import Modal from '@/components/Modal'
 import GaleriaProduto from '@/components/GaleriaProduto'
 import ItensInclusosProduto from '@/components/ItensInclusosProduto'
@@ -8,6 +8,7 @@ import EnviarWhatsappProdutoModal from '@/components/EnviarWhatsappProdutoModal'
 import CamposPersonalizadosModal from '@/components/CamposPersonalizadosModal'
 import CampoDinamico from '@/components/CampoDinamico'
 import AvisosReposicaoModal from '@/components/AvisosReposicaoModal'
+import FichaProdutoPdf from '@/components/FichaProdutoPdf'
 import { CampoTexto, CampoNumero } from '@/components/campos'
 import { formatPreco } from '@/lib/format'
 import { useCrudTab } from '@/hooks/useCrudTab'
@@ -22,6 +23,9 @@ import {
   listSubcategorias,
   listGrupos,
   listCamposPersonalizados,
+  listFotosProduto,
+  listItensInclusosProduto,
+  getEmpresaConfig,
 } from '@/lib/api'
 import type {
   Produto,
@@ -29,6 +33,9 @@ import type {
   SubcategoriaProduto,
   GrupoProduto,
   CampoPersonalizado,
+  FotoProduto,
+  ProdutoItemIncluso,
+  EmpresaConfig,
 } from '@/types'
 
 type ProdutoForm = {
@@ -64,6 +71,10 @@ export default function Catalogo() {
   const [busca, setBusca] = useState('')
   const [gerenciandoCampos, setGerenciandoCampos] = useState<'categoria' | 'grupo' | null>(null)
   const [produtoAvisos, setProdutoAvisos] = useState<Produto | null>(null)
+
+  // Estado para geração de ficha PDF individual
+  const [gerандоPdfId, setGerandoPdfId] = useState<string | null>(null)
+  const pdfContainerRef = useRef<HTMLDivElement>(null)
 
   function carregarCampos() {
     listCamposPersonalizados().then(setCampos)
@@ -149,6 +160,65 @@ export default function Catalogo() {
     }
   }
 
+  // ─── GERAR FICHA PDF DE UM ÚNICO PRODUTO ─────────────────────────────────
+  async function gerarFichaPdf(produto: Produto) {
+    setGerandoPdfId(produto.id)
+    try {
+      const [fotos, itensInclusos, empresa] = await Promise.all([
+        listFotosProduto(produto.id),
+        listItensInclusosProduto(produto.id),
+        getEmpresaConfig(),
+      ])
+
+      const sub = subcategorias.find((s) => s.id === produto.subcategoria_id)
+      const camposDoProduto = campos.filter(
+        (c) =>
+          c.categoria_id === (sub?.categoria_id ?? null) ||
+          (produto.grupo_id && c.grupo_id === produto.grupo_id)
+      )
+
+      // Renderizar FichaProdutoPdf em div oculta e imprimir
+      await renderizarEImprimir(produto, sub, fotos, itensInclusos, camposDoProduto, empresa)
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao gerar PDF'))
+    } finally {
+      setGerandoPdfId(null)
+    }
+  }
+
+  async function renderizarEImprimir(
+    produto: Produto,
+    sub: SubcategoriaProduto | undefined,
+    fotos: FotoProduto[],
+    itensInclusos: ProdutoItemIncluso[],
+    camposDoProduto: CampoPersonalizado[],
+    empresa: EmpresaConfig | null
+  ) {
+    const { default: html2pdf } = await import('html2pdf.js')
+
+    const el = pdfContainerRef.current
+    if (!el) return
+
+    // Montar conteúdo no container oculto via React portal seria complexo,
+    // então usamos innerHTML com os dados já formatados
+    const nomeArquivo = `ficha-${produto.nome
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')}.pdf`
+
+    await html2pdf()
+      .set({
+        margin: 10,
+        filename: nomeArquivo,
+        image: { type: 'jpeg', quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] },
+      })
+      .from(el)
+      .save()
+  }
+
   const camposRelevantes = campos.filter(
     (c) => c.categoria_id === categoria?.id || (form.grupo_id && c.grupo_id === form.grupo_id)
   )
@@ -162,6 +232,65 @@ export default function Catalogo() {
       produto.descricao.toLowerCase().includes(termoBusca)
     )
   })
+
+  // Produto que está sendo visualizado para PDF
+  const [produtoPdfPreview, setProdutoPdfPreview] = useState<{
+    produto: Produto
+    fotos: FotoProduto[]
+    itens: ProdutoItemIncluso[]
+    campos: CampoPersonalizado[]
+    empresa: EmpresaConfig | null
+  } | null>(null)
+
+  async function abrirPdfPreview(produto: Produto) {
+    setGerandoPdfId(produto.id)
+    try {
+      const [fotos, itensInclusos, empresa] = await Promise.all([
+        listFotosProduto(produto.id),
+        listItensInclusosProduto(produto.id),
+        getEmpresaConfig(),
+      ])
+      const sub = subcategorias.find((s) => s.id === produto.subcategoria_id)
+      const camposDoProduto = campos.filter(
+        (c) =>
+          c.categoria_id === (sub?.categoria_id ?? null) ||
+          (produto.grupo_id && c.grupo_id === produto.grupo_id)
+      )
+      setProdutoPdfPreview({ produto, fotos, itens: itensInclusos, campos: camposDoProduto, empresa })
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao carregar dados para PDF'))
+    } finally {
+      setGerandoPdfId(null)
+    }
+  }
+
+  async function confirmarGerarPdf() {
+    if (!produtoPdfPreview || !pdfContainerRef.current) return
+    setGerandoPdfId(produtoPdfPreview.produto.id)
+    try {
+      const { default: html2pdf } = await import('html2pdf.js')
+      const nomeArquivo = `ficha-${produtoPdfPreview.produto.nome
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')}.pdf`
+
+      await html2pdf()
+        .set({
+          margin: 10,
+          filename: nomeArquivo,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] },
+        })
+        .from(pdfContainerRef.current)
+        .save()
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao gerar PDF'))
+    } finally {
+      setGerandoPdfId(null)
+    }
+  }
 
   return (
     <div className="p-8">
@@ -301,7 +430,7 @@ export default function Catalogo() {
                   {produto.comprimento ? `${produto.comprimento} m` : '—'}
                 </span>
               </div>
-              <div className="mt-3 flex gap-3 border-t border-foam-200 pt-3">
+              <div className="mt-3 flex flex-wrap gap-3 border-t border-foam-200 pt-3">
                 <button
                   onClick={() => setProdutoMidia(produto)}
                   className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
@@ -351,6 +480,16 @@ export default function Catalogo() {
                   <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.75} />
                   WhatsApp
                 </button>
+                {/* NOVO: Ficha PDF individual */}
+                <button
+                  onClick={() => abrirPdfPreview(produto)}
+                  disabled={gerандоPdfId === produto.id}
+                  className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600 disabled:opacity-50"
+                  title="Gerar ficha PDF deste produto"
+                >
+                  <FileDown className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  {gerандоPdfId === produto.id ? 'Carregando…' : 'Ficha PDF'}
+                </button>
                 {produto.status_estoque === 'esgotado' && (
                   <button
                     onClick={() => setProdutoAvisos(produto)}
@@ -392,6 +531,46 @@ export default function Catalogo() {
             </article>
           ))}
         </div>
+      )}
+
+      {/* Modal de prévia + geração de ficha PDF individual */}
+      {produtoPdfPreview && (
+        <Modal
+          title={`Ficha PDF — ${produtoPdfPreview.produto.nome}`}
+          onClose={() => setProdutoPdfPreview(null)}
+          size="lg"
+          footer={
+            <>
+              <button
+                onClick={() => setProdutoPdfPreview(null)}
+                className="rounded-md px-4 py-2 text-sm text-slate-500 hover:text-hull-900"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarGerarPdf}
+                disabled={gerандоPdfId !== null}
+                className="flex items-center gap-2 rounded-md bg-hull-900 px-4 py-2 text-sm font-medium text-foam-50 disabled:opacity-50"
+              >
+                <FileDown className="h-4 w-4" strokeWidth={1.75} />
+                {gerандоPdfId ? 'Gerando…' : 'Baixar PDF'}
+              </button>
+            </>
+          }
+        >
+          <div ref={pdfContainerRef} className="bg-white">
+            <FichaProdutoPdf
+              produto={produtoPdfPreview.produto}
+              subcategoria={subcategorias.find((s) => s.id === produtoPdfPreview.produto.subcategoria_id)}
+              fotos={produtoPdfPreview.fotos}
+              itensInclusos={produtoPdfPreview.itens}
+              campos={produtoPdfPreview.campos}
+              incluirPreco={true}
+              pageBreakAfter={false}
+              empresa={produtoPdfPreview.empresa}
+            />
+          </div>
+        </Modal>
       )}
 
       {modalAberto && (
