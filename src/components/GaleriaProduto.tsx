@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Star, Trash2, Plus, FileText } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Star, Trash2, Plus, FileText, Upload, X } from 'lucide-react'
 import Modal from '@/components/Modal'
 import {
   listFotosProduto,
@@ -12,6 +12,9 @@ import {
   listManuaisProduto,
   uploadManualProduto,
   deleteManualProduto,
+  uploadLogoFabricanteProduto,
+  updateProduto,
+  getProduto,
 } from '@/lib/api'
 import type { FotoProduto, VideoProduto, ManualProduto } from '@/types'
 import { mensagemErro } from '@/lib/errors'
@@ -37,11 +40,14 @@ export default function GaleriaProduto({
   const [fotos, setFotos] = useState<FotoProduto[]>([])
   const [videos, setVideos] = useState<VideoProduto[]>([])
   const [manuais, setManuais] = useState<ManualProduto[]>([])
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [enviandoFoto, setEnviandoFoto] = useState(false)
   const [enviandoManual, setEnviandoManual] = useState(false)
+  const [enviandoLogo, setEnviandoLogo] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [urlVideo, setUrlVideo] = useState('')
   const [tituloVideo, setTituloVideo] = useState('')
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   async function carregar() {
     try {
@@ -59,8 +65,18 @@ export default function GaleriaProduto({
     }
   }
 
+  async function carregarLogo() {
+    try {
+      const produto = await getProduto(produtoId)
+      setLogoUrl(produto?.fabricante_logo_url ?? null)
+    } catch {
+      // silencioso
+    }
+  }
+
   useEffect(() => {
     carregar()
+    carregarLogo()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [produtoId])
 
@@ -148,6 +164,30 @@ export default function GaleriaProduto({
     }
   }
 
+  async function handleUploadLogo(file: File) {
+    setEnviandoLogo(true)
+    try {
+      const url = await uploadLogoFabricanteProduto(empresaId, produtoId, file)
+      await updateProduto(produtoId, { fabricante_logo_url: url })
+      setLogoUrl(url)
+      onAlterar()
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao enviar logo do fabricante'))
+    } finally {
+      setEnviandoLogo(false)
+    }
+  }
+
+  async function handleRemoverLogo() {
+    try {
+      await updateProduto(produtoId, { fabricante_logo_url: null })
+      setLogoUrl(null)
+      onAlterar()
+    } catch (e) {
+      setErro(mensagemErro(e, 'Erro ao remover logo'))
+    }
+  }
+
   return (
     <Modal title={`Mídia — ${nomeProduto}`} onClose={onClose} size="xl">
       <div className="space-y-6">
@@ -157,12 +197,81 @@ export default function GaleriaProduto({
           </div>
         )}
 
+        {/* ── LOGO DO FABRICANTE ─────────────────────────────────────────── */}
+        <div className="rounded-lg border border-foam-200 bg-foam-100/40 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-hull-900">Logo do fabricante</p>
+              <p className="text-xs text-slate-400">Aparece na ficha PDF do produto. PNG, JPG, SVG até 2MB.</p>
+            </div>
+            {!logoUrl && (
+              <button
+                onClick={() => logoInputRef.current?.click()}
+                disabled={enviandoLogo}
+                className="flex items-center gap-1.5 text-xs text-wake-500 hover:text-wake-600 disabled:opacity-50"
+              >
+                <Upload className="h-3.5 w-3.5" strokeWidth={1.75} />
+                {enviandoLogo ? 'Enviando…' : 'Enviar logo'}
+              </button>
+            )}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleUploadLogo(file)
+                e.target.value = ''
+              }}
+            />
+          </div>
+
+          {logoUrl ? (
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <img
+                  src={logoUrl}
+                  alt="Logo do fabricante"
+                  className="h-16 max-w-[160px] rounded-md border border-foam-200 bg-white object-contain p-2"
+                />
+                <button
+                  onClick={handleRemoverLogo}
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-signal-red text-white hover:bg-signal-red/80"
+                  title="Remover logo"
+                >
+                  <X className="h-3 w-3" strokeWidth={2.5} />
+                </button>
+              </div>
+              <div className="text-xs text-slate-400">
+                <p>Logo carregado.</p>
+                <button
+                  onClick={() => logoInputRef.current?.click()}
+                  className="mt-1 text-wake-500 hover:text-wake-600"
+                >
+                  Substituir
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => logoInputRef.current?.click()}
+              disabled={enviandoLogo}
+              className="flex h-16 w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-foam-300 bg-white text-sm text-slate-400 hover:border-wake-400 hover:text-wake-500 disabled:opacity-50"
+            >
+              <Upload className="h-4 w-4" strokeWidth={1.75} />
+              {enviandoLogo ? 'Enviando…' : 'Clique para enviar o logo do fabricante'}
+            </button>
+          )}
+        </div>
+
+        {/* ── FOTOS ─────────────────────────────────────────────────────── */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-medium text-hull-900">Fotos</p>
             <label className="flex cursor-pointer items-center gap-1.5 text-xs text-wake-500 hover:text-wake-600">
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-              {enviandoFoto ? 'Enviando…' : 'Adicionar foto'}
+              {enviandoFoto ? 'Enviando…' : 'Adicionar fotos'}
               <input
                 type="file"
                 accept="image/*"
@@ -214,6 +323,7 @@ export default function GaleriaProduto({
           )}
         </div>
 
+        {/* ── VÍDEOS ────────────────────────────────────────────────────── */}
         <div>
           <p className="mb-2 text-sm font-medium text-hull-900">Vídeos (YouTube)</p>
           <div className="mb-3 flex gap-2">
@@ -244,10 +354,7 @@ export default function GaleriaProduto({
               {videos.map((video) => {
                 const ytId = extrairYoutubeId(video.url_youtube)
                 return (
-                  <div
-                    key={video.id}
-                    className="group relative overflow-hidden rounded-md border border-foam-200"
-                  >
+                  <div key={video.id} className="group relative overflow-hidden rounded-md border border-foam-200">
                     {ytId ? (
                       <img
                         src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
@@ -275,6 +382,7 @@ export default function GaleriaProduto({
           )}
         </div>
 
+        {/* ── MANUAIS ───────────────────────────────────────────────────── */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-medium text-hull-900">Manuais (PDF)</p>
