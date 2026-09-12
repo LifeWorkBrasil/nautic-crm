@@ -55,6 +55,7 @@ type ProdutoForm = {
   atributos: Record<string, string | number | boolean | null>
   status_estoque: 'disponivel' | 'esgotado' | 'oculto'
   data_reposicao: string | null
+  marca: string | null
 }
 
 export default function Catalogo() {
@@ -116,6 +117,7 @@ export default function Catalogo() {
     atributos: {},
     status_estoque: 'disponivel',
     data_reposicao: null,
+    marca: null,
   }
 
   const {
@@ -457,6 +459,7 @@ export default function Catalogo() {
                       atributos: produto.atributos ?? {},
                       status_estoque: produto.status_estoque,
                       data_reposicao: produto.data_reposicao,
+                      marca: produto.marca ?? null,
                     })
                   }
                   className="flex items-center gap-1 text-xs text-wake-500 hover:text-wake-600"
@@ -598,6 +601,11 @@ export default function Catalogo() {
               label="Descrição"
               value={form.descricao}
               onChange={(v) => setForm({ ...form, descricao: v })}
+            />
+            <CampoTexto
+              label="Marca / Fabricante"
+              value={form.marca ?? ''}
+              onChange={(v) => setForm({ ...form, marca: v || null })}
             />
             <div className={subcategoriaRequerMotor ? 'grid grid-cols-2 gap-4' : ''}>
               <CampoNumero
