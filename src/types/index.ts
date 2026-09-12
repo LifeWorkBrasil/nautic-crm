@@ -144,6 +144,7 @@ export interface ProdutoItemIncluso {
   quantidade: number | null
   estado: string | null
   marca: string | null
+  logo_url: string | null
 }
 
 export type CategoriaParceiro = 'marinheiro' | 'tecnico' | 'proprietario' | 'outro'
