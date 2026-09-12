@@ -123,6 +123,8 @@ export interface Produto {
   atributos: Record<string, string | number | boolean | null>
   status_estoque: 'disponivel' | 'esgotado' | 'oculto'
   data_reposicao: string | null
+  marca: string | null
+  fabricante_logo_url: string | null
 }
 
 export interface AvisoReposicao {
