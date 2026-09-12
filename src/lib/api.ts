@@ -2234,3 +2234,33 @@ export async function listAlertasManutencao(diasJanela = 30): Promise<AlertaManu
 
   return [...garantias, ...revisoes].sort((a, b) => a.data.localeCompare(b.data))
 }
+export async function uploadLogoFabricante(
+  empresaId: string,
+  itemId: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${empresaId}/item-${itemId}.${ext}`
+  const { error } = await supabase.storage
+    .from('fabricantes-logos')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('fabricantes-logos').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function uploadLogoFabricanteProduto(
+  empresaId: string,
+  produtoId: string,
+  file: File
+): Promise<string> {
+  const ext = file.name.split('.').pop()
+  const path = `${empresaId}/produto-${produtoId}.${ext}`
+  const { error } = await supabase.storage
+    .from('produtos-logos')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('produtos-logos').getPublicUrl(path)
+  return data.publicUrl
+}
+
