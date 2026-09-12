@@ -14,7 +14,7 @@ import {
   deleteManualProduto,
   uploadLogoFabricanteProduto,
   updateProduto,
-  getProduto,
+  listProdutos,
 } from '@/lib/api'
 import type { FotoProduto, VideoProduto, ManualProduto } from '@/types'
 import { mensagemErro } from '@/lib/errors'
@@ -67,7 +67,8 @@ export default function GaleriaProduto({
 
   async function carregarLogo() {
     try {
-      const produto = await getProduto(produtoId)
+      const todos = await listProdutos()
+      const produto = todos.find((p) => p.id === produtoId)
       setLogoUrl(produto?.fabricante_logo_url ?? null)
     } catch {
       // silencioso
