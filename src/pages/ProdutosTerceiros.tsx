@@ -40,6 +40,8 @@ type ProdutoTerceiroForm = {
   captador_nome: string
   parceiro_id: string
   atributos: Record<string, string | number | boolean | null>
+  marca: string | null
+  fabricante_logo_url: string | null
 }
 
 const FORM_VAZIO: ProdutoTerceiroForm = {
@@ -52,6 +54,8 @@ const FORM_VAZIO: ProdutoTerceiroForm = {
   captador_nome: '',
   parceiro_id: '',
   atributos: {},
+  marca: null,
+  fabricante_logo_url: null,
 }
 
 export default function ProdutosTerceiros() {
@@ -166,6 +170,8 @@ export default function ProdutosTerceiros() {
       captador_nome: produto.captador_nome ?? '',
       parceiro_id: produto.parceiro_id ?? '',
       atributos: produto.atributos ?? {},
+      marca: produto.marca ?? null,
+      fabricante_logo_url: produto.fabricante_logo_url ?? null,
     })
   }
 
