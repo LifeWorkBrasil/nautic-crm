@@ -453,22 +453,66 @@ export default function FichaProdutoPdf({
         </div>
       )}
 
-      {/* Itens inclusos */}
+      {/* Itens inclusos — com marca e logo do fabricante */}
       {itensInclusos.length > 0 && (
         <div style={S.section}>
           <div style={S.sectionLabel}>Itens inclusos</div>
-          <div style={S.itensGrid}>
-            {itensInclusos.map((item) => (
-              <div key={item.id} style={S.itemRow}>
-                <div style={S.itemDot} />
-                <span>
-                  {item.nome}
-                  {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
-                  {item.descricao ? <span style={{ color: '#6b7280' }}> — {item.descricao}</span> : null}
-                </span>
-              </div>
-            ))}
-          </div>
+
+          {/* Itens COM logo — exibidos em cards visuais */}
+          {itensInclusos.some((it) => it.logo_url) && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+              {itensInclusos.filter((it) => it.logo_url).map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    background: '#f9fafb',
+                    display: 'flex',
+                    flexDirection: 'column' as const,
+                    gap: 8,
+                  }}
+                >
+                  <img
+                    src={item.logo_url!}
+                    alt={item.marca ?? item.nome}
+                    crossOrigin="anonymous"
+                    style={{ height: 32, maxWidth: 90, objectFit: 'contain', objectPosition: 'left' }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', lineHeight: 1.3 }}>
+                      {item.nome}
+                      {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
+                    </div>
+                    {item.marca && (
+                      <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{item.marca}</div>
+                    )}
+                    {item.descricao && (
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{item.descricao}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Itens SEM logo — lista compacta */}
+          {itensInclusos.some((it) => !it.logo_url) && (
+            <div style={S.itensGrid}>
+              {itensInclusos.filter((it) => !it.logo_url).map((item) => (
+                <div key={item.id} style={S.itemRow}>
+                  <div style={S.itemDot} />
+                  <span>
+                    <span style={{ fontWeight: 600 }}>{item.nome}</span>
+                    {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
+                    {item.marca ? <span style={{ color: '#6b7280' }}> · {item.marca}</span> : null}
+                    {item.descricao ? <span style={{ color: '#9ca3af' }}> — {item.descricao}</span> : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
