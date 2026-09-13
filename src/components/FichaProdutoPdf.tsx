@@ -10,8 +10,6 @@ import type {
 
 export const MAX_FOTOS_FICHA_PDF = 20
 
-// ─── UTILITÁRIOS ──────────────────────────────────────────────────────────────
-
 function formatarValorCampo(
   campo: CampoPersonalizado,
   valor: string | number | boolean | null
@@ -22,293 +20,260 @@ function formatarValorCampo(
   return String(valor)
 }
 
-// ─── ESTILOS INLINE (compatível com html2pdf / print) ────────────────────────
+// ─── ESTILOS ─────────────────────────────────────────────────────────────────
+// Regra fundamental para html2pdf: NUNCA usar height em mm/% em imagens.
+// Usar width:100% + aspect-ratio para deixar o browser calcular a altura.
+// pageBreakAfter:'always' num div vazio força quebra de página confiável.
 
-const S = {
-  page: {
-    fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif",
-    background: '#ffffff',
+const PAGE_W = '190mm' // largura útil A4 com margens de 10mm
+
+const S: Record<string, React.CSSProperties> = {
+  root: {
+    fontFamily: "'Inter','Helvetica Neue',Arial,sans-serif",
+    background: '#fff',
     color: '#0f172a',
-    WebkitFontSmoothing: 'antialiased',
-  } as React.CSSProperties,
+    width: PAGE_W,
+    margin: '0 auto',
+  },
 
-  // Capa / foto hero — página inteira
-  heroWrap: {
+  // ── CAPA ──────────────────────────────────────────────────────────────────
+  capaWrap: {
     position: 'relative',
     width: '100%',
-    height: '230mm',
-    overflow: 'hidden',
     background: '#0f172a',
     pageBreakAfter: 'always',
-    display: 'flex',
-    flexDirection: 'column',
-  } as React.CSSProperties,
-
-  heroImg: {
-    width: '100%',
-    height: '170mm',
-    objectFit: 'cover',
+    overflow: 'hidden',
+  },
+  capaImg: {
     display: 'block',
-    flexShrink: 0,
-  } as React.CSSProperties,
-
-  heroOverlay: {
+    width: '100%',
+    // aspect-ratio mantém proporção real sem distorcer
+    maxHeight: '160mm',
+    objectFit: 'cover',
+    objectPosition: 'center center',
+  },
+  capaOverlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '170mm',
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.55) 100%)',
-  } as React.CSSProperties,
-
-  heroBadge: {
-    position: 'absolute',
-    top: 24,
-    left: 32,
-    background: 'rgba(255,255,255,0.18)',
-    backdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255,255,255,0.3)',
-    borderRadius: 20,
-    padding: '4px 14px',
-    fontSize: 10,
-    fontWeight: 700,
-    letterSpacing: '0.14em',
-    textTransform: 'uppercase',
-    color: '#fff',
-  } as React.CSSProperties,
-
-  heroLogo: {
-    position: 'absolute',
-    top: 18,
-    right: 28,
-    height: 36,
-    objectFit: 'contain',
-  } as React.CSSProperties,
-
+    top: 0, left: 0, right: 0,
+    maxHeight: '160mm',
+    background: 'linear-gradient(to bottom,rgba(0,0,0,.06) 0%,rgba(0,0,0,.55) 100%)',
+    pointerEvents: 'none',
+  },
   fabricanteLogo: {
     position: 'absolute',
-    top: 16,
-    left: 16,
-    height: 48,
-    maxWidth: 120,
+    top: 14,
+    left: 14,
+    maxHeight: 44,
+    maxWidth: 110,
     objectFit: 'contain',
-    objectPosition: 'left center',
-    background: 'rgba(255,255,255,0.92)',
-    borderRadius: 8,
-    padding: '6px 10px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-  } as React.CSSProperties,
-
-  heroContent: {
+    background: 'rgba(255,255,255,.92)',
+    borderRadius: 7,
+    padding: '5px 9px',
+    boxShadow: '0 2px 8px rgba(0,0,0,.2)',
+  },
+  empresaLogo: {
     position: 'absolute',
-    bottom: '62mm',
-    left: 32,
-    right: 32,
-  } as React.CSSProperties,
-
-  heroTitle: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: 36,
+    top: 14,
+    right: 14,
+    maxHeight: 34,
+    maxWidth: 100,
+    objectFit: 'contain',
+  },
+  capaTexto: {
+    position: 'absolute',
+    bottom: 72,
+    left: 28,
+    right: 28,
+  },
+  capaTitulo: {
+    fontFamily: "'Georgia','Times New Roman',serif",
+    fontSize: 32,
     fontWeight: 700,
-    color: '#ffffff',
-    lineHeight: 1.1,
+    color: '#fff',
     margin: 0,
-    textShadow: '0 2px 12px rgba(0,0,0,0.4)',
-  } as React.CSSProperties,
-
-  heroSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.78)',
-    marginTop: 8,
-    lineHeight: 1.5,
-  } as React.CSSProperties,
-
-  heroBottom: {
-    flex: 1,
+    lineHeight: 1.1,
+    textShadow: '0 2px 10px rgba(0,0,0,.4)',
+  },
+  capaSubtitulo: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,.75)',
+    marginTop: 6,
+  },
+  capaBar: {
     background: '#0f172a',
+    padding: '14px 28px',
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 32px',
-  } as React.CSSProperties,
-
-  heroPrice: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: 28,
+    alignItems: 'center',
+  },
+  capaPrecoLabel: {
+    fontSize: 9,
     fontWeight: 700,
-    color: '#ffffff',
-  } as React.CSSProperties,
-
-  heroContact: {
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase' as const,
+    color: 'rgba(255,255,255,.45)',
+    marginBottom: 3,
+  },
+  capaPreco: {
+    fontFamily: "'Georgia','Times New Roman',serif",
+    fontSize: 26,
+    fontWeight: 700,
+    color: '#fff',
+  },
+  capaContato: {
     textAlign: 'right' as const,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
+    color: 'rgba(255,255,255,.55)',
     lineHeight: 1.6,
-  } as React.CSSProperties,
+  },
 
-  // Seção de conteúdo
-  section: {
-    padding: '28px 32px',
+  // ── CONTEÚDO ──────────────────────────────────────────────────────────────
+  secao: {
+    padding: '20px 28px',
     pageBreakInside: 'avoid' as const,
-  } as React.CSSProperties,
-
-  sectionLabel: {
+  },
+  secaoLabel: {
     fontSize: 9,
     fontWeight: 700,
     letterSpacing: '0.18em',
     textTransform: 'uppercase' as const,
     color: '#6b7280',
-    marginBottom: 14,
-    paddingBottom: 8,
     borderBottom: '1px solid #e5e7eb',
-  } as React.CSSProperties,
-
-  // Grid de especificações
+    paddingBottom: 7,
+    marginBottom: 12,
+  },
   specGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: '1px',
     background: '#e5e7eb',
     border: '1px solid #e5e7eb',
-    borderRadius: 8,
+    borderRadius: 7,
     overflow: 'hidden',
-  } as React.CSSProperties,
-
+  },
   specCell: {
-    background: '#ffffff',
-    padding: '10px 14px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
-  } as React.CSSProperties,
-
+    background: '#fff',
+    padding: '9px 13px',
+  },
   specCellAlt: {
     background: '#f9fafb',
-    padding: '10px 14px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 2,
-  } as React.CSSProperties,
-
+    padding: '9px 13px',
+  },
   specLabel: {
     fontSize: 9,
     fontWeight: 600,
     letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
     color: '#9ca3af',
-  } as React.CSSProperties,
-
+    marginBottom: 2,
+  },
   specValue: {
     fontSize: 13,
     fontWeight: 600,
     color: '#0f172a',
-  } as React.CSSProperties,
-
-  // Descrição
+  },
   descricao: {
     fontSize: 13,
     lineHeight: 1.75,
     color: '#374151',
     textAlign: 'justify' as const,
     whiteSpace: 'pre-wrap' as const,
-  } as React.CSSProperties,
-
-  // Itens inclusos
+  },
   itensGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '6px 24px',
-  } as React.CSSProperties,
-
+    gap: '5px 20px',
+  },
   itemRow: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 7,
     fontSize: 12,
     color: '#374151',
     lineHeight: 1.4,
-  } as React.CSSProperties,
-
+  },
   itemDot: {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: '50%',
     background: '#0f172a',
     flexShrink: 0,
     marginTop: 5,
-  } as React.CSSProperties,
-
-  // Foto secundária — página inteira
-  fotoFullPage: {
-    width: '100%',
-    height: '260mm',
-    objectFit: 'contain',
-    objectPosition: 'center center',
-    display: 'block',
-    background: '#f8fafc',
-    pageBreakAfter: 'always',
-    pageBreakInside: 'avoid',
-  } as React.CSSProperties,
-
-  // Grid de fotos pequenas
-  fotosGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 8,
-    pageBreakInside: 'avoid' as const,
-  } as React.CSSProperties,
-
-  fotoGridItem: {
-    width: '100%',
-    aspectRatio: '4/3',
-    objectFit: 'contain' as const,
-    objectPosition: 'center center',
-    background: '#f8fafc',
-    borderRadius: 6,
-    display: 'block',
-  } as React.CSSProperties,
-
-  // Rodapé
-  rodape: {
-    borderTop: '1px solid #e5e7eb',
-    padding: '14px 32px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 10,
-    color: '#9ca3af',
-  } as React.CSSProperties,
-
-  // Caixa de preço no corpo
+  },
   precoBox: {
     background: '#0f172a',
-    borderRadius: 10,
-    padding: '20px 28px',
+    borderRadius: 9,
+    padding: '16px 24px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    margin: '0 32px 28px',
-  } as React.CSSProperties,
-
+    margin: '0 28px 24px',
+  },
   precoLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 700,
     letterSpacing: '0.14em',
     textTransform: 'uppercase' as const,
-    color: 'rgba(255,255,255,0.55)',
-    marginBottom: 4,
-  } as React.CSSProperties,
-
+    color: 'rgba(255,255,255,.45)',
+    marginBottom: 3,
+  },
   precoValor: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: 30,
+    fontFamily: "'Georgia','Times New Roman',serif",
+    fontSize: 26,
     fontWeight: 700,
-    color: '#ffffff',
-  } as React.CSSProperties,
+    color: '#fff',
+  },
+
+  // ── FOTOS ADICIONAIS ──────────────────────────────────────────────────────
+  // Cada foto individual ocupa página inteira — width 100%, sem height fixo
+  fotoFullWrap: {
+    width: '100%',
+    pageBreakAfter: 'always' as const,
+    pageBreakInside: 'avoid' as const,
+    overflow: 'hidden',
+    background: '#f8fafc',
+  },
+  fotoFull: {
+    display: 'block',
+    width: '100%',
+    objectFit: 'contain' as const,
+    objectPosition: 'center center',
+    maxHeight: '270mm',
+  },
+
+  // ── GALERIA (grid 2 col) ──────────────────────────────────────────────────
+  galeriaGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 8,
+  },
+  galeriaImg: {
+    display: 'block',
+    width: '100%',
+    objectFit: 'contain' as const,
+    objectPosition: 'center',
+    background: '#f8fafc',
+    borderRadius: 5,
+    aspectRatio: '4/3',
+  },
+
+  // ── RODAPÉ ────────────────────────────────────────────────────────────────
+  rodape: {
+    borderTop: '1px solid #e5e7eb',
+    padding: '12px 28px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: 9,
+    color: '#9ca3af',
+  },
+}
+
+// Div invisível para forçar quebra de página no html2pdf
+function PageBreak() {
+  return <div style={{ pageBreakAfter: 'always', height: 1, overflow: 'hidden' }} />
 }
 
 // ─── COMPONENTE PRINCIPAL ────────────────────────────────────────────────────
-
 export default function FichaProdutoPdf({
   produto,
   subcategoria,
@@ -333,275 +298,203 @@ export default function FichaProdutoPdf({
   const mostrarMotor = vendidoComoEsta && requerMotor
 
   const todasFotos = fotos.slice(0, MAX_FOTOS_FICHA_PDF)
-  const fotoCapa = todasFotos[0] ?? null
-  // Fotos 2 e 3 → full page; restantes → grid 2 colunas
-  const foto2 = todasFotos[1] ?? null
-  const foto3 = todasFotos[2] ?? null
-  const fotosGrid = todasFotos.slice(3)
+  const fotoCapa   = todasFotos[0] ?? null
+  const foto2      = todasFotos[1] ?? null
+  const foto3      = todasFotos[2] ?? null
+  const fotosGaleria = todasFotos.slice(3)
 
-  // Especificações técnicas
+  // Specs técnicas
   const specs: { label: string; value: string }[] = []
   if (produto.marca) specs.push({ label: 'Fabricante', value: produto.marca })
   if (produto.comprimento) specs.push({ label: 'Comprimento', value: `${produto.comprimento} m` })
   if (produto.ano) specs.push({ label: 'Ano', value: String(produto.ano) })
   if (mostrarMotor) {
-    if (produto.motorizacao_tipo) specs.push({ label: 'Motorização', value: produto.motorizacao_tipo })
-    if (produto.motorizacao_potencia) specs.push({ label: 'Potência', value: produto.motorizacao_potencia })
-    if (produto.motorizacao_marca_modelo) specs.push({ label: 'Motor', value: produto.motorizacao_marca_modelo })
-    if (produto.combustivel) specs.push({ label: 'Combustível', value: produto.combustivel })
-    if (produto.horas_uso) specs.push({ label: 'Horas de uso', value: produto.horas_uso })
-    if (produto.ultima_revisao) specs.push({ label: 'Última revisão', value: produto.ultima_revisao })
+    if (produto.motorizacao_tipo)         specs.push({ label: 'Motorização',  value: produto.motorizacao_tipo })
+    if (produto.motorizacao_potencia)     specs.push({ label: 'Potência',     value: produto.motorizacao_potencia })
+    if (produto.motorizacao_marca_modelo) specs.push({ label: 'Motor',        value: produto.motorizacao_marca_modelo })
+    if (produto.combustivel)              specs.push({ label: 'Combustível',  value: produto.combustivel })
+    if (produto.horas_uso)                specs.push({ label: 'Horas de uso', value: produto.horas_uso })
+    if (produto.ultima_revisao)           specs.push({ label: 'Últ. revisão', value: produto.ultima_revisao })
   }
-
-  // Campos personalizados
   const camposComValor = campos
-    .map((c) => ({
-      label: c.nome,
-      value: formatarValorCampo(c, produto.atributos?.[c.id] ?? null),
-    }))
+    .map((c) => ({ label: c.nome, value: formatarValorCampo(c, produto.atributos?.[c.id] ?? null) }))
     .filter((c): c is { label: string; value: string } => c.value !== null)
-
   const todasSpecs = [...specs, ...camposComValor]
 
   const subtitulo = mostrarMotor
-    ? [produto.motorizacao_tipo, produto.motorizacao_potencia, produto.combustivel]
-        .filter(Boolean)
-        .join(' · ')
+    ? [produto.motorizacao_tipo, produto.motorizacao_potencia, produto.combustivel].filter(Boolean).join(' · ')
     : subcategoria?.nome ?? ''
 
-  const contatoEmpresa = [empresa?.telefone, empresa?.email].filter(Boolean).join('  ·  ')
+  const contato = [empresa?.telefone, empresa?.email].filter(Boolean).join('  ·  ')
   const dataAtual = new Date().toLocaleDateString('pt-BR')
 
-  const wrapStyle: React.CSSProperties = {
-    ...S.page,
-    pageBreakAfter: pageBreakAfter ? 'always' : 'auto',
-  }
+  const temConteudo = todasSpecs.length > 0 || !!produto.descricao || itensInclusos.length > 0
 
   return (
-    <div style={wrapStyle}>
+    <div style={{ ...S.root, pageBreakAfter: pageBreakAfter ? 'always' : 'auto' }}>
 
-      {/* ── PÁGINA 1: CAPA COM FOTO HERO ─────────────────────────────────── */}
-      <div style={S.heroWrap}>
-        {/* Imagem hero */}
-        {fotoCapa ? (
-          <img
-            src={fotoCapa.url_imagem}
-            alt={produto.nome}
-            style={S.heroImg}
-            crossOrigin="anonymous"
-          />
-        ) : (
-          <div style={{ ...S.heroImg, background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 48 }}>⛵</span>
-          </div>
-        )}
+      {/* ── PÁGINA 1: CAPA ─────────────────────────────────────────────────── */}
+      <div style={S.capaWrap}>
+        {/* Imagem principal */}
+        {fotoCapa
+          ? <img src={fotoCapa.url_imagem} alt={produto.nome} style={S.capaImg} crossOrigin="anonymous" />
+          : <div style={{ ...S.capaImg, height: '120mm', background: '#1e293b' }} />
+        }
+        {/* Overlay */}
+        <div style={{ ...S.capaOverlay, bottom: 0 }} />
 
-        {/* Overlay gradiente */}
-        <div style={S.heroOverlay} />
-
-        {/* Logo do fabricante do produto — canto superior esquerdo */}
+        {/* Logo fabricante — canto sup esquerdo */}
         {produto.fabricante_logo_url && (
-          <img
-            src={produto.fabricante_logo_url}
-            alt={produto.marca ?? 'Fabricante'}
-            style={S.fabricanteLogo}
-            crossOrigin="anonymous"
-          />
+          <img src={produto.fabricante_logo_url} alt={produto.marca ?? ''} style={S.fabricanteLogo} crossOrigin="anonymous" />
         )}
-
-        {/* Logo da empresa */}
+        {/* Logo empresa — canto sup direito */}
         {empresa?.logo_url && (
-          <img
-            src={empresa.logo_url}
-            alt={empresa.nome_empresa ?? ''}
-            style={S.heroLogo}
-            crossOrigin="anonymous"
-          />
+          <img src={empresa.logo_url} alt={empresa.nome_empresa ?? ''} style={S.empresaLogo} crossOrigin="anonymous" />
         )}
-
-        {/* Nome e subtítulo sobre a foto */}
-        <div style={S.heroContent}>
-          <h1 style={S.heroTitle}>{produto.nome}</h1>
-          {subtitulo && <p style={S.heroSubtitle}>{subtitulo}</p>}
+        {/* Título sobre a foto */}
+        <div style={S.capaTexto}>
+          <h1 style={S.capaTitulo}>{produto.nome}</h1>
+          {subtitulo && <p style={S.capaSubtitulo}>{subtitulo}</p>}
         </div>
-
-        {/* Barra inferior escura com preço e contato */}
-        <div style={S.heroBottom}>
+        {/* Barra inferior escura */}
+        <div style={S.capaBar}>
           <div>
             {incluirPreco && (
               <>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>
-                  Valor
-                </div>
-                <div style={S.heroPrice}>{formatPreco(produto.preco_base)}</div>
+                <div style={S.capaPrecoLabel}>Valor</div>
+                <div style={S.capaPreco}>{formatPreco(produto.preco_base)}</div>
               </>
             )}
-            {!incluirPreco && empresa?.nome_empresa && (
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>{empresa.nome_empresa}</div>
-            )}
           </div>
-          <div style={S.heroContact}>
-            {empresa?.nome_empresa && (
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)', marginBottom: 3 }}>
-                {empresa.nome_empresa}
-              </div>
-            )}
-            {contatoEmpresa && <div>{contatoEmpresa}</div>}
-            <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.35)' }}>{dataAtual}</div>
+          <div style={S.capaContato}>
+            {empresa?.nome_empresa && <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 2 }}>{empresa.nome_empresa}</div>}
+            {contato && <div>{contato}</div>}
+            <div style={{ marginTop: 3, color: 'rgba(255,255,255,.3)' }}>{dataAtual}</div>
           </div>
         </div>
       </div>
 
-      {/* ── PÁGINA 2: SPECS + DESCRIÇÃO + ITENS ──────────────────────────── */}
-
-      {/* Especificações técnicas */}
-      {todasSpecs.length > 0 && (
-        <div style={S.section}>
-          <div style={S.sectionLabel}>Ficha técnica</div>
-          <div style={S.specGrid}>
-            {todasSpecs.map((s, i) => (
-              <div key={s.label} style={i % 2 === 0 ? S.specCell : S.specCellAlt}>
-                <span style={S.specLabel}>{s.label}</span>
-                <span style={S.specValue}>{s.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Descrição */}
-      {produto.descricao && (
-        <div style={S.section}>
-          <div style={S.sectionLabel}>Sobre o produto</div>
-          <p style={S.descricao}>{produto.descricao}</p>
-        </div>
-      )}
-
-      {/* Itens inclusos — com marca e logo do fabricante */}
-      {itensInclusos.length > 0 && (
-        <div style={S.section}>
-          <div style={S.sectionLabel}>Itens inclusos</div>
-
-          {/* Itens COM logo — exibidos em cards visuais */}
-          {itensInclusos.some((it) => it.logo_url) && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-              {itensInclusos.filter((it) => it.logo_url).map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                    background: '#f9fafb',
-                    display: 'flex',
-                    flexDirection: 'column' as const,
-                    gap: 8,
-                  }}
-                >
-                  <img
-                    src={item.logo_url!}
-                    alt={item.marca ?? item.nome}
-                    crossOrigin="anonymous"
-                    style={{ height: 32, maxWidth: 90, objectFit: 'contain', objectPosition: 'left' }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', lineHeight: 1.3 }}>
-                      {item.nome}
-                      {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
-                    </div>
-                    {item.marca && (
-                      <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{item.marca}</div>
-                    )}
-                    {item.descricao && (
-                      <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{item.descricao}</div>
-                    )}
+      {/* ── PÁGINA 2: FICHA TÉCNICA + DESCRIÇÃO + ITENS + PREÇO ────────────── */}
+      {temConteudo && (
+        <>
+          {/* Specs */}
+          {todasSpecs.length > 0 && (
+            <div style={S.secao}>
+              <div style={S.secaoLabel}>Ficha técnica</div>
+              <div style={S.specGrid}>
+                {todasSpecs.map((s, i) => (
+                  <div key={s.label} style={i % 2 === 0 ? S.specCell : S.specCellAlt}>
+                    <div style={S.specLabel}>{s.label}</div>
+                    <div style={S.specValue}>{s.value}</div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Itens SEM logo — lista compacta */}
-          {itensInclusos.some((it) => !it.logo_url) && (
-            <div style={S.itensGrid}>
-              {itensInclusos.filter((it) => !it.logo_url).map((item) => (
-                <div key={item.id} style={S.itemRow}>
-                  <div style={S.itemDot} />
-                  <span>
-                    <span style={{ fontWeight: 600 }}>{item.nome}</span>
-                    {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
-                    {item.marca ? <span style={{ color: '#6b7280' }}> · {item.marca}</span> : null}
-                    {item.descricao ? <span style={{ color: '#9ca3af' }}> — {item.descricao}</span> : null}
-                  </span>
-                </div>
-              ))}
+          {/* Descrição */}
+          {produto.descricao && (
+            <div style={S.secao}>
+              <div style={S.secaoLabel}>Sobre o produto</div>
+              <p style={S.descricao}>{produto.descricao}</p>
             </div>
           )}
-        </div>
+
+          {/* Itens inclusos */}
+          {itensInclusos.length > 0 && (
+            <div style={S.secao}>
+              <div style={S.secaoLabel}>Itens inclusos</div>
+
+              {/* Com logo — cards 3 colunas */}
+              {itensInclusos.some((it) => it.logo_url) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
+                  {itensInclusos.filter((it) => it.logo_url).map((item) => (
+                    <div key={item.id} style={{ border: '1px solid #e5e7eb', borderRadius: 7, padding: '10px 12px', background: '#f9fafb' }}>
+                      <img src={item.logo_url!} alt={item.marca ?? item.nome} crossOrigin="anonymous" style={{ height: 28, maxWidth: 80, objectFit: 'contain', objectPosition: 'left', marginBottom: 6 }} />
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a' }}>
+                        {item.nome}{item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
+                      </div>
+                      {item.marca && <div style={{ fontSize: 10, color: '#6b7280' }}>{item.marca}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Sem logo — lista */}
+              {itensInclusos.some((it) => !it.logo_url) && (
+                <div style={S.itensGrid}>
+                  {itensInclusos.filter((it) => !it.logo_url).map((item) => (
+                    <div key={item.id} style={S.itemRow}>
+                      <div style={S.itemDot} />
+                      <span>
+                        <span style={{ fontWeight: 600 }}>{item.nome}</span>
+                        {item.quantidade && item.quantidade > 1 ? ` (×${item.quantidade})` : ''}
+                        {item.marca ? <span style={{ color: '#6b7280' }}> · {item.marca}</span> : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Caixa de preço */}
+          {incluirPreco && (
+            <div style={S.precoBox}>
+              <div>
+                <div style={S.precoLabel}>Valor total</div>
+                <div style={S.precoValor}>{formatPreco(produto.preco_base)}</div>
+              </div>
+              {empresa?.nome_empresa && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.9)' }}>{empresa.nome_empresa}</div>
+                  {contato && <div style={{ fontSize: 10, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>{contato}</div>}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {/* Caixa de preço no corpo (quando há conteúdo na pág 2) */}
-      {incluirPreco && (todasSpecs.length > 0 || produto.descricao || itensInclusos.length > 0) && (
-        <div style={S.precoBox}>
-          <div>
-            <div style={S.precoLabel}>Valor total</div>
-            <div style={S.precoValor}>{formatPreco(produto.preco_base)}</div>
-          </div>
-          {empresa?.nome_empresa && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{empresa.nome_empresa}</div>
-              {contatoEmpresa && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{contatoEmpresa}</div>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── FOTOS ADICIONAIS — uma por página (full bleed) ────────────────── */}
+      {/* ── FOTOS 2 e 3 — cada uma em página separada ──────────────────────── */}
       {foto2 && (
-        <img
-          src={foto2.url_imagem}
-          alt=""
-          style={S.fotoFullPage}
-          crossOrigin="anonymous"
-        />
+        <>
+          <PageBreak />
+          <div style={S.fotoFullWrap}>
+            <img src={foto2.url_imagem} alt="" style={S.fotoFull} crossOrigin="anonymous" />
+          </div>
+        </>
       )}
       {foto3 && (
-        <img
-          src={foto3.url_imagem}
-          alt=""
-          style={S.fotoFullPage}
-          crossOrigin="anonymous"
-        />
-      )}
-
-      {/* ── GRID DE FOTOS RESTANTES (2 colunas) ─────────────────────────── */}
-      {fotosGrid.length > 0 && (
-        <div style={{ padding: '28px 32px', pageBreakBefore: 'always' }}>
-          <div style={S.sectionLabel}>Galeria de fotos</div>
-          <div style={S.fotosGrid}>
-            {fotosGrid.map((f) => (
-              <img
-                key={f.id}
-                src={f.url_imagem}
-                alt=""
-                style={S.fotoGridItem}
-                crossOrigin="anonymous"
-              />
-            ))}
+        <>
+          <PageBreak />
+          <div style={S.fotoFullWrap}>
+            <img src={foto3.url_imagem} alt="" style={S.fotoFull} crossOrigin="anonymous" />
           </div>
-        </div>
+        </>
       )}
 
-      {/* ── RODAPÉ ────────────────────────────────────────────────────────── */}
+      {/* ── GALERIA — grid 2 colunas, 2 fotos por linha ─────────────────────── */}
+      {fotosGaleria.length > 0 && (
+        <>
+          <PageBreak />
+          <div style={{ ...S.secao, paddingTop: 24 }}>
+            <div style={S.secaoLabel}>Galeria de fotos</div>
+            <div style={S.galeriaGrid}>
+              {fotosGaleria.map((f) => (
+                <img key={f.id} src={f.url_imagem} alt="" style={S.galeriaImg} crossOrigin="anonymous" />
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── RODAPÉ ───────────────────────────────────────────────────────────── */}
       <div style={S.rodape}>
-        <span>
-          {empresa?.nome_empresa ?? ''}{contatoEmpresa ? ` · ${contatoEmpresa}` : ''}
-        </span>
+        <span>{empresa?.nome_empresa ?? ''}{contato ? ` · ${contato}` : ''}</span>
         <span>Documento gerado em {dataAtual}</span>
       </div>
 
     </div>
   )
 }
-
-
