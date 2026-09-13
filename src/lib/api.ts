@@ -246,7 +246,7 @@ export async function setEmbarcacoesVinculadas(parceiroId: string, embarcacaoIds
 // ---------- Produtos ----------
 
 const PRODUTO_SELECT =
-  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, atributos, status_estoque, data_reposicao, fotos_produto(url_imagem, principal), parceiros(nome)'
+  'id, nome, descricao, preco_base, comprimento, subcategoria_id, grupo_id, origem_captacao, captador_nome, parceiro_id, ano, motorizacao_tipo, motorizacao_potencia, motorizacao_marca_modelo, combustivel, horas_uso, ultima_revisao, atributos, status_estoque, data_reposicao, marca, fabricante_logo_url, fotos_produto(url_imagem, principal), parceiros(nome)'
 
 function mapProdutoRow({
   fotos_produto,
@@ -2263,4 +2263,5 @@ export async function uploadLogoFabricanteProduto(
   const { data } = supabase.storage.from('produtos').getPublicUrl(path)
   return data.publicUrl
 }
+
 
