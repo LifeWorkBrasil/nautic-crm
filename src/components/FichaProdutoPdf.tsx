@@ -409,11 +409,6 @@ export default function FichaProdutoPdf({
           />
         )}
 
-        {/* Badge seminovo/novo */}
-        <div style={S.heroBadge}>
-          {vendidoComoEsta ? 'Seminovo' : 'Novo'}
-        </div>
-
         {/* Logo da empresa */}
         {empresa?.logo_url && (
           <img
@@ -608,4 +603,5 @@ export default function FichaProdutoPdf({
     </div>
   )
 }
+
 
