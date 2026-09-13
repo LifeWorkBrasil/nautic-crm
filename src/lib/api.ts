@@ -2243,7 +2243,7 @@ export async function uploadLogoFabricante(
   const path = `${empresaId}/item-${itemId}.${ext}`
   const { error } = await supabase.storage
     .from('fabricantes-logos')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, file, { upsert: true, cacheControl: '3600' })
   if (error) throw error
   const { data } = supabase.storage.from('fabricantes-logos').getPublicUrl(path)
   return data.publicUrl
@@ -2258,9 +2258,8 @@ export async function uploadLogoFabricanteProduto(
   const path = `${empresaId}/produto-${produtoId}.${ext}`
   const { error } = await supabase.storage
     .from('produtos-logos')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, file, { upsert: true, cacheControl: '3600' })
   if (error) throw error
   const { data } = supabase.storage.from('produtos-logos').getPublicUrl(path)
   return data.publicUrl
 }
-
