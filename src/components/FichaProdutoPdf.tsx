@@ -242,8 +242,10 @@ const S = {
   fotoFullPage: {
     width: '100%',
     height: '260mm',
-    objectFit: 'cover',
+    objectFit: 'contain',
+    objectPosition: 'center center',
     display: 'block',
+    background: '#f8fafc',
     pageBreakAfter: 'always',
     pageBreakInside: 'avoid',
   } as React.CSSProperties,
@@ -259,7 +261,9 @@ const S = {
   fotoGridItem: {
     width: '100%',
     aspectRatio: '4/3',
-    objectFit: 'cover' as const,
+    objectFit: 'contain' as const,
+    objectPosition: 'center center',
+    background: '#f8fafc',
     borderRadius: 6,
     display: 'block',
   } as React.CSSProperties,
