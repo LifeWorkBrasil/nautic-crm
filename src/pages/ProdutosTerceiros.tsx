@@ -127,6 +127,8 @@ export default function ProdutosTerceiros() {
         horas_uso: null,
         ultima_revisao: null,
         atributos: f.atributos,
+        marca: null,
+        fabricante_logo_url: null,
       }),
     update: (id, f) =>
       updateProduto(id, {
