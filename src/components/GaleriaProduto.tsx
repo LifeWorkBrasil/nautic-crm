@@ -167,13 +167,14 @@ export default function GaleriaProduto({
 
   async function handleUploadLogo(file: File) {
     setEnviandoLogo(true)
+    setErro(null)
     try {
       const url = await uploadLogoFabricanteProduto(empresaId, produtoId, file)
       await updateProduto(produtoId, { fabricante_logo_url: url })
       setLogoUrl(url)
       onAlterar()
     } catch (e) {
-      setErro(mensagemErro(e, 'Erro ao enviar logo do fabricante'))
+      setErro(mensagemErro(e, 'Erro ao enviar logo do fabricante: ' + String(e)))
     } finally {
       setEnviandoLogo(false)
     }
@@ -433,3 +434,4 @@ export default function GaleriaProduto({
     </Modal>
   )
 }
+
