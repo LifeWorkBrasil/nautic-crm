@@ -2240,12 +2240,12 @@ export async function uploadLogoFabricante(
   file: File
 ): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `${empresaId}/item-${itemId}.${ext}`
+  const path = `${empresaId}/logos-fabricantes/item-${itemId}.${ext}`
   const { error } = await supabase.storage
-    .from('fabricantes-logos')
+    .from('produtos')
     .upload(path, file, { upsert: true, cacheControl: '3600' })
   if (error) throw error
-  const { data } = supabase.storage.from('fabricantes-logos').getPublicUrl(path)
+  const { data } = supabase.storage.from('produtos').getPublicUrl(path)
   return data.publicUrl
 }
 
@@ -2255,11 +2255,12 @@ export async function uploadLogoFabricanteProduto(
   file: File
 ): Promise<string> {
   const ext = file.name.split('.').pop()
-  const path = `${empresaId}/produto-${produtoId}.${ext}`
+  const path = `${empresaId}/logos-produto/produto-${produtoId}.${ext}`
   const { error } = await supabase.storage
-    .from('produtos-logos')
+    .from('produtos')
     .upload(path, file, { upsert: true, cacheControl: '3600' })
   if (error) throw error
-  const { data } = supabase.storage.from('produtos-logos').getPublicUrl(path)
+  const { data } = supabase.storage.from('produtos').getPublicUrl(path)
   return data.publicUrl
 }
+
