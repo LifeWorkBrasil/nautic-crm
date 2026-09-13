@@ -85,6 +85,20 @@ const S = {
     objectFit: 'contain',
   } as React.CSSProperties,
 
+  fabricanteLogo: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    height: 48,
+    maxWidth: 120,
+    objectFit: 'contain',
+    objectPosition: 'left center',
+    background: 'rgba(255,255,255,0.92)',
+    borderRadius: 8,
+    padding: '6px 10px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+  } as React.CSSProperties,
+
   heroContent: {
     position: 'absolute',
     bottom: '62mm',
@@ -323,6 +337,7 @@ export default function FichaProdutoPdf({
 
   // Especificações técnicas
   const specs: { label: string; value: string }[] = []
+  if (produto.marca) specs.push({ label: 'Fabricante', value: produto.marca })
   if (produto.comprimento) specs.push({ label: 'Comprimento', value: `${produto.comprimento} m` })
   if (produto.ano) specs.push({ label: 'Ano', value: String(produto.ano) })
   if (mostrarMotor) {
@@ -379,6 +394,16 @@ export default function FichaProdutoPdf({
 
         {/* Overlay gradiente */}
         <div style={S.heroOverlay} />
+
+        {/* Logo do fabricante do produto — canto superior esquerdo */}
+        {produto.fabricante_logo_url && (
+          <img
+            src={produto.fabricante_logo_url}
+            alt={produto.marca ?? 'Fabricante'}
+            style={S.fabricanteLogo}
+            crossOrigin="anonymous"
+          />
+        )}
 
         {/* Badge seminovo/novo */}
         <div style={S.heroBadge}>
@@ -579,3 +604,4 @@ export default function FichaProdutoPdf({
     </div>
   )
 }
+
